@@ -1,11 +1,14 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default rule: Any authenticated user can perform any read or write action.
-    // This is permissive and ideal for development but should be made more
-    // secure before launching to production.
+    // WARNING: These rules are completely open and insecure. They are
+    // intended only for initial development to prevent permission errors.
+    // You MUST secure your database with proper rules before deploying
+    // to production.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }
