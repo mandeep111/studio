@@ -20,7 +20,9 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
   const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const isLoading = authLoading || formLoading || !userProfile;
+  const isFieldsDisabled = authLoading || formLoading;
+  const isSubmitDisabled = authLoading || formLoading || !userProfile;
+
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -74,7 +76,7 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
     <form onSubmit={handleSubmit} ref={formRef} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="title">Problem Title</Label>
-        <Input id="title" name="title" placeholder="e.g., Plastic waste in oceans" required disabled={isLoading} />
+        <Input id="title" name="title" placeholder="e.g., Plastic waste in oceans" required disabled={isFieldsDisabled} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
@@ -84,12 +86,12 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
           placeholder="Describe the problem in detail. What is the context? Who is affected? What are the current challenges?"
           className="min-h-[120px]"
           required
-          disabled={isLoading}
+          disabled={isFieldsDisabled}
         />
       </div>
       <div className="space-y-2">
         <Label htmlFor="tags">Tags</Label>
-        <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required disabled={isLoading}/>
+        <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required disabled={isFieldsDisabled}/>
         <p className="text-xs text-muted-foreground">
           Comma-separated list of tags.
         </p>
@@ -98,14 +100,14 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         <Label htmlFor="price">Price (Optional)</Label>
         <div className="relative">
              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isLoading}/>
+            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isFieldsDisabled}/>
         </div>
         <p className="text-xs text-muted-foreground">
           Set a price for your problem. Prices over $1,000 require admin approval.
         </p>
       </div>
       <div className="flex justify-end pt-4">
-        <SubmitButton pendingText="Submitting..." disabled={isLoading}>Submit Problem</SubmitButton>
+        <SubmitButton pendingText="Submitting..." disabled={isSubmitDisabled}>Submit Problem</SubmitButton>
       </div>
     </form>
   );

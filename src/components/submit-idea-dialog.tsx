@@ -32,7 +32,8 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
   const [open, setOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
 
-  const isLoading = authLoading || formLoading || !userProfile;
+  const isFieldsDisabled = authLoading || formLoading;
+  const isSubmitDisabled = authLoading || formLoading || !userProfile;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -98,22 +99,22 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
             <Label htmlFor="title" className="text-right">
               Title
             </Label>
-            <Input id="title" name="title" className="col-span-3" placeholder="A catchy title for your idea" required disabled={isLoading} />
+            <Input id="title" name="title" className="col-span-3" placeholder="A catchy title for your idea" required disabled={isFieldsDisabled} />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">
               Description
             </Label>
-            <Textarea id="description" name="description" className="col-span-3" placeholder="Describe your idea in detail" required disabled={isLoading} />
+            <Textarea id="description" name="description" className="col-span-3" placeholder="Describe your idea in detail" required disabled={isFieldsDisabled} />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="tags" className="text-right">
               Tags
             </Label>
-            <Input id="tags" name="tags" className="col-span-3" placeholder="e.g. AI, Health (comma-separated)" required disabled={isLoading} />
+            <Input id="tags" name="tags" className="col-span-3" placeholder="e.g. AI, Health (comma-separated)" required disabled={isFieldsDisabled} />
           </div>
           <DialogFooter>
-            <SubmitButton disabled={isLoading} pendingText="Submitting...">Submit Idea</SubmitButton>
+            <SubmitButton disabled={isSubmitDisabled} pendingText="Submitting...">Submit Idea</SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>
