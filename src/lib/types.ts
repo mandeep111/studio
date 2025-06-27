@@ -47,6 +47,8 @@ export interface Idea extends BaseItem {
   tags: string[];
 }
 
+export type UpvotedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' }) | (Idea & { type: 'idea' });
+
 export interface Deal {
     id: string;
     investor: CreatorReference;

@@ -1,18 +1,23 @@
 import Header from "@/components/header";
-import { getProblemsByUser, getSolutionsByUser, getUserProfile } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getUserProfile, getIdeasByUser, getUpvotedItems } from "@/lib/firestore";
 import { notFound } from "next/navigation";
 import UserProfileClient from "@/components/user-profile-client";
+import { auth } from "@/lib/firebase/config";
 
 export default async function UserProfilePage({ params }: { params: { id: string } }) {
   const userProfile = await getUserProfile(params.id);
+  const currentUser = auth.currentUser;
 
   if (!userProfile) {
     notFound();
   }
 
-  const [problems, solutions] = await Promise.all([
+  const [problems, solutions, ideas, upvotedItems] = await Promise.all([
     getProblemsByUser(params.id),
     getSolutionsByUser(params.id),
+    getIdeasByUser(params.id),
+    // Only fetch upvoted items if the logged-in user is viewing their own profile
+    currentUser?.uid === params.id ? getUpvotedItems(params.id) : Promise.resolve([]),
   ]);
 
   return (
@@ -24,6 +29,8 @@ export default async function UserProfilePage({ params }: { params: { id: string
                 userProfile={userProfile}
                 initialProblems={problems}
                 initialSolutions={solutions}
+                initialIdeas={ideas}
+                initialUpvotedItems={upvotedItems}
             />
         </div>
       </main>

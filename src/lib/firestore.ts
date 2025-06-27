@@ -88,6 +88,40 @@ export async function getSolutionsByUser(userId: string): Promise<Solution[]> {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
 }
 
+export async function getIdeasByUser(userId: string): Promise<Idea[]> {
+    const col = collection(db, "ideas");
+    const q = query(col, where("creator.userId", "==", userId), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
+}
+
+export async function getUpvotedItems(userId: string) {
+    const problemsQuery = query(collection(db, "problems"), where("upvotedBy", "array-contains", userId), orderBy("createdAt", "desc"), limit(10));
+    const solutionsQuery = query(collection(db, "solutions"), where("upvotedBy", "array-contains", userId), orderBy("createdAt", "desc"), limit(10));
+    const ideasQuery = query(collection(db, "ideas"), where("upvotedBy", "array-contains", userId), orderBy("createdAt", "desc"), limit(10));
+
+    const [problemsSnap, solutionsSnap, ideasSnap] = await Promise.all([
+        getDocs(problemsQuery),
+        getDocs(solutionsQuery),
+        getDocs(ideasQuery)
+    ]);
+
+    const problems = problemsSnap.docs.map(doc => ({ type: 'problem', ...doc.data() as Problem, id: doc.id }));
+    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution', ...doc.data() as Solution, id: doc.id }));
+    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea', ...doc.data() as Idea, id: doc.id }));
+
+    const allItems = [...problems, ...solutions, ...ideas];
+    
+    // Sort by creation date descending
+    allItems.sort((a, b) => {
+        const dateA = a.createdAt?.toDate() || new Date(0);
+        const dateB = b.createdAt?.toDate() || new Date(0);
+        return dateB.getTime() - dateA.getTime();
+    });
+
+    return allItems.slice(0, 20); // Limit total to 20
+}
+
 
 // --- Creation & Updates ---
 
@@ -226,22 +260,19 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas", 
         }
 
         const data = docSnap.data();
-        const upvotedBy = data.upvotedBy as string[];
-        creatorId = data.creator.userId; // Set for use outside transaction
-        isAlreadyUpvoted = upvotedBy.includes(userId); // Set for use outside transaction
+        creatorId = data.creator.userId;
+        isAlreadyUpvoted = (data.upvotedBy as string[]).includes(userId);
 
         const creatorRef = doc(db, "users", creatorId!);
-
-        const pointChange = (collectionName === 'problems' || collectionName === 'solutions')
-            ? (isAlreadyUpvoted ? -20 : 20)
-            : 0;
+        
+        // Award/remove 20 points for upvotes on problems and solutions. Ideas don't give points.
+        const pointChange = (collectionName === 'problems' || collectionName === 'solutions') ? (isAlreadyUpvoted ? -20 : 20) : 0;
         
         transaction.update(docRef, {
             upvotes: increment(isAlreadyUpvoted ? -1 : 1),
             upvotedBy: isAlreadyUpvoted ? arrayRemove(userId) : arrayUnion(userId)
         });
 
-        // Award/remove points to the content creator if it's not the creator upvoting their own content
         if (pointChange !== 0 && creatorId !== userId) {
             transaction.update(creatorRef, { points: increment(pointChange) });
         }
@@ -258,6 +289,7 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas", 
         );
     }
 }
+
 
 export async function upvoteProblem(docId: string, userId: string) {
     await toggleUpvote("problems", docId, userId);
