@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from 'date-fns';
+import { getDateFromTimestamp } from "@/lib/utils";
 
 interface NotificationsClientProps {
     initialNotifications: Notification[];
@@ -53,7 +54,7 @@ export default function NotificationsClient({ initialNotifications }: Notificati
                                 )}>
                                     <p>{notif.message}</p>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        {notif.createdAt ? formatDistanceToNow(notif.createdAt.toDate()) : ''} ago
+                                        {notif.createdAt ? formatDistanceToNow(getDateFromTimestamp(notif.createdAt)) : ''} ago
                                     </p>
                                 </div>
                             </Link>

@@ -16,6 +16,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { format } from 'date-fns';
+import { getDateFromTimestamp } from "@/lib/utils";
 
 type UnapprovedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' });
 type DeletableItem = { id: string; type: 'problem' | 'solution' | 'idea' | 'user' };
@@ -202,7 +203,7 @@ export default function AdminClient({
                                             </Link>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">{problem.creator.name}</TableCell>
-                                        <TableCell className="hidden lg:table-cell">{format(problem.createdAt.toDate(), 'PPP')}</TableCell>
+                                        <TableCell className="hidden lg:table-cell">{format(getDateFromTimestamp(problem.createdAt), 'PPP')}</TableCell>
                                         <TableCell className="text-right">
                                              <DeleteButton item={{type: 'problem', id: problem.id}} itemName={problem.title} onDelete={handleDelete} />
                                         </TableCell>
@@ -239,7 +240,7 @@ export default function AdminClient({
                                             </Link>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">{solution.creator.name}</TableCell>
-                                        <TableCell className="hidden lg:table-cell">{format(solution.createdAt.toDate(), 'PPP')}</TableCell>
+                                        <TableCell className="hidden lg:table-cell">{format(getDateFromTimestamp(solution.createdAt), 'PPP')}</TableCell>
                                         <TableCell className="text-right">
                                              <DeleteButton item={{type: 'solution', id: solution.id}} itemName={`Solution for "${solution.problemTitle}"`} onDelete={handleDelete} />
                                         </TableCell>
@@ -272,7 +273,7 @@ export default function AdminClient({
                                     <TableRow key={idea.id}>
                                         <TableCell className="font-medium">{idea.title}</TableCell>
                                         <TableCell className="hidden md:table-cell">{idea.creator.name}</TableCell>
-                                        <TableCell className="hidden lg:table-cell">{format(idea.createdAt.toDate(), 'PPP')}</TableCell>
+                                        <TableCell className="hidden lg:table-cell">{format(getDateFromTimestamp(idea.createdAt), 'PPP')}</TableCell>
                                         <TableCell className="text-right">
                                             <DeleteButton item={{type: 'idea', id: idea.id}} itemName={idea.title} onDelete={handleDelete} />
                                         </TableCell>

@@ -1,5 +1,8 @@
 import type { Timestamp } from "firebase/firestore";
 
+// Allow Timestamps to be serialized for client components
+type SerializableTimestamp = Timestamp | { seconds: number; nanoseconds: number; };
+
 export type UserRole = "User" | "Investor" | "Admin";
 
 export interface UserProfile {
@@ -26,7 +29,7 @@ export interface BaseItem {
   description: string;
   upvotes: number;
   upvotedBy: string[];
-  createdAt: Timestamp;
+  createdAt: SerializableTimestamp;
   price?: number;
   priceApproved: boolean;
 }
@@ -56,7 +59,7 @@ export interface Deal {
     solutionCreator: CreatorReference;
     problemId: string;
     problemTitle: string;
-    createdAt: Timestamp;
+    createdAt: SerializableTimestamp;
 }
 
 export interface Message {
@@ -64,7 +67,7 @@ export interface Message {
     dealId: string;
     sender: CreatorReference;
     text: string;
-    createdAt: Timestamp;
+    createdAt: SerializableTimestamp;
 }
 
 export interface Notification {
@@ -73,5 +76,5 @@ export interface Notification {
     message: string;
     link: string;
     read: boolean;
-    createdAt: Timestamp;
+    createdAt: SerializableTimestamp;
 }

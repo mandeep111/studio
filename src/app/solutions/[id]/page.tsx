@@ -10,12 +10,14 @@ export default async function SolutionPage({ params }: { params: { id: string } 
     notFound();
   }
 
+  const serializableSolution = JSON.parse(JSON.stringify(solution));
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
       <main className="flex-1 bg-background">
         <div className="container mx-auto px-4 py-8 md:px-6 lg:px-8">
-            <SolutionClientPage initialSolution={solution} />
+            <SolutionClientPage initialSolution={serializableSolution} />
         </div>
       </main>
     </div>

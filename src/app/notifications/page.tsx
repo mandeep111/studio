@@ -11,6 +11,7 @@ export default async function NotificationsPage() {
     }
 
     const notifications = await getNotifications(user.uid);
+    const serializableNotifications = JSON.parse(JSON.stringify(notifications));
 
     return (
         <div className="flex min-h-screen w-full flex-col">
@@ -28,7 +29,7 @@ export default async function NotificationsPage() {
                 </section>
                 <section className="w-full pb-12 md:pb-24">
                     <div className="container mx-auto px-4 md:px-6">
-                       <NotificationsClient initialNotifications={notifications} />
+                       <NotificationsClient initialNotifications={serializableNotifications} />
                     </div>
                 </section>
             </main>

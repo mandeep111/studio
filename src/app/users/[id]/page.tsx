@@ -20,6 +20,8 @@ export default async function UserProfilePage({ params }: { params: { id: string
     currentUser?.uid === params.id ? getUpvotedItems(params.id) : Promise.resolve([]),
   ]);
 
+  const serializable = (data: any) => JSON.parse(JSON.stringify(data));
+
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />
@@ -27,10 +29,10 @@ export default async function UserProfilePage({ params }: { params: { id: string
         <div className="container mx-auto px-4 py-8 md:px-6 lg:px-8">
             <UserProfileClient 
                 userProfile={userProfile}
-                initialProblems={problems}
-                initialSolutions={solutions}
-                initialIdeas={ideas}
-                initialUpvotedItems={upvotedItems}
+                initialProblems={serializable(problems)}
+                initialSolutions={serializable(solutions)}
+                initialIdeas={serializable(ideas)}
+                initialUpvotedItems={serializable(upvotedItems)}
             />
         </div>
       </main>

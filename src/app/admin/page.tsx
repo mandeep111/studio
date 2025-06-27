@@ -13,6 +13,8 @@ export default async function AdminPage() {
         getIdeas(),
     ]);
 
+    const serializable = (data: any) => JSON.parse(JSON.stringify(data));
+
     return (
          <div className="flex min-h-screen w-full flex-col">
             <Header />
@@ -32,11 +34,11 @@ export default async function AdminPage() {
                 <section className="w-full pb-12 md:pb-24 lg:pb-32">
                     <div className="container mx-auto px-4 md:px-6">
                         <AdminClient 
-                            initialItems={unapprovedItems}
-                            initialUsers={users}
-                            initialProblems={problems}
-                            initialSolutions={solutions}
-                            initialIdeas={ideas}
+                            initialItems={serializable(unapprovedItems)}
+                            initialUsers={serializable(users)}
+                            initialProblems={serializable(problems)}
+                            initialSolutions={serializable(solutions)}
+                            initialIdeas={serializable(ideas)}
                         />
                     </div>
                 </section>

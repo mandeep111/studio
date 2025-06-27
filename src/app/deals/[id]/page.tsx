@@ -16,6 +16,7 @@ export default async function DealPage({ params }: { params: { id: string } }) {
 
   const initialMessages = await getMessages(params.id);
 
+  const serializable = (data: any) => JSON.parse(JSON.stringify(data));
   const participants = [deal.investor, deal.problemCreator, deal.solutionCreator];
 
   return (
@@ -47,7 +48,7 @@ export default async function DealPage({ params }: { params: { id: string } }) {
                 </CardHeader>
             </Card>
             
-            <ChatInterface dealId={params.id} initialMessages={initialMessages} />
+            <ChatInterface dealId={params.id} initialMessages={serializable(initialMessages)} />
         </div>
       </main>
     </div>
