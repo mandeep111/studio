@@ -3,111 +3,110 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper Functions ---
-    function isAuthenticated() {
+
+    function isSignedIn() {
       return request.auth != null;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    function isInvestor() {
-      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Investor';
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- USERS ---
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function isRole(userId, role) {
+      // Check if user exists before trying to access data
+      return exists(/databases/$(database)/documents/users/$(userId)) && getUserData(userId).role == role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && isRole(request.auth.uid, 'Admin');
+    }
+    
+    function isUserOrAdmin() {
+      return isSignedIn() && (isRole(request.auth.uid, 'User') || isAdmin());
+    }
+
+    // --- Users Collection ---
+    // Users can be read by anyone.
+    // Updates are restricted to the owner, an admin, or for point changes during an upvote.
     match /users/{userId} {
-      // Anyone can read a user profile.
       allow read: if true;
-      
-      // A user can create their own profile record.
-      allow create: if isOwner(userId);
-
-      // Users can update specific fields on their own profile.
-      // Any authenticated user can update only the 'points' field (for upvotes).
-      // Admins can update anything.
-      allow update: if isAdmin() ||
-                      (isOwner(userId) &&
-                        request.resource.data.diff(resource.data).affectedKeys()
-                          .removeAll(['name', 'avatarUrl', 'expertise', 'role', 'isPremium']).size() == 0) ||
-                      (isAuthenticated() &&
-                        request.resource.data.diff(resource.data).affectedKeys()
-                          .hasOnly(['points']));
-      
-      // Only an admin can delete a user.
+      allow create: if isOwner(userId); // On signup
       allow delete: if isAdmin();
-    }
-    
-    // --- PROBLEMS, SOLUTIONS, IDEAS ---
-    match /{collectionName}/{itemId} where collectionName in ['problems', 'solutions', 'ideas'] {
-      // Anyone can read.
-      allow read: if true;
-
-      // Authenticated users can create.
-      allow create: if isAuthenticated();
-
-      // The creator or an admin can update any field.
-      // Any authenticated user can update only the 'upvotes' and 'upvotedBy' fields.
-      allow update: if isAuthenticated() && (
-                      (request.resource.data.diff(resource.data).affectedKeys()
-                        .removeAll(['upvotes', 'upvotedBy']).size() == 0) ||
-                      (isOwner(resource.data.creator.userId) || isAdmin())
-                    );
-                    
-      // Only the creator or an admin can delete.
-      allow delete: if isOwner(resource.data.creator.userId) || isAdmin();
-    }
-
-    // --- DEALS & MESSAGES ---
-    match /deals/{dealId} {
-        // Only participants or admins can read a deal.
-        function isParticipant() {
-          return resource.data.investor.userId == request.auth.uid ||
-                 resource.data.problemCreator.userId == request.auth.uid ||
-                 resource.data.solutionCreator.userId == request.auth.uid;
-        }
       
-        allow read: if isAdmin() || isParticipant();
-                      
-        // Only an investor or an admin can create a deal.
-        allow create: if isInvestor() || isAdmin();
+      allow update: if 
+        // Allow owner or admin to update any field
+        isOwner(userId) || isAdmin() ||
         
-        // Deals are immutable once created.
-        allow update: if false;
-        
-        // Only an admin can delete a deal.
-        allow delete: if isAdmin();
-        
-        match /messages/{messageId} {
-            // Only participants of the parent deal can read/write messages.
-            allow read, create: if isAdmin() || get(/databases/$(database)/documents/deals/$(dealId)).data.investor.userId == request.auth.uid ||
-                                 get(/databases/$(database)/documents/deals/$(dealId)).data.problemCreator.userId == request.auth.uid ||
-                                 get(/databases/$(database)/documents/deals/$(dealId)).data.solutionCreator.userId == request.auth.uid;
-
-            // Messages are immutable.
-            allow update, delete: if false;
-        }
+        // Allow any signed-in user to update another user's points during an upvote transaction.
+        // This is a crucial part of the cross-document write for upvoting.
+        (
+          isSignedIn() && 
+          request.auth.uid != userId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points'])
+        );
     }
     
-    // --- NOTIFICATIONS ---
+    // --- Problems, Solutions, Ideas Collections ---
+    match /{itemCollection}/{itemId} where itemCollection in ['problems', 'solutions', 'ideas'] {
+      allow read: if true;
+      allow create: if isUserOrAdmin();
+      allow delete: if isAdmin();
+      
+      // Allow updates for specific actions:
+      // 1. An Admin can update anything.
+      // 2. A signed-in user can perform a valid upvote action.
+      allow update: if 
+        isAdmin() ||
+        (
+          // Upvote action:
+          // User must be signed in, not be the creator, and only update upvote fields.
+          isSignedIn() && 
+          resource.data.creator.userId != request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']) &&
+          (request.resource.data.upvotes == resource.data.upvotes + 1 || request.resource.data.upvotes == resource.data.upvotes - 1)
+        );
+    }
+    
+    // --- Deals and Subcollections ---
+    match /deals/{dealId} {
+      // Only participants or admins can access a deal
+      function isParticipant() {
+        return request.auth.uid in [
+          resource.data.investor.userId, 
+          resource.data.problemCreator.userId, 
+          resource.data.solutionCreator.userId
+        ];
+      }
+    
+      allow read, write: if isSignedIn() && (isParticipant() || isAdmin());
+      allow create: if isSignedIn() && (isRole(request.auth.uid, 'Investor') || isAdmin()); // Only investors or admins can create deals
+      
+      // Messages can be created by participants. Other operations inherit from parent.
+      match /messages/{messageId} {
+        function isDealParticipant() {
+          let deal = get(/databases/$(database)/documents/deals/$(dealId)).data;
+          return request.auth.uid in [
+            deal.investor.userId, 
+            deal.problemCreator.userId, 
+            deal.solutionCreator.userId
+          ];
+        }
+        allow create: if isSignedIn() && isDealParticipant();
+      }
+    }
+    
+    // --- Notifications Collection ---
     match /notifications/{notificationId} {
-        // A user can read their own notifications or admin-wide notifications.
-        allow read: if (isOwner(resource.data.userId) || 
-                       (resource.data.userId == "admins" && isAdmin()));
-
-        // The app's server actions handle notification creation logic.
-        allow create: if isAuthenticated();
+      // Users can access their own notifications. Admins can access admin notifications.
+      allow read, update: if isSignedIn() && 
+        (resource.data.userId == request.auth.uid || (resource.data.userId == 'admins' && isAdmin()));
         
-        // A user can update their own notification (e.g., mark as read).
-        allow update: if isOwner(resource.data.userId);
-
-        allow delete: if isOwner(resource.data.userId) || isAdmin();
+      // Notifications are created by trusted server-side logic (Server Actions)
+      allow create: if isSignedIn();
     }
   }
 }
