@@ -2,20 +2,19 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getProblems, getSolutions, upvoteProblem, upvoteSolution, getIdeas, upvoteIdea } from "@/lib/firestore";
-import type { Problem, Solution, Idea, UserProfile } from "@/lib/types";
+import { getProblems, getSolutions, upvoteProblem, upvoteSolution } from "@/lib/firestore";
+import type { Problem, Solution, UserProfile } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
 import { Skeleton } from "./ui/skeleton";
 import ProblemCard from "@/components/problem-card";
 import SolutionCard from "@/components/solution-card";
 import AiMatchmaking from "@/components/ai-matchmaking";
 import RandomIdeas from "./random-ideas";
-import { SubmitIdeaDialog } from "./submit-idea-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { SubmitProblemDialog } from "./submit-problem-dialog";
+import { Button } from "./ui/button";
+import { PlusCircle } from "lucide-react";
 
 interface MainTabsProps {
     userProfile: UserProfile | null;
@@ -55,7 +54,6 @@ function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
     const { toast } = useToast();
-    const router = useRouter();
 
     const fetchProblems = useCallback(async () => {
         setLoading(true);
@@ -79,10 +77,6 @@ function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
         }
     };
 
-    const handleCreateProblem = () => {
-      router.push('/problems/new');
-    }
-
     if (loading) return <ContentSkeleton title="Open Problems" description="Browse challenges awaiting innovative solutions." />;
 
     return (
@@ -93,10 +87,7 @@ function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
                     <CardDescription>Browse challenges awaiting innovative solutions.</CardDescription>
                 </div>
                  {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-                    <Button onClick={handleCreateProblem}>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Submit a Problem
-                    </Button>
+                    <SubmitProblemDialog onProblemCreated={fetchProblems} />
                 )}
             </CardHeader>
             <CardContent>
@@ -111,10 +102,12 @@ function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
                         <h3 className="text-xl font-semibold">No Problems Yet</h3>
                         <p className="text-muted-foreground mt-2 mb-6">Be the first to submit a problem and get the ball rolling.</p>
                         {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-                            <Button onClick={() => router.push('/problems/new')}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Submit a Problem
-                            </Button>
+                           <SubmitProblemDialog onProblemCreated={fetchProblems}>
+                             <Button>
+                               <PlusCircle className="mr-2 h-4 w-4" />
+                               Submit a Problem
+                             </Button>
+                           </SubmitProblemDialog>
                         )}
                     </div>
                 )}

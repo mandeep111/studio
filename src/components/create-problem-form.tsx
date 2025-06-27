@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { createProblem } from '@/lib/firestore';
@@ -11,11 +10,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from './submit-button';
 import { DollarSign } from 'lucide-react';
 
-export default function CreateProblemForm() {
+interface CreateProblemFormProps {
+    onProblemCreated?: () => void;
+}
+
+export default function CreateProblemForm({ onProblemCreated }: CreateProblemFormProps) {
   const { userProfile } = useAuth();
   const { toast } = useToast();
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,7 +50,10 @@ export default function CreateProblemForm() {
     try {
         await createProblem(title, description, tags, price, userProfile);
         toast({ title: "Success!", description: "Problem submitted successfully. You've earned 50 points!" });
-        router.push('/');
+        formRef.current?.reset();
+        if (onProblemCreated) {
+            onProblemCreated();
+        }
     } catch (error) {
         console.error(error);
         toast({ variant: "destructive", title: "Error", description: "Failed to submit problem." });
@@ -57,10 +63,10 @@ export default function CreateProblemForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} ref={formRef} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="title">Problem Title</Label>
-        <Input id="title" name="title" placeholder="e.g., Plastic waste in oceans" required />
+        <Input id="title" name="title" placeholder="e.g., Plastic waste in oceans" required disabled={loading} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
@@ -70,11 +76,12 @@ export default function CreateProblemForm() {
           placeholder="Describe the problem in detail. What is the context? Who is affected? What are the current challenges?"
           className="min-h-[120px]"
           required
+          disabled={loading}
         />
       </div>
       <div className="space-y-2">
         <Label htmlFor="tags">Tags</Label>
-        <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required />
+        <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required disabled={loading}/>
         <p className="text-xs text-muted-foreground">
           Comma-separated list of tags.
         </p>
@@ -83,13 +90,13 @@ export default function CreateProblemForm() {
         <Label htmlFor="price">Price (Optional)</Label>
         <div className="relative">
              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" />
+            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={loading}/>
         </div>
         <p className="text-xs text-muted-foreground">
           Set a price for your problem. Prices over $1,000 require admin approval.
         </p>
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-4">
         <SubmitButton pendingText="Submitting..." disabled={loading}>Submit Problem</SubmitButton>
       </div>
     </form>

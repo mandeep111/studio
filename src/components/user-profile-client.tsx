@@ -5,15 +5,18 @@ import type { Problem, Solution, UserProfile } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { upvoteProblem, upvoteSolution } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, PlusCircle } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
 import { getProblemsByUser, getSolutionsByUser } from "@/lib/firestore";
 import { Button } from "./ui/button";
-import Link from "next/link";
+import { SubmitProblemDialog } from "./submit-problem-dialog";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase/config";
+import { useRouter } from "next/navigation";
 
 interface UserProfileClientProps {
     userProfile: UserProfile;
@@ -24,6 +27,7 @@ interface UserProfileClientProps {
 export default function UserProfileClient({ userProfile, initialProblems, initialSolutions }: UserProfileClientProps) {
     const { user } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
     const [problems, setProblems] = useState<Problem[]>(initialProblems);
     const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
     const isOwnProfile = user?.uid === userProfile.uid;
@@ -58,6 +62,11 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
+
+    const handleLogout = async () => {
+        await signOut(auth);
+        router.push('/login');
+    };
     
     return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -82,6 +91,14 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                             <Gem className="h-5 w-5 text-yellow-500" /> <span>{userProfile.points.toLocaleString()} Points</span>
                         </div>
                     </CardContent>
+                    {isOwnProfile && (
+                        <CardFooter>
+                            <Button variant="outline" className="w-full" onClick={handleLogout}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                Log Out
+                            </Button>
+                        </CardFooter>
+                    )}
                 </Card>
             </div>
 
@@ -102,12 +119,7 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Problems Submitted</CardTitle>
                                 {isOwnProfile && (userProfile?.role === 'User' || userProfile.role === 'Admin') && (
-                                    <Button asChild size="sm">
-                                        <Link href="/problems/new">
-                                            <PlusCircle className="mr-2 h-4 w-4" />
-                                            New Problem
-                                        </Link>
-                                    </Button>
+                                    <SubmitProblemDialog onProblemCreated={fetchData} />
                                 )}
                             </CardHeader>
                             <CardContent>

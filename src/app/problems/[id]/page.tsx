@@ -14,8 +14,8 @@ import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { SubmitProblemDialog } from "@/components/submit-problem-dialog";
 
 export default function ProblemPage({ params }: { params: { id: string } }) {
   const { user, userProfile } = useAuth();
@@ -94,12 +94,7 @@ export default function ProblemPage({ params }: { params: { id: string } }) {
               Back to all problems
             </Link>
             {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-              <Button asChild size="sm">
-                <Link href="/problems/new">
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Create New Problem
-                </Link>
-              </Button>
+              <SubmitProblemDialog />
             )}
           </div>
           <Card>
@@ -134,10 +129,14 @@ export default function ProblemPage({ params }: { params: { id: string } }) {
               </div>
             </CardContent>
             <CardFooter className="flex items-center gap-6 text-muted-foreground">
-              <Button variant={isProblemUpvoted ? "default" : "outline"} size="sm" onClick={handleProblemUpvote} disabled={!user}>
-                <ThumbsUp className="h-5 w-5 mr-2" />
+              <button
+                className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+                onClick={handleProblemUpvote}
+                disabled={!user || isProblemUpvoted}
+              >
+                <ThumbsUp className="h-5 w-5" />
                 <span>{problem.upvotes.toLocaleString()} Upvotes</span>
-              </Button>
+              </button>
               <div className="flex items-center gap-1">
                 <MessageSquare className="h-5 w-5" />
                 <span>{solutions.length} Solutions</span>
