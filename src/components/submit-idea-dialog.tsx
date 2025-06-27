@@ -26,14 +26,14 @@ interface SubmitIdeaDialogProps {
 }
 
 export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogProps) {
-  const { userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
 
   const isFieldsDisabled = authLoading || formLoading;
-  const isSubmitDisabled = authLoading || formLoading || !userProfile;
+  const isSubmitDisabled = authLoading || formLoading || !user;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

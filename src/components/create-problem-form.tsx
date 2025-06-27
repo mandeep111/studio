@@ -15,13 +15,13 @@ interface CreateProblemFormProps {
 }
 
 export default function CreateProblemForm({ onProblemCreated }: CreateProblemFormProps) {
-  const { userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   const isFieldsDisabled = authLoading || formLoading;
-  const isSubmitDisabled = authLoading || formLoading || !userProfile;
+  const isSubmitDisabled = authLoading || formLoading || !user;
 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

@@ -18,12 +18,13 @@ interface CreateSolutionFormProps {
 }
 
 export default function CreateSolutionForm({ problemId, problemTitle, onSolutionCreated }: CreateSolutionFormProps) {
-  const { userProfile, loading: authLoading } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const isLoading = authLoading || formLoading || !userProfile;
+  const isFieldsDisabled = authLoading || formLoading;
+  const isSubmitDisabled = authLoading || formLoading || !user;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -73,13 +74,13 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
             placeholder="Describe your innovative solution here..."
             className="min-h-[120px]"
             required
-            disabled={isLoading}
+            disabled={isFieldsDisabled}
           />
            <div className="space-y-2">
             <Label htmlFor="price-solution">Price (Optional)</Label>
              <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="price-solution" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isLoading} />
+                <Input id="price-solution" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isFieldsDisabled} />
             </div>
             <p className="text-xs text-muted-foreground">
             Set a price for your solution. Prices over $1,000 require admin approval.
@@ -87,7 +88,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
           </div>
         </CardContent>
         <CardFooter>
-          <SubmitButton className="ml-auto" disabled={isLoading} pendingText="Posting...">Post Solution</SubmitButton>
+          <SubmitButton className="ml-auto" disabled={isSubmitDisabled} pendingText="Posting...">Post Solution</SubmitButton>
         </CardFooter>
       </form>
     </Card>

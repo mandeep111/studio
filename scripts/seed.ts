@@ -59,6 +59,15 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 10,
     isPremium: false,
   },
+  {
+    email: 'problem.creator2@trisolve.com',
+    name: 'Penny Prospect',
+    role: 'User',
+    avatarUrl: `https://i.pravatar.cc/150?u=problem.creator2@trisolve.com`,
+    expertise: 'Urban Planning',
+    points: 15,
+    isPremium: false,
+  }
 ];
 
 async function seedUsers() {
@@ -97,6 +106,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
 
     const problemCreator = seededUsers.find(u => u.email === 'problem.creator@trisolve.com')!;
     const solutionCreator = seededUsers.find(u => u.email === 'solution.creator@trisolve.com')!;
+    const problemCreator2 = seededUsers.find(u => u.email === 'problem.creator2@trisolve.com')!;
 
     // Problem 1
     const problem1Ref = doc(problemsCollection);
@@ -142,6 +152,51 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
     });
 
+    // Problem 3 (from new user)
+    const problem3Ref = doc(problemsCollection);
+    batch.set(problem3Ref, {
+        title: 'Improving Community Recycling Programs',
+        description: 'Many local recycling programs suffer from low participation and high contamination rates. How can we use technology to educate residents and simplify the recycling process?',
+        tags: ['Community', 'Sustainability', 'Education', 'Green Tech'],
+        creator: createCreatorRef(problemCreator2),
+        upvotes: 5,
+        upvotedBy: [],
+        solutionsCount: 1,
+        createdAt: Timestamp.now(),
+        price: 250,
+        priceApproved: true,
+    });
+
+    // Solution for Problem 3 (from original solution creator)
+    const solution3Ref = doc(solutionsCollection);
+    batch.set(solution3Ref, {
+        problemId: problem3Ref.id,
+        problemTitle: 'Improving Community Recycling Programs',
+        description: 'A mobile app that uses image recognition to identify recyclable materials, provides clear instructions, and tracks a user\'s recycling impact with a points-based reward system.',
+        creator: createCreatorRef(solutionCreator),
+        upvotes: 10,
+        upvotedBy: [],
+        createdAt: Timestamp.now(),
+        price: 25000,
+        priceApproved: false, // requires approval
+    });
+
+    // Problem 4 (no solution)
+    const problem4Ref = doc(problemsCollection);
+    batch.set(problem4Ref, {
+        title: 'Remote Team Collaboration Burnout',
+        description: 'With the rise of remote work, teams are experiencing increased burnout due to constant virtual meetings and a lack of clear work-life boundaries. We need tools and strategies to foster healthier remote collaboration.',
+        tags: ['HR Tech', 'Wellness', 'Remote Work', 'Productivity'],
+        creator: createCreatorRef(problemCreator),
+        upvotes: 12,
+        upvotedBy: [],
+        solutionsCount: 0,
+        createdAt: Timestamp.now(),
+        price: null,
+        priceApproved: true,
+    });
+
+
     await batch.commit();
     console.log('Problems and solutions seeded successfully!');
 }
@@ -173,6 +228,18 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         tags: ['Art', 'AR', 'Tourism', 'Mobile App'],
         creator: createCreatorRef(ideaCreator),
         upvotes: 5,
+        upvotedBy: [],
+        createdAt: Timestamp.now(),
+    });
+
+    // Idea 3
+    const idea3Ref = doc(ideasCollection);
+    batch.set(idea3Ref, {
+        title: 'Subscription Box for Local Artisans',
+        description: 'A curated subscription box service that features unique, handcrafted goods from local artisans in a different city each month, helping small businesses reach a wider audience.',
+        tags: ['E-commerce', 'Small Business', 'Artisan', 'Subscription'],
+        creator: createCreatorRef(ideaCreator),
+        upvotes: 9,
         upvotedBy: [],
         createdAt: Timestamp.now(),
     });
