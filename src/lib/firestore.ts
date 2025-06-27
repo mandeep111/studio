@@ -16,6 +16,8 @@ import {
   updateDoc,
   where,
   writeBatch,
+  type DocumentSnapshot,
+  startAfter,
 } from "firebase/firestore";
 import { db } from "./firebase/config";
 import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification } from "./types";
@@ -128,6 +130,56 @@ export async function getUpvotedItems(userId: string) {
     });
 
     return allItems.slice(0, 20); // Limit total to 20
+}
+
+const PAGE_SIZE = 9;
+
+export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upvotes', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Problem[], lastVisible: DocumentSnapshot | null }> {
+  const col = collection(db, "problems");
+  const { sortBy, lastVisible } = options;
+
+  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+  if(lastVisible) {
+    qConstraints.push(startAfter(lastVisible));
+  }
+  
+  const q = query(col, ...qConstraints);
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
+  const newLastVisible = snapshot.docs.length === PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
+  return { data, lastVisible: newLastVisible };
+}
+
+export async function getPaginatedSolutions(options: { sortBy: 'createdAt' | 'upvotes', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Solution[], lastVisible: DocumentSnapshot | null }> {
+  const col = collection(db, "solutions");
+  const { sortBy, lastVisible } = options;
+
+  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+  if(lastVisible) {
+    qConstraints.push(startAfter(lastVisible));
+  }
+  
+  const q = query(col, ...qConstraints);
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
+  const newLastVisible = snapshot.docs.length === PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
+  return { data, lastVisible: newLastVisible };
+}
+
+export async function getPaginatedIdeas(options: { sortBy: 'createdAt' | 'upvotes', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Idea[], lastVisible: DocumentSnapshot | null }> {
+  const col = collection(db, "ideas");
+  const { sortBy, lastVisible } = options;
+
+  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+  if(lastVisible) {
+    qConstraints.push(startAfter(lastVisible));
+  }
+  
+  const q = query(col, ...qConstraints);
+  const snapshot = await getDocs(q);
+  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
+  const newLastVisible = snapshot.docs.length === PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
+  return { data, lastVisible: newLastVisible };
 }
 
 
