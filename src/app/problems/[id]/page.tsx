@@ -9,7 +9,7 @@ import Header from "@/components/header";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, PlusCircle } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
@@ -88,10 +88,20 @@ export default function ProblemPage({ params }: { params: { id: string } }) {
       <Header />
       <main className="flex-1 bg-background">
         <div className="container mx-auto px-4 py-8 md:px-6 lg:px-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            Back to all problems
-          </Link>
+          <div className="flex justify-between items-center mb-4">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              Back to all problems
+            </Link>
+            {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
+              <Button asChild size="sm">
+                <Link href="/problems/new">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Create New Problem
+                </Link>
+              </Button>
+            )}
+          </div>
           <Card>
             <CardHeader>
               <div className="flex items-start gap-4">

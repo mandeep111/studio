@@ -7,11 +7,13 @@ import { upvoteProblem, upvoteSolution } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
 import { getProblemsByUser, getSolutionsByUser } from "@/lib/firestore";
+import { Button } from "./ui/button";
+import Link from "next/link";
 
 interface UserProfileClientProps {
     userProfile: UserProfile;
@@ -24,6 +26,7 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
     const { toast } = useToast();
     const [problems, setProblems] = useState<Problem[]>(initialProblems);
     const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
+    const isOwnProfile = user?.uid === userProfile.uid;
 
     const fetchData = useCallback(async () => {
         const [problemsData, solutionsData] = await Promise.all([
@@ -96,8 +99,16 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                     </TabsList>
                     <TabsContent value="problems" className="mt-4">
                         <Card>
-                             <CardHeader>
+                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Problems Submitted</CardTitle>
+                                {isOwnProfile && (userProfile?.role === 'User' || userProfile.role === 'Admin') && (
+                                    <Button asChild size="sm">
+                                        <Link href="/problems/new">
+                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                            New Problem
+                                        </Link>
+                                    </Button>
+                                )}
                             </CardHeader>
                             <CardContent>
                                 {problems.length > 0 ? (
