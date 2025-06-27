@@ -2,93 +2,132 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
     // --- Helper Functions ---
-    function isSignedIn() { return request.auth != null; }
-    function isOwner(userId) { return request.auth.uid == userId; }
-    function getUserRole() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
-    function isRole(role) { return isSignedIn() && getUserRole() == role; }
-    function isAdmin() { return isSignedIn() && getUserRole() == 'Admin'; }
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function requestingUser() {
+      // Caching the result of get() is important for performance.
+      // Firestore caches gets within a single request evaluation.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && requestingUser().role == 'Admin';
+    }
+    
     // --- Collection Rules ---
+
+    // USERS Collection
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isOwner(userId);
-
-      function isBecomingInvestor() {
-        return resource.data.role != 'Investor' && request.resource.data.role == 'Investor';
-      }
-
-      function isValidSelfUpdate() {
-        return request.resource.data.points == resource.data.points &&
-               (request.resource.data.role == resource.data.role || isBecomingInvestor());
+      
+      // Defines logic for a user updating their own profile.
+      function isEditingSelf() {
+        let incoming = request.resource.data;
+        let existing = resource.data;
+        return isOwner(userId) &&
+               // Users cannot change their own points.
+               incoming.points == existing.points &&
+               // Users cannot change their own role, unless upgrading to an Investor.
+               (
+                 incoming.role == existing.role ||
+                 (existing.role == 'User' && incoming.role == 'Investor')
+               );
       }
       
-      function isValidPointsUpdate() {
-          let pointsDiff = request.resource.data.points - resource.data.points;
-          return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']) &&
-                 (pointsDiff == 50 || pointsDiff == 20 || pointsDiff == -20);
+      // Defines logic for the point-update part of an upvote transaction.
+      function isPointUpdateByOther() {
+        return isSignedIn() &&
+               !isOwner(userId) &&
+               // Ensures only the 'points' field is being changed.
+               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']) &&
+               // Ensures the point change is a valid upvote/downvote amount.
+               (
+                 request.resource.data.points == resource.data.points + 20 ||
+                 request.resource.data.points == resource.data.points - 20
+               );
       }
 
-      allow update: if (isOwner(userId) && isValidSelfUpdate()) || 
-                       (!isOwner(userId) && isValidPointsUpdate()) ||
-                       isAdmin();
+      allow update: if isEditingSelf() || isPointUpdateByOther();
     }
 
-    match /problems/{problemId} {
-      allow read: if isSignedIn();
-      allow create: if (isRole('User') || isAdmin()) && isOwner(request.resource.data.creator.userId);
+    // --- Content Collections (Problems, Solutions, Ideas) ---
 
-      function isUpvote() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']); }
-      function isPriceApproval() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priceApproved']); }
-      function isSolutionsCountUpdate() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solutionsCount']) &&
-               request.resource.data.solutionsCount == resource.data.solutionsCount + 1;
-      }
-      
-      allow update: if (isSignedIn() && (isUpvote() || isSolutionsCountUpdate())) || (isAdmin() && isPriceApproval());
+    // Checks if the user has a role that can create content.
+    function canCreateContent() {
+      let user = requestingUser();
+      return isSignedIn() && (user.role == 'User' || user.role == 'Admin');
     }
 
-    match /solutions/{solutionId} {
-        allow read: if isSignedIn();
-        allow create: if (isRole('User') || isAdmin()) && isOwner(request.resource.data.creator.userId);
+    // Checks if a user is performing a valid upvote.
+    function isUpvoting() {
+      return isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']);
+    }
 
-        function isUpvote() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']); }
-        function isPriceApproval() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priceApproved']); }
-
-        allow update: if (isSignedIn() && isUpvote()) || (isAdmin() && isPriceApproval());
+    // Checks if an admin is performing a valid price approval.
+    function isApprovingPrice() {
+      // Ensure the relevant fields exist before checking them.
+      return 'priceApproved' in request.resource.data &&
+             'priceApproved' in resource.data &&
+             isAdmin() &&
+             request.resource.data.priceApproved == true &&
+             resource.data.priceApproved == false;
     }
     
+    // Rules for Problems and Solutions, which can have prices approved.
+    match /{collectionName}/{docId} where collectionName in ['problems', 'solutions'] {
+        allow read: if true;
+        allow create: if canCreateContent();
+        allow update: if isUpvoting() || isApprovingPrice();
+    }
+    
+    // Rules for Ideas, which cannot have prices approved.
     match /ideas/{ideaId} {
-        allow read: if isSignedIn();
-        allow create: if (isRole('User') || isAdmin()) && isOwner(request.resource.data.creator.userId);
-        function isUpvote() { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']); }
-        allow update: if isSignedIn() && isUpvote();
+        allow read: if true;
+        allow create: if canCreateContent();
+        allow update: if isUpvoting();
     }
-    
+
+    // DEALS & MESSAGES Collections
     match /deals/{dealId} {
-        function isParticipant() {
-            return request.auth.uid in [ resource.data.investor.userId, resource.data.problemCreator.userId, resource.data.solutionCreator.userId ];
-        }
-        allow read: if isSignedIn() && (isParticipant() || isAdmin());
-        allow create: if isRole('Investor') && isOwner(request.resource.data.investor.userId);
-    }
-    
-    match /deals/{dealId}/messages/{messageId} {
+      // Checks if the requesting user is a participant in the deal.
+      function isParticipant(dealData) {
+        return request.auth.uid in [dealData.investor.userId, dealData.problemCreator.userId, dealData.solutionCreator.userId];
+      }
+
+      allow read: if isSignedIn() && isParticipant(resource.data);
+      // Use request.resource.data for create operations as resource.data doesn't exist yet.
+      allow create: if isSignedIn() && isParticipant(request.resource.data);
+      
+      // MESSAGES Subcollection
+      match /messages/{messageId} {
+        // Re-check participant status on the parent deal document.
         function isDealParticipant() {
             let deal = get(/databases/$(database)/documents/deals/$(dealId)).data;
-            return request.auth.uid in [ deal.investor.userId, deal.problemCreator.userId, deal.solutionCreator.userId ];
+            return request.auth.uid in [deal.investor.userId, deal.problemCreator.userId, deal.solutionCreator.userId];
         }
-        allow read, list: if isSignedIn() && (isDealParticipant() || isAdmin());
-        allow create: if isSignedIn() && isDealParticipant() && isOwner(request.resource.data.sender.userId);
+        allow read, write: if isSignedIn() && isDealParticipant();
+      }
     }
     
+    // NOTIFICATIONS Collection
     match /notifications/{notificationId} {
-      function isRecipient() {
-        return resource.data.userId == request.auth.uid || (resource.data.userId == 'admins' && isAdmin());
-      }
-      allow read, list: if isSignedIn() && isRecipient();
-      allow create: if isSignedIn(); // Trusted Server Actions
+      // Users can read their own notifications, or admins can read admin-wide notifications.
+      allow read: if isSignedIn() &&
+                   (
+                     resource.data.userId == request.auth.uid ||
+                     (resource.data.userId == 'admins' && isAdmin())
+                   );
+      // All writes are handled server-side for security.
+      allow write: if false;
     }
   }
 }
