@@ -3,107 +3,103 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // --- Helper Functions ---
-    function isAuth() {
+    function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
-    }
-    
-    function isRole(role) {
-      // This function uses get() and CANNOT be used in rules for transactional writes.
-      return isAuth() && getUserData(request.auth.uid).role == role;
-    }
-    
+    // This function uses get() and MUST NOT be used in rules evaluated during a transaction.
     function isAdmin() {
-      // This function uses get() and CANNOT be used in rules for transactional writes.
-      return isRole('Admin');
+        return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
-    // --- Collections ---
-
-    // Users
+    // --- User Profile Rules ---
     match /users/{userId} {
-      allow read: if isAuth();
+      allow read: if isSignedIn();
       allow create: if isOwner(userId);
-      
-      // This rule is for non-admin updates. It avoids using get() so it can be used in transactions.
+
+      // This rule is critical for upvote transactions.
+      // It allows a user's points to be updated without using get() calls.
+      // It also allows a user to upgrade their own role to 'Investor'.
       allow update: if
-        // Case 1: Owner updates their own profile details
-        (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'avatarUrl', 'expertise'])) ||
-        // Case 2: A user becomes an investor via the server action
-        (isOwner(userId) && request.resource.data.role == 'Investor' && resource.data.role == 'User') ||
-        // Case 3: Points are updated via an upvote transaction by another user.
-        // This is the key rule that allows the upvote transaction to succeed.
-        (!isOwner(userId) && isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']));
-        
-      // This rule is ONLY for admin updates. It's separate because it uses get().
-      allow update: if isAdmin();
-      
-      // Only Admins can delete users.
+        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points'])) ||
+        (isOwner(userId) && request.resource.data.role == 'Investor' && resource.data.role == 'User');
+
+      // Deletion is an admin-only action, which is not a transaction, so isAdmin() is safe.
       allow delete: if isAdmin();
     }
 
-    // Problems, Solutions, Ideas
-    match /{collection=problems,solutions,ideas}/{docId} {
+    // --- Content Creation Rule ---
+    function canCreateContent() {
+      // This is not a transaction, so get() is safe here.
+      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return isSignedIn() && (userRole == 'User' || userRole == 'Admin');
+    }
+    
+    // --- Content Update Rule ---
+    function isUpvoting() {
+        // Ensures only upvote-related fields are changed in an update.
+        return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']);
+    }
+
+    // --- Problems Collection ---
+    match /problems/{problemId} {
       allow read: if true;
-
-      // Anyone authenticated can create items.
-      allow create: if isAuth();
-
-      // Updates can be for upvoting or for admin price approval.
-      // This rule works because the upvote transaction only affects 'upvotes' and 'upvotedBy',
-      // so the isAdmin() part of the rule (which uses get()) is not evaluated during the transaction.
-      allow update: if isAuth() && 
-                      (request.resource.data.diff(resource.data).affectedKeys().hasAll(['upvotes', 'upvotedBy']) ||
-                       (isAdmin() && request.resource.data.priceApproved == true && resource.data.priceApproved == false)
-                      );
-                      
-      // Only admins can delete items.
+      allow create: if canCreateContent();
+      // Allow updates for upvoting (no get()) OR for admins approving a price (uses get()).
+      allow update: if (isSignedIn() && isUpvoting()) || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priceApproved']));
       allow delete: if isAdmin();
     }
-    
-    // Deals & Messages
-    match /deals/{dealId} {
-      function isParticipant() {
-        return request.auth.uid in [
-          resource.data.investor.userId, 
-          resource.data.problemCreator.userId, 
-          resource.data.solutionCreator.userId
-        ];
-      }
-      
-      // Only an investor can create a deal. Uses get() - cannot be in a transaction.
-      allow create: if isAuth() && isRole('Investor');
-      
-      // Only participants can read a deal.
-      allow read: if isAuth() && isParticipant();
-      
-      match /messages/{messageId} {
-        // Only participants can read or create messages.
-        // Uses get() so this cannot be part of a larger transaction.
-        allow read, create: if isAuth() && (
-                                  request.auth.uid == get(/databases/$(database)/documents/deals/$(dealId)).data.investor.userId ||
-                                  request.auth.uid == get(/databases/$(database)/documents/deals/$(dealId)).data.problemCreator.userId ||
-                                  request.auth.uid == get(/databases/$(database)/documents/deals/$(dealId)).data.solutionCreator.userId
-                                );
-      }
+
+    // --- Solutions Collection ---
+    match /solutions/{solutionId} {
+      allow read: if true;
+      allow create: if canCreateContent();
+      allow update: if (isSignedIn() && isUpvoting()) || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priceApproved']));
+      allow delete: if isAdmin();
     }
-    
-    // Notifications
+
+    // --- Ideas Collection ---
+    match /ideas/{ideaId} {
+      allow read: if true;
+      allow create: if canCreateContent();
+      // Ideas have no price, so admins have no special update path beyond deletion.
+      allow update: if isSignedIn() && isUpvoting();
+      allow delete: if isAdmin();
+    }
+
+    // --- Deals and Messages ---
+    function isParticipant(dealId) {
+        let deal = get(/databases/$(database)/documents/deals/$(dealId)).data;
+        return request.auth.uid in [deal.investor.userId, deal.problemCreator.userId, deal.solutionCreator.userId];
+    }
+
+    match /deals/{dealId} {
+      // Only participants or admins can read/create deals.
+      allow read, create: if isParticipant(dealId) || isAdmin();
+      // Only admins can modify/delete deals after creation.
+      allow update, delete: if isAdmin();
+    }
+
+    match /deals/{dealId}/messages/{messageId} {
+        // Only participants or admins can read messages.
+        allow read: if isParticipant(dealId) || isAdmin();
+        // A user must be a participant and the sender to create a message.
+        allow create: if isParticipant(dealId) && request.resource.data.sender.userId == request.auth.uid;
+        allow update, delete: if isAdmin();
+    }
+
+    // --- Notifications ---
     match /notifications/{notificationId} {
-      // Notifications are created server-side, so no client creation allowed.
-      allow create: if false; 
-      
-      // Can be read/updated by the target user, or by an admin if it's an admin notification.
-      allow read, update, delete: if isOwner(resource.data.userId) || (isAdmin() && resource.data.userId == 'admins');
+      // Admins can read notifications sent to the 'admins' group. Users can read their own.
+      allow read: if (resource.data.userId == 'admins' && isAdmin()) || (resource.data.userId == request.auth.uid);
+      // Writes are server-side only.
+      allow write: if false;
     }
   }
 }
