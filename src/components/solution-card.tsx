@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { ThumbsUp } from "lucide-react";
+import Link from "next/link";
 
 interface SolutionCardProps {
   solution: Solution;
@@ -29,7 +30,9 @@ export default function SolutionCard({ solution }: SolutionCardProps) {
           <ThumbsUp className="h-4 w-4" />
           <span>{solution.upvotes.toLocaleString()}</span>
         </div>
-        <Button size="sm">View Details</Button>
+        <Link href={`/solutions/${solution.id}`} passHref>
+            <Button size="sm">View Details</Button>
+        </Link>
       </CardFooter>
     </Card>
   );

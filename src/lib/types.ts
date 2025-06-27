@@ -26,3 +26,12 @@ export type Solution = {
   description: string;
   upvotes: number;
 };
+
+export type Idea = {
+  id: string;
+  creator: Creator;
+  title: string;
+  description: string;
+  tags: string[];
+  upvotes: number;
+};

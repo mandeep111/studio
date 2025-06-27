@@ -1,4 +1,4 @@
-import type { Creator, Problem, Solution } from './types';
+import type { Creator, Problem, Solution, Idea } from './types';
 
 export const problemCreators: Creator[] = [
   {
@@ -51,6 +51,22 @@ export const solutionCreators: Creator[] = [
     reputationScore: 4.6,
     expertise: 'Predictive Medical Diagnostics AI',
     reviews: 180,
+  },
+  {
+    id: 'sc4',
+    name: 'Frank Futures',
+    avatarUrl: 'https://placehold.co/100x100.png',
+    reputationScore: 4.2,
+    expertise: 'Circular Economy Logistics',
+    reviews: 75,
+  },
+  {
+    id: 'sc5',
+    name: 'Grace Green-tech',
+    avatarUrl: 'https://placehold.co/100x100.png',
+    reputationScore: 4.8,
+    expertise: 'Bioplastics Development',
+    reviews: 112,
   },
 ];
 
@@ -112,3 +128,30 @@ export const solutionData: Solution[] = [
     upvotes: 2500,
   },
 ];
+
+export const randomIdeasData: Idea[] = [
+    {
+      id: 'i1',
+      creator: solutionCreators[3],
+      title: 'Gamified Waste Sorting App',
+      description: 'An app that uses image recognition to identify types of waste and turns proper sorting into a points-based game with community leaderboards.',
+      tags: ['Gamification', 'Recycling', 'Sustainability'],
+      upvotes: 720,
+    },
+    {
+      id: 'i2',
+      creator: solutionCreators[4],
+      title: 'Algae-based Bioplastics for Packaging',
+      description: 'Developing a fully biodegradable plastic alternative from microalgae, suitable for food packaging and single-use items.',
+      tags: ['Biotech', 'Materials Science', 'Circular Economy'],
+      upvotes: 1500,
+    },
+    {
+      id: 'i3',
+      creator: problemCreators[0],
+      title: 'Peer-to-Peer Skill Sharing for Seniors',
+      description: 'A platform connecting retired seniors who want to teach skills (e.g., gardening, woodworking) with younger people eager to learn.',
+      tags: ['Community', 'Education', 'Social Impact'],
+      upvotes: 980,
+    }
+]

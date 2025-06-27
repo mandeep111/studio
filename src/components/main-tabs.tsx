@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Lightbulb } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { problemData, solutionData } from "@/lib/mock-data";
 import ProblemCard from "@/components/problem-card";
 import SolutionCard from "@/components/solution-card";
 import AiMatchmaking from "@/components/ai-matchmaking";
+import RandomIdeas from "./random-ideas";
+import { SubmitIdeaDialog } from "./submit-idea-dialog";
 
 export default function MainTabs() {
   const [activeTab, setActiveTab] = useState("problems");
@@ -16,23 +19,23 @@ export default function MainTabs() {
   return (
     <Tabs defaultValue="problems" className="w-full" onValueChange={setActiveTab} value={activeTab}>
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto">
+        <TabsList className="grid w-full grid-cols-4 sm:w-auto">
           <TabsTrigger value="problems">Problems</TabsTrigger>
           <TabsTrigger value="solutions">Solutions</TabsTrigger>
+          <TabsTrigger value="random-ideas">Random Ideas</TabsTrigger>
           <TabsTrigger value="ai-matchmaking">AI Matchmaking</TabsTrigger>
         </TabsList>
         <div className="h-10 w-full sm:w-auto">
           {activeTab === 'problems' && (
-            <Button className="w-full">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Submit a Problem
-            </Button>
+            <Link href="/problems/new" passHref>
+              <Button className="w-full">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Submit a Problem
+              </Button>
+            </Link>
           )}
-          {activeTab === 'solutions' && (
-             <Button className="w-full">
-              <Lightbulb className="mr-2 h-4 w-4" />
-              Submit a Solution
-            </Button>
+          {activeTab === 'random-ideas' && (
+             <SubmitIdeaDialog />
           )}
         </div>
       </div>
@@ -61,6 +64,9 @@ export default function MainTabs() {
             ))}
           </CardContent>
         </Card>
+      </TabsContent>
+       <TabsContent value="random-ideas" className="mt-6">
+        <RandomIdeas />
       </TabsContent>
       <TabsContent value="ai-matchmaking" className="mt-6">
         <AiMatchmaking />

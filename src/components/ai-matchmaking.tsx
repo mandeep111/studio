@@ -1,40 +1,21 @@
 "use client";
 
-import { useFormStatus } from "react-dom";
-import { getAiPairings, FormState } from "@/app/actions";
+import { getAiPairings, type AiPairingsFormState } from "@/app/actions";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Wand2, Users, Link as LinkIcon, Loader2, ArrowRight } from "lucide-react";
+import { Wand2, Users, Link as LinkIcon, ArrowRight } from "lucide-react";
 import { allCreators } from "@/lib/mock-data";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useActionState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { SubmitButton } from "./submit-button";
 
-const initialState: FormState = {
+const initialState: AiPairingsFormState = {
   message: "",
 };
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-      {pending ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Generating...
-        </>
-      ) : (
-        <>
-          <Wand2 className="mr-2 h-4 w-4" />
-          Generate Pairings
-        </>
-      )}
-    </Button>
-  );
-}
 
 export default function AiMatchmaking() {
   const [state, formAction] = useActionState(getAiPairings, initialState);
@@ -77,7 +58,10 @@ export default function AiMatchmaking() {
           </div>
         </CardContent>
         <CardFooter className="border-t px-6 py-4">
-          <SubmitButton />
+          <SubmitButton pendingText="Generating..." className="w-full sm:w-auto">
+            <Wand2 className="mr-2 h-4 w-4" />
+            Generate Pairings
+          </SubmitButton>
         </CardFooter>
       </form>
       

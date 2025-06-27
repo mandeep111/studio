@@ -4,6 +4,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { MessageSquare, ThumbsUp, Lightbulb } from "lucide-react";
+import Link from "next/link";
 
 interface ProblemCardProps {
   problem: Problem;
@@ -18,12 +19,16 @@ export default function ProblemCard({ problem }: ProblemCardProps) {
           <AvatarFallback>{problem.creator.name.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>
-          <CardTitle className="text-lg">{problem.title}</CardTitle>
+          <CardTitle className="text-lg">
+            <Link href={`/problems/${problem.id}`} className="hover:underline">
+              {problem.title}
+            </Link>
+          </CardTitle>
           <CardDescription>by {problem.creator.name}</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground">{problem.description}</p>
+        <p className="line-clamp-3 text-sm text-muted-foreground">{problem.description}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {problem.tags.map((tag) => (
             <Badge key={tag} variant="secondary">{tag}</Badge>
@@ -41,10 +46,12 @@ export default function ProblemCard({ problem }: ProblemCardProps) {
             <span>{problem.solutionsCount.toLocaleString()}</span>
           </div>
         </div>
-        <Button size="sm" variant="outline">
-          <Lightbulb className="mr-2 h-4 w-4" />
-          Propose Solution
-        </Button>
+        <Link href={`/problems/${problem.id}`} passHref>
+          <Button size="sm" variant="outline">
+            <Lightbulb className="mr-2 h-4 w-4" />
+            View & Discuss
+          </Button>
+        </Link>
       </CardFooter>
     </Card>
   );
