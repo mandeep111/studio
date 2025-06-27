@@ -1,5 +1,5 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -17,7 +17,7 @@ const missingConfig = Object.entries(firebaseConfig).find(
 );
 if (missingConfig) {
   throw new Error(
-    `Firebase config is missing '${missingConfig[0]}'. Please check your .env file.`
+    `Firebase config is missing '${missingConfig[0]}'. Please check your .env.local file.`
   );
 }
 
@@ -25,5 +25,6 @@ if (missingConfig) {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
 
-export { app, auth, db };
+export { app, auth, db, googleProvider };

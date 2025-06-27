@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/config";
+import { collection, doc, getDoc, getDocs, limit, query, setDoc } from "firebase/firestore";
+import { auth, db, googleProvider } from "@/lib/firebase/config";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,15 @@ import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { UserRole } from "@/lib/types";
 
+const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg role="img" viewBox="0 0 24 24" {...props}>
+    <path
+      fill="currentColor"
+      d="M12.48 10.92v3.28h7.84c-.24 1.84-.85 3.18-1.73 4.1-1.02 1.02-2.6 1.98-4.66 1.98-3.56 0-6.47-2.92-6.47-6.47s2.91-6.47 6.47-6.47c1.97 0 3.29.79 4.06 1.52l2.36-2.36C18.22 2.72 15.82 1.5 12.48 1.5c-4.97 0-9 4.03-9 9s4.03 9 9 9c4.85 0 8.7-3.23 8.7-8.84 0-.62-.06-1.22-.18-1.78Z"
+    />
+  </svg>
+);
+
 export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,6 +35,7 @@ export function AuthForm() {
   const [role, setRole] = useState<UserRole>("User");
   const [expertise, setExpertise] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -46,6 +57,40 @@ export function AuthForm() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+
+      // Check if user exists in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // New user, create a profile in Firestore
+        await setDoc(userDocRef, {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName || "New User",
+          role: "User", // Default role for Google sign-up
+          expertise: "Not specified",
+          avatarUrl: user.photoURL || `https://placehold.co/100x100.png`,
+        });
+      }
+      toast({ title: "Success", description: "Logged in with Google successfully." });
+      router.push("/");
+    } catch (error: any) {
+       toast({
+        variant: "destructive",
+        title: "Google Sign-In Failed",
+        description: error.message,
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -55,6 +100,13 @@ export function AuthForm() {
         return;
     }
     try {
+      // Check if this is the first user signing up.
+      const usersCollectionRef = collection(db, "users");
+      const q = query(usersCollectionRef, limit(1));
+      const existingUsersSnapshot = await getDocs(q);
+      const isFirstUser = existingUsersSnapshot.empty;
+      const userRole = isFirstUser ? "Admin" : role;
+
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -67,12 +119,12 @@ export function AuthForm() {
         uid: user.uid,
         email: user.email,
         name,
-        role,
+        role: userRole,
         expertise,
         avatarUrl: `https://placehold.co/100x100.png`,
       });
       
-      toast({ title: "Success", description: "Account created successfully." });
+      toast({ title: "Success", description: `Account created successfully. ${isFirstUser ? 'You are the Admin!' : ''}` });
       router.push("/");
     } catch (error: any) {
       toast({
@@ -101,6 +153,20 @@ export function AuthForm() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading}>
+                {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
+                Login with Google
+              </Button>
+               <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>
                 <Input
@@ -110,6 +176,7 @@ export function AuthForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -120,11 +187,12 @@ export function AuthForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
                 />
               </div>
             </CardContent>
             <CardFooter>
-              <Button disabled={loading} className="w-full">
+              <Button disabled={loading || googleLoading} className="w-full">
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Login
               </Button>
@@ -142,6 +210,20 @@ export function AuthForm() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+               <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading}>
+                 {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
+                Sign Up with Google
+              </Button>
+               <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="signup-name">Full Name</Label>
                 <Input
@@ -149,6 +231,7 @@ export function AuthForm() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -160,6 +243,7 @@ export function AuthForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
                 />
               </div>
               <div className="space-y-2">
@@ -170,18 +254,18 @@ export function AuthForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
                 />
               </div>
                <div className="space-y-2">
                 <Label htmlFor="role">I am a...</Label>
-                <Select onValueChange={(value: UserRole) => setRole(value)} defaultValue={role}>
+                <Select onValueChange={(value: UserRole) => setRole(value)} defaultValue={role} disabled={loading}>
                     <SelectTrigger id="role">
                         <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="User">User (Problem/Solution Creator)</SelectItem>
                         <SelectItem value="Investor">Investor</SelectItem>
-                        <SelectItem value="Admin">Admin</SelectItem>
                     </SelectContent>
                 </Select>
               </div>
@@ -193,11 +277,12 @@ export function AuthForm() {
                   required
                   value={expertise}
                   onChange={(e) => setExpertise(e.target.value)}
+                  disabled={loading}
                 />
               </div>
             </CardContent>
             <CardFooter>
-              <Button disabled={loading} className="w-full">
+              <Button disabled={loading || googleLoading} className="w-full">
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account
               </Button>

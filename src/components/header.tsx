@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { auth } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { ThemeToggle } from "./theme-toggle";
 
 export default function Header() {
   const { user, userProfile, loading } = useAuth();
@@ -33,7 +34,8 @@ export default function Header() {
           <BrainCircuit className="h-6 w-6 text-primary" />
           <h1 className="ml-2 font-heading text-2xl font-bold">TriSolve</h1>
         </Link>
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-end space-x-2">
+          <ThemeToggle />
           {!loading && (
             userProfile ? (
               <DropdownMenu>
