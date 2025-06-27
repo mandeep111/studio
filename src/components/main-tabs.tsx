@@ -51,7 +51,7 @@ export default function MainTabs({ userProfile }: MainTabsProps) {
         </div>
       </div>
       <TabsContent value="problems" className="mt-6">
-        <ProblemList />
+        <ProblemList userProfile={userProfile} />
       </TabsContent>
       <TabsContent value="solutions" className="mt-6">
         <SolutionList />
@@ -66,11 +66,12 @@ export default function MainTabs({ userProfile }: MainTabsProps) {
   );
 }
 
-function ProblemList() {
+function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
     const [problems, setProblems] = useState<Problem[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
     const { toast } = useToast();
+    const router = useRouter();
 
     const fetchProblems = useCallback(async () => {
         setLoading(true);
@@ -102,10 +103,25 @@ function ProblemList() {
                 <CardTitle>Open Problems</CardTitle>
                 <CardDescription>Browse challenges awaiting innovative solutions.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {problems.map((problem) => (
-                    <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} />
-                ))}
+            <CardContent>
+                {problems.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {problems.map((problem) => (
+                            <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-16">
+                        <h3 className="text-xl font-semibold">No Problems Yet</h3>
+                        <p className="text-muted-foreground mt-2 mb-6">Be the first to submit a problem and get the ball rolling.</p>
+                        {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
+                            <Button onClick={() => router.push('/problems/new')}>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Submit a Problem
+                            </Button>
+                        )}
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
@@ -147,10 +163,19 @@ function SolutionList() {
                 <CardTitle>Proposed Solutions</CardTitle>
                 <CardDescription>Explore creative solutions submitted by our community. Sorted by most upvotes.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {solutions.map((solution) => (
-                    <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} />
-                ))}
+            <CardContent>
+                {solutions.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {solutions.map((solution) => (
+                            <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} />
+                        ))}
+                    </div>
+                ) : (
+                     <div className="text-center py-16">
+                        <h3 className="text-xl font-semibold">No Solutions Proposed</h3>
+                        <p className="text-muted-foreground mt-2">No solutions have been proposed yet. Find a problem and share your idea!</p>
+                    </div>
+                )}
             </CardContent>
         </Card>
     );
