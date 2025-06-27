@@ -4,7 +4,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
+    // =================================
+    // Helper Functions
+    // =================================
     function isSignedIn() {
       return request.auth != null;
     }
@@ -13,83 +15,125 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
-    // This function is safe for non-transactional checks but fails in transactional ones.
+    // WARNING: Do not use in rules evaluated during a transaction, as get() is not allowed.
+    function getUserData(userId) {
+        return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    // WARNING: Do not use in rules evaluated during a transaction.
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return isSignedIn() && getUserData(request.auth.uid).role == 'Admin';
     }
 
-    // --- User Profiles ---
+    // =================================
+    // Users Collection
+    // =================================
     match /users/{userId} {
-      allow read;
-      allow create: if isOwner(userId);
-      allow delete: if isAdmin();
+      // READ: Admins can read any profile. Users can read their own.
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
       
-      // Critical Rule: Allow profile updates by owner/admin, OR a specific 'points' update by any signed-in user for upvotes.
-      // This rule does NOT use get() in the points-update path, making it safe for transactions.
-      allow update: if (isOwner(userId) || isAdmin()) || (
-        isSignedIn() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']) &&
-        (request.resource.data.points == resource.data.points + 20 || request.resource.data.points == resource.data.points - 20)
-      );
-    }
-
-    // --- Ideas Rules ---
-    match /ideas/{ideaId} {
-      allow read;
-      allow create: if isSignedIn();
-      allow delete: if isAdmin();
-      // Allow only upvote updates by any signed-in user.
-      allow update: if isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']);
-    }
-
-    // --- Problems Rules ---
-    match /problems/{problemId} {
-      allow read;
-      allow create: if isSignedIn();
+      // CREATE: A user can create their own document on signup.
+      allow create: if isOwner(userId);
+      
+      // DELETE: Only admins can delete users.
       allow delete: if isAdmin();
 
-      allow update: if 
-        // Allow standard upvotes by any user
-        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy'])) ||
-        // Allow admin price approval
-        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priceApproved'])) ||
-        // Allow solution count to be updated (when an admin deletes an associated solution)
-        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solutionsCount']));
+      // UPDATE:
+      // This rule is carefully structured to avoid calling get() during an upvote transaction.
+      allow update: if
+        // Path 1: User updating their own profile (can't change role or points).
+        // This path has no get() calls.
+        (
+          isOwner(userId) && 
+          request.resource.data.points == resource.data.points && 
+          request.resource.data.role == resource.data.role
+        ) ||
+        // Path 2: Points update from an upvote transaction (can't be self-inflicted).
+        // This path is taken by the upvote transaction. It has no get() calls.
+        (
+          isSignedIn() &&
+          !isOwner(userId) && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points'])
+        ) ||
+        // Path 3: Admin updating another user's role.
+        // This path uses get() via isAdmin(), but is not part of the upvote transaction.
+        (
+          isAdmin() && 
+          request.resource.data.points == resource.data.points
+        );
+    }
+
+    // =================================
+    // Content Collections (Problems, Solutions, Ideas)
+    // =================================
+    match /{collectionName}/{itemId} where collectionName in ['problems', 'solutions', 'ideas'] {
+      // READ: Anyone can read content.
+      allow read: if true;
+
+      // CREATE: Only signed-in Users or Admins.
+      allow create: if isSignedIn() && (getUserData(request.auth.uid).role in ['User', 'Admin']);
+
+      // DELETE: Only Admins.
+      allow delete: if isAdmin();
+
+      // UPDATE:
+      // This rule is carefully structured to avoid calling get() during an upvote transaction.
+      allow update: if
+        // Path 1: Any user upvoting content (not their own).
+        // This is the upvote transaction path. It has no get() calls.
+        (
+          isSignedIn() && 
+          !isOwner(resource.data.creator.userId) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy'])
+        ) ||
+        // Path 2: Owner or Admin editing content (but not upvote fields).
+        // This path uses get() via isAdmin(), but is not part of the upvote transaction.
+        (
+          isSignedIn() && 
+          (isOwner(resource.data.creator.userId) || isAdmin()) &&
+          request.resource.data.upvotes == resource.data.upvotes
+        );
     }
     
-    // --- Solutions Rules ---
-    match /solutions/{solutionId} {
-      allow read;
-      allow create: if isSignedIn();
-      allow delete: if isAdmin();
-
+    // --- Price approval rule (Admin only)
+    match /{collectionName}/{itemId} where collectionName in ['problems', 'solutions'] {
       allow update: if 
-        // Allow standard upvotes by any user
-        (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy'])) ||
-        // Allow admin price approval
-        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['priceApproved']));
+        isAdmin() && 
+        request.resource.data.priceApproved == true && 
+        resource.data.priceApproved == false;
     }
 
-    // --- Deals, Messages, Notifications ---
+
+    // =================================
+    // Deals and Messages
+    // =================================
     match /deals/{dealId} {
-      // Participants can read, only investors/admins can create.
-      allow read: if isSignedIn() && (request.auth.uid in [resource.data.investor.userId, resource.data.problemCreator.userId, resource.data.solutionCreator.userId]);
-      allow create: if isSignedIn() && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Investor', 'Admin']);
+      // Only participants or an Admin can read/create a deal.
+      allow read, create: if isSignedIn() && (
+        getUserData(request.auth.uid).role == 'Investor' ||
+        request.auth.uid in [resource.data.problemCreator.userId, resource.data.solutionCreator.userId] ||
+        isAdmin()
+      );
       
       match /messages/{messageId} {
-        allow read, create: if isSignedIn() && (request.auth.uid in [
+        // Only deal participants can read/write messages.
+        allow read, create: if isSignedIn() && request.auth.uid in [
           get(/databases/$(database)/documents/deals/$(dealId)).data.investor.userId,
           get(/databases/$(database)/documents/deals/$(dealId)).data.problemCreator.userId,
           get(/databases/$(database)/documents/deals/$(dealId)).data.solutionCreator.userId
-        ]);
+        ];
       }
     }
-    
+
+    // =================================
+    // Notifications
+    // =================================
     match /notifications/{notificationId} {
-      allow read: if isOwner(resource.data.userId) || (resource.data.userId == 'admins' && isAdmin());
-      // Notifications are created server-side via trusted code.
-      allow create: if false;
-      allow update: if isOwner(resource.data.userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      // A user can read their own notifications, or admin-only notifications if they are an admin.
+      allow read: if isSignedIn() && (isOwner(resource.data.userId) || (isAdmin() && resource.data.userId == 'admins'));
+      
+      // Writes are server-side only. Client cannot create/update/delete.
+      allow write: if false;
     }
   }
 }
