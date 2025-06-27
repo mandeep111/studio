@@ -5,12 +5,17 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { MessageSquare, ThumbsUp, Lightbulb } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ProblemCardProps {
   problem: Problem;
+  onUpvote: (problemId: string) => void;
 }
 
-export default function ProblemCard({ problem }: ProblemCardProps) {
+export default function ProblemCard({ problem, onUpvote }: ProblemCardProps) {
+  const { user } = useAuth();
+  const isUpvoted = user ? problem.upvotedBy.includes(user.uid) : false;
+
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
       <CardHeader className="flex-row items-start gap-4 space-y-0">
@@ -37,10 +42,16 @@ export default function ProblemCard({ problem }: ProblemCardProps) {
       </CardContent>
       <CardFooter className="flex justify-between bg-muted/50 p-4">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <ThumbsUp className="h-4 w-4" />
-            <span>{problem.upvotes.toLocaleString()}</span>
-          </div>
+            <Button 
+                variant={isUpvoted ? "default" : "outline"} 
+                size="sm"
+                onClick={() => onUpvote(problem.id)}
+                disabled={!user}
+                className="flex items-center gap-1 px-2 h-8"
+            >
+                <ThumbsUp className="h-4 w-4" />
+                <span>{problem.upvotes.toLocaleString()}</span>
+            </Button>
           <div className="flex items-center gap-1">
             <MessageSquare className="h-4 w-4" />
             <span>{problem.solutionsCount.toLocaleString()}</span>

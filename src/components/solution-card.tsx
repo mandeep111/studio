@@ -4,16 +4,21 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { ThumbsUp } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SolutionCardProps {
   solution: Solution;
+  onUpvote: (solutionId: string) => void;
 }
 
-export default function SolutionCard({ solution }: SolutionCardProps) {
+export default function SolutionCard({ solution, onUpvote }: SolutionCardProps) {
+  const { user } = useAuth();
+  const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
+  
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
       <CardHeader>
-        <CardDescription>Solution for: {solution.problemTitle}</CardDescription>
+        <CardDescription>Solution for: <Link href={`/problems/${solution.problemId}`} className="text-primary hover:underline">{solution.problemTitle}</Link></CardDescription>
         <CardTitle className="text-lg">Solution by {solution.creator.name}</CardTitle>
       </CardHeader>
       <CardContent className="flex-grow">
@@ -26,10 +31,16 @@ export default function SolutionCard({ solution }: SolutionCardProps) {
         </div>
       </CardContent>
       <CardFooter className="flex justify-between bg-muted/50 p-4">
-        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-          <ThumbsUp className="h-4 w-4" />
-          <span>{solution.upvotes.toLocaleString()}</span>
-        </div>
+        <Button 
+            variant={isUpvoted ? "default" : "outline"} 
+            size="sm"
+            onClick={() => onUpvote(solution.id)}
+            disabled={!user}
+            className="flex items-center gap-1 px-2 h-8"
+        >
+            <ThumbsUp className="h-4 w-4" />
+            <span>{solution.upvotes.toLocaleString()}</span>
+        </Button>
         <Link href={`/solutions/${solution.id}`} passHref>
             <Button size="sm">View Details</Button>
         </Link>

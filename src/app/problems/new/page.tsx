@@ -1,10 +1,32 @@
+"use client";
+
 import Header from "@/components/header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import CreateProblemForm from "@/components/create-problem-form";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function NewProblemPage() {
+  const { userProfile, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading) {
+      if (!userProfile) {
+        router.push("/login");
+      } else if (userProfile.role !== 'User' && userProfile.role !== 'Admin') {
+        router.push("/");
+      }
+    }
+  }, [userProfile, loading, router]);
+
+  if (loading || !userProfile || (userProfile.role !== 'User' && userProfile.role !== 'Admin')) {
+    return null; // Or a loading/unauthorized component
+  }
+  
   return (
     <div className="flex min-h-screen w-full flex-col">
       <Header />

@@ -6,20 +6,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Wand2, Users, Link as LinkIcon, ArrowRight } from "lucide-react";
-import { allCreators } from "@/lib/mock-data";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
+import { useAuth } from "@/hooks/use-auth";
+import type { UserProfile } from "@/lib/types";
+import { getUsers } from "@/lib/firestore";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const initialState: AiPairingsFormState = {
   message: "",
 };
 
 export default function AiMatchmaking() {
+  const { userProfile } = useAuth();
   const [state, formAction] = useActionState(getAiPairings, initialState);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    getUsers().then(setAllUsers);
+  }, []);
 
   useEffect(() => {
     if (state.message && !state.pairings) {
@@ -31,7 +40,20 @@ export default function AiMatchmaking() {
     }
   }, [state, toast]);
 
-  const findCreator = (id: string) => allCreators.find(c => c.id === id);
+  const findCreator = (id: string) => allUsers.find(c => c.uid === id);
+  
+  if (userProfile?.role !== 'Investor' && userProfile?.role !== 'Admin') {
+    return (
+      <Card className="flex flex-col items-center justify-center p-8 text-center">
+         <Users className="h-12 w-12 text-muted-foreground mb-4" />
+        <CardTitle>Exclusive for Investors</CardTitle>
+        <CardDescription className="mt-2 max-w-sm">
+            This AI-powered matchmaking tool is available only to users with the Investor role. 
+            It helps investors find promising problem/solution pairings.
+        </CardDescription>
+      </Card>
+    );
+  }
 
   return (
     <Card>

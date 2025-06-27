@@ -1,37 +1,57 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from 'react';
-import { createProblem, type FormState } from '@/app/actions';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { createProblem } from '@/lib/firestore';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from './submit-button';
 
-const initialState: FormState = {
-  message: '',
-};
-
 export default function CreateProblemForm() {
-  const [state, formAction] = useActionState(createProblem, initialState);
+  const { userProfile } = useAuth();
   const { toast } = useToast();
-  const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (state?.message) {
-      toast({
-        variant: state.error ? 'destructive' : 'default',
-        title: state.error ? 'Error' : 'Success!',
-        description: state.message,
-      });
-      if (!state.error) {
-        formRef.current?.reset();
-      }
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+
+    if (!userProfile) {
+        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit a problem." });
+        setLoading(false);
+        return;
     }
-  }, [state, toast]);
+
+    const formData = new FormData(event.currentTarget);
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const tags = formData.get('tags') as string;
+    
+    // Basic validation
+    if (!title || !description || !tags) {
+        toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
+        setLoading(false);
+        return;
+    }
+
+    try {
+        await createProblem(title, description, tags, userProfile);
+        toast({ title: "Success!", description: "Problem submitted successfully." });
+        router.push('/');
+    } catch (error) {
+        console.error(error);
+        toast({ variant: "destructive", title: "Error", description: "Failed to submit problem." });
+    } finally {
+        setLoading(false);
+    }
+  };
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="title">Problem Title</Label>
         <Input id="title" name="title" placeholder="e.g., Plastic waste in oceans" required />
@@ -54,7 +74,7 @@ export default function CreateProblemForm() {
         </p>
       </div>
       <div className="flex justify-end">
-        <SubmitButton>Submit Problem</SubmitButton>
+        <SubmitButton pendingText="Submitting..." disabled={loading}>Submit Problem</SubmitButton>
       </div>
     </form>
   );
