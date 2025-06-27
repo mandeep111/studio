@@ -181,7 +181,6 @@ export async function createSolution(description: string, problemId: string, pro
     
     const solutionRef = doc(collection(db, "solutions"));
     const problemRef = doc(db, "problems", problemId);
-    const userRef = doc(db, "users", creator.uid);
     
     const priceApproved = price ? price <= 1000 : true;
 
@@ -203,7 +202,6 @@ export async function createSolution(description: string, problemId: string, pro
     });
 
     batch.update(problemRef, { solutionsCount: increment(1) });
-    batch.update(userRef, { points: increment(20) });
 
     await batch.commit();
 
