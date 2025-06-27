@@ -1,76 +1,87 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper function to check ownership or admin role
+
+    // Helper functions
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
+
     function isAdmin() {
+      // Check the user's role directly from their user document.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
+    
+    function isInvestor() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Investor';
+    }
+    
     function isSignedIn() {
       return request.auth != null;
     }
+    
+    function isParticipant(dealId) {
+        let deal = get(/databases/$(database)/documents/deals/$(dealId)).data;
+        return request.auth.uid == deal.investor.userId || 
+               request.auth.uid == deal.problemCreator.userId || 
+               request.auth.uid == deal.solutionCreator.userId;
+    }
 
-    // Users can be read by anyone, but only the user themselves or an admin can write.
-    // New users can create their own profile.
+    // USERS collection
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      // Any authenticated user can create their own user document.
+      allow create: if isOwner(userId);
+      // Allow users to update their own non-critical info.
+      // Allow server actions to update points or role (for becoming an investor).
+      // Allow admins to update any user's role.
+      allow update: if (isOwner(userId) && !('points' in request.resource.data) && !('role' in request.resource.data) && !('isPremium' in request.resource.data))
+                    || (isSignedIn() && request.resource.data.keys().hasAny(['points', 'role', 'isPremium']))
+                    || isAdmin();
     }
 
-    // Problems can be read by anyone.
-    // Creation is allowed for any signed-in user.
-    // Updates and deletes are restricted to the owner or an admin.
-    match /problems/{problemId} {
+    // PROBLEMS, SOLUTIONS, IDEAS collections
+    match /{collectionName}/{itemId} where collectionName in ['problems', 'solutions', 'ideas'] {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data.creator.userId) || isAdmin();
-    }
+      
+      // Owner or admin can delete.
+      allow delete: if isAdmin() || request.auth.uid == resource.data.creator.userId;
 
-    // Solutions have the same rules as Problems.
-    match /solutions/{solutionId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data.creator.userId) || isAdmin();
+      // Allow updates by owner/admin, upvoting by any user, or price approval by admin.
+      allow update: if (isAdmin() || request.auth.uid == resource.data.creator.userId)
+                    || (isSignedIn() && request.resource.data.keys().hasOnly(['upvotes', 'upvotedBy']))
+                    || (isAdmin() && request.resource.data.keys().hasOnly(['priceApproved']));
     }
     
-    // Ideas have the same rules as Problems.
-    match /ideas/{ideaId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data.creator.userId) || isAdmin();
-    }
-
-    // Notifications can only be read by the recipient or an admin (for admin-wide notifications).
-    match /notifications/{notificationId} {
-      allow read: if isOwner(resource.data.userId) || (resource.data.userId == 'admins' && isAdmin());
-      allow create: if isSignedIn(); // System can create notifications
-      allow update: if isOwner(resource.data.userId); // User can mark as read
-    }
-
-    // Deals can be created by Investors.
-    // Reading a deal is restricted to its participants (Investor, Problem Creator, Solution Creator) or an admin.
+    // DEALS collection
     match /deals/{dealId} {
-      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Investor';
-      allow read: if isSignedIn() && (
-                    resource.data.investor.userId == request.auth.uid ||
-                    resource.data.problemCreator.userId == request.auth.uid ||
-                    resource.data.solutionCreator.userId == request.auth.uid ||
-                    isAdmin()
-                  );
+      // Only an investor can create a deal.
+      allow create: if isInvestor();
+      // Only participants or admins can read.
+      allow read: if isParticipant(dealId) || isAdmin();
+      // Deals are immutable.
+      allow update, delete: if false;
 
-      // Messages within a deal can be created and read by the deal participants.
+      // MESSAGES sub-collection
       match /messages/{messageId} {
-        allow read, create: if isSignedIn() && (
-                    get(/databases/$(database)/documents/deals/$(dealId)).data.investor.userId == request.auth.uid ||
-                    get(/databases/$(database)/documents/deals/$(dealId)).data.problemCreator.userId == request.auth.uid ||
-                    get(/databases/$(database)/documents/deals/$(dealId)).data.solutionCreator.userId == request.auth.uid ||
-                    isAdmin()
-                  );
+        // Only participants or admins can read/create messages.
+        allow read, create: if isParticipant(dealId) || isAdmin();
+        // Messages are immutable.
+        allow update, delete: if false;
       }
+    }
+    
+    // NOTIFICATIONS collection
+    match /notifications/{notificationId} {
+      // Server-side logic (run under user's auth) can create notifications.
+      allow create: if isSignedIn();
+      // Users can only read/update their own notifications.
+      // Admins can read/update notifications for 'admins'.
+      allow read, update: if resource.data.userId == request.auth.uid || (resource.data.userId == 'admins' && isAdmin());
+      allow delete: if false;
     }
   }
 }
