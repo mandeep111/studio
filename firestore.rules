@@ -1,74 +1,99 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
-    function isAdmin(userId) {
-      // Check if the user document exists and has the 'Admin' role.
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             get(/databases/$(database)/documents/users/$(userId)).data.role == 'Admin';
+
+    function isAdmin() {
+      // Check if the user has an 'Admin' role in their user document.
+      // This requires the user to be able to read their own document.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
-    function isSameUser(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Problems collection
-    match /problems/{problemId} {
-      allow read: if request.auth != null;
-
-      // Anyone can create a problem if they are logged in and are the creator
-      allow create: if request.auth != null && request.resource.data.creator.userId == request.auth.uid;
-
-      // Only owner or admin can update or delete
-      // Note: We use get() which reads the document *before* the operation.
-      allow update, delete: if request.auth != null && (
-        get(/databases/$(database)/documents/problems/$(problemId)).data.creator.userId == request.auth.uid || 
-        isAdmin(request.auth.uid)
-      );
-    }
-    
-    // Solutions collection
-    match /solutions/{solutionId} {
-      allow read: if request.auth != null;
-
-      allow create: if request.auth != null && request.resource.data.creator.userId == request.auth.uid;
-      
-      allow update, delete: if request.auth != null && (
-        get(/databases/$(database)/documents/solutions/$(solutionId)).data.creator.userId == request.auth.uid || 
-        isAdmin(request.auth.uid)
-      );
-    }
-
-    // Ideas collection
-    match /ideas/{ideaId} {
-      allow read: if request.auth != null;
-
-      allow create: if request.auth != null && request.resource.data.creator.userId == request.auth.uid;
-
-      allow update, delete: if request.auth != null && (
-        get(/databases/$(database)/documents/ideas/$(ideaId)).data.creator.userId == request.auth.uid || 
-        isAdmin(request.auth.uid)
-      );
-    }
-    
-    // Users collection rules
+    // Rules for User profiles
     match /users/{userId} {
-      // Any authenticated user can read profiles
+      // Any authenticated user can create their own profile document.
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Any authenticated user can read any profile.
       allow read: if request.auth != null;
       
-      // A user can create their own profile document
-      allow create: if request.auth != null && isSameUser(userId);
+      // A user can only update their own profile, unless they are an admin.
+      allow update: if request.auth.uid == userId || isAdmin();
+    }
+    
+    // Rules for Problems
+    match /problems/{problemId} {
+      function isOwner() {
+        return request.auth.uid == resource.data.creator.userId;
+      }
+      
+      // Any authenticated user can read problems.
+      allow read: if request.auth != null;
+      
+      // Any authenticated user can create problems.
+      allow create: if request.auth != null;
+      
+      // Update rules for problems.
+      allow update: if request.auth != null && (
+        // Allow owner or admin to update all fields.
+        isOwner() || isAdmin() ||
+        // Allow any authenticated user to update only the 'upvotedBy' field for upvoting.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotedBy']) ||
+        // Allow incrementing solutionsCount by 1 when a new solution is added.
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solutionsCount']) &&
+         request.resource.data.solutionsCount == resource.data.solutionsCount + 1)
+      );
+      
+      // Only the owner or an admin can delete a problem.
+      allow delete: if request.auth != null && (isOwner() || isAdmin());
+    }
+    
+    // Rules for Solutions
+    match /solutions/{solutionId} {
+      function isOwner() {
+        return request.auth.uid == resource.data.creator.userId;
+      }
+      
+      // Any authenticated user can read solutions.
+      allow read: if request.auth != null;
+      
+      // Any authenticated user can create solutions.
+      allow create: if request.auth != null;
+      
+      // Update rules for solutions.
+      allow update: if request.auth != null && (
+        // Allow owner or admin to update all fields.
+        isOwner() || isAdmin() ||
+        // Allow any authenticated user to update only the 'upvotedBy' field for upvoting.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotedBy'])
+      );
+      
+      // Only the owner or an admin can delete a solution.
+      allow delete: if request.auth != null && (isOwner() || isAdmin());
+    }
 
-      // A user can update their own profile, or an admin can
-      allow update: if request.auth != null && (isSameUser(userId) || isAdmin(request.auth.uid));
+    // Rules for Ideas
+    match /ideas/{ideaId} {
+      function isOwner() {
+        return request.auth.uid == resource.data.creator.userId;
+      }
 
-      // Only an admin can delete a user profile
-      allow delete: if request.auth != null && isAdmin(request.auth.uid);
+      // Any authenticated user can read ideas.
+      allow read: if request.auth != null;
+      
+      // Any authenticated user can create ideas.
+      allow create: if request.auth != null;
+      
+      // Update rules for ideas.
+      allow update: if request.auth != null && (
+        // Allow owner or admin to update all fields.
+        isOwner() || isAdmin() ||
+        // Allow any authenticated user to update only the 'upvotedBy' field for upvoting.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotedBy'])
+      );
+      
+      // Only the owner or an admin can delete an idea.
+      allow delete: if request.auth != null && (isOwner() || isAdmin());
     }
   }
 }
