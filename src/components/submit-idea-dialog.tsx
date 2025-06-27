@@ -26,25 +26,27 @@ interface SubmitIdeaDialogProps {
 }
 
 export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogProps) {
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+
+  const isLoading = authLoading || formLoading || !userProfile;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
+    setFormLoading(true);
 
     if (!userProfile) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit an idea." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
     if (userProfile.role !== 'User' && userProfile.role !== 'Admin') {
         toast({ variant: "destructive", title: "Permission Denied", description: "Only Users and Admins can create ideas." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
@@ -55,7 +57,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
 
     if (!title || !description || !tags) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
@@ -69,7 +71,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
         console.error(error);
         toast({ variant: "destructive", title: "Error", description: "Failed to submit idea." });
     } finally {
-        setLoading(false);
+        setFormLoading(false);
     }
   };
 
@@ -96,22 +98,22 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
             <Label htmlFor="title" className="text-right">
               Title
             </Label>
-            <Input id="title" name="title" className="col-span-3" placeholder="A catchy title for your idea" required disabled={loading} />
+            <Input id="title" name="title" className="col-span-3" placeholder="A catchy title for your idea" required disabled={isLoading} />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="description" className="text-right">
               Description
             </Label>
-            <Textarea id="description" name="description" className="col-span-3" placeholder="Describe your idea in detail" required disabled={loading} />
+            <Textarea id="description" name="description" className="col-span-3" placeholder="Describe your idea in detail" required disabled={isLoading} />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="tags" className="text-right">
               Tags
             </Label>
-            <Input id="tags" name="tags" className="col-span-3" placeholder="e.g. AI, Health (comma-separated)" required disabled={loading} />
+            <Input id="tags" name="tags" className="col-span-3" placeholder="e.g. AI, Health (comma-separated)" required disabled={isLoading} />
           </div>
           <DialogFooter>
-            <SubmitButton disabled={loading} pendingText="Submitting...">Submit Idea</SubmitButton>
+            <SubmitButton disabled={isLoading} pendingText="Submitting...">Submit Idea</SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

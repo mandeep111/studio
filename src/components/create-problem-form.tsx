@@ -20,7 +20,7 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
   const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  const isLoading = authLoading || formLoading;
+  const isLoading = authLoading || formLoading || !userProfile;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
