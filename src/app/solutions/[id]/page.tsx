@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SolutionPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { user } = useAuth();
   const { toast } = useToast();
   const [solution, setSolution] = useState<Solution | null>(null);
@@ -22,12 +23,12 @@ export default function SolutionPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchSolution = async () => {
       setLoading(true);
-      const solutionData = await getSolution(params.id);
+      const solutionData = await getSolution(id);
       setSolution(solutionData);
       setLoading(false);
     };
     fetchSolution();
-  }, [params.id]);
+  }, [id]);
 
   const handleUpvote = async () => {
     if (!user || !solution) return;
