@@ -49,6 +49,12 @@ export async function getAllUsers(): Promise<UserProfile[]> {
   return snapshot.docs.map((doc) => ({ ...doc.data(), uid: doc.id } as UserProfile));
 }
 
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+    const docRef = doc(db, "users", userId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { uid: docSnap.id, ...docSnap.data() } as UserProfile : null;
+}
+
 export async function getProblem(id: string): Promise<Problem | null> {
     const docRef = doc(db, "problems", id);
     const docSnap = await getDoc(docRef);
@@ -67,6 +73,21 @@ export async function getSolutionsForProblem(problemId: string): Promise<Solutio
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
 }
+
+export async function getProblemsByUser(userId: string): Promise<Problem[]> {
+    const col = collection(db, "problems");
+    const q = query(col, where("creator.userId", "==", userId), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
+}
+
+export async function getSolutionsByUser(userId: string): Promise<Solution[]> {
+    const col = collection(db, "solutions");
+    const q = query(col, where("creator.userId", "==", userId), orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
+}
+
 
 // --- Creation & Updates ---
 
@@ -126,6 +147,7 @@ export async function createSolution(description: string, problemId: string, pro
     
     const solutionRef = doc(collection(db, "solutions"));
     const problemRef = doc(db, "problems", problemId);
+    const userRef = doc(db, "users", creator.uid);
     
     const priceApproved = price ? price <= 1000 : true;
 
@@ -147,7 +169,8 @@ export async function createSolution(description: string, problemId: string, pro
     });
 
     batch.update(problemRef, { solutionsCount: increment(1) });
-    
+    batch.update(userRef, { points: increment(20) });
+
     await batch.commit();
 
     const problemDoc = await getDoc(problemRef);

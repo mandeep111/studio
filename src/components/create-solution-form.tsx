@@ -50,7 +50,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
 
     try {
         await createSolution(description, problemId, problemTitle, price, userProfile);
-        toast({ title: "Success!", description: "Solution posted successfully." });
+        toast({ title: "Success!", description: "Solution posted successfully. You've earned 20 points!" });
         formRef.current?.reset();
         onSolutionCreated(); // Callback to refetch solutions
     } catch (error) {
