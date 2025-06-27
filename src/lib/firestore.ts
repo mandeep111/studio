@@ -76,29 +76,37 @@ export async function getSolutionsForProblem(problemId: string): Promise<Solutio
 
 export async function getProblemsByUser(userId: string): Promise<Problem[]> {
     const col = collection(db, "problems");
-    const q = query(col, where("creator.userId", "==", userId), orderBy("createdAt", "desc"));
+    const q = query(col, where("creator.userId", "==", userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
+    const problems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
+    // Sort in-memory to avoid needing a composite index
+    return problems.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
 export async function getSolutionsByUser(userId: string): Promise<Solution[]> {
     const col = collection(db, "solutions");
-    const q = query(col, where("creator.userId", "==", userId), orderBy("createdAt", "desc"));
+    const q = query(col, where("creator.userId", "==", userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
+    const solutions = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
+     // Sort in-memory to avoid needing a composite index
+    return solutions.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
 export async function getIdeasByUser(userId: string): Promise<Idea[]> {
     const col = collection(db, "ideas");
-    const q = query(col, where("creator.userId", "==", userId), orderBy("createdAt", "desc"));
+    const q = query(col, where("creator.userId", "==", userId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
+    const ideas = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
+     // Sort in-memory to avoid needing a composite index
+    return ideas.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
 export async function getUpvotedItems(userId: string) {
-    const problemsQuery = query(collection(db, "problems"), where("upvotedBy", "array-contains", userId), orderBy("createdAt", "desc"), limit(10));
-    const solutionsQuery = query(collection(db, "solutions"), where("upvotedBy", "array-contains", userId), orderBy("createdAt", "desc"), limit(10));
-    const ideasQuery = query(collection(db, "ideas"), where("upvotedBy", "array-contains", userId), orderBy("createdAt", "desc"), limit(10));
+    // Queries are changed to fetch all matching documents without ordering,
+    // to avoid needing composite indexes. Sorting is handled in-memory.
+    const problemsQuery = query(collection(db, "problems"), where("upvotedBy", "array-contains", userId));
+    const solutionsQuery = query(collection(db, "solutions"), where("upvotedBy", "array-contains", userId));
+    const ideasQuery = query(collection(db, "ideas"), where("upvotedBy", "array-contains", userId));
 
     const [problemsSnap, solutionsSnap, ideasSnap] = await Promise.all([
         getDocs(problemsQuery),
