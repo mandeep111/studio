@@ -11,6 +11,16 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Validate that all Firebase config values are present.
+const missingConfig = Object.entries(firebaseConfig).find(
+  ([key, value]) => !value
+);
+if (missingConfig) {
+  throw new Error(
+    `Firebase config is missing '${missingConfig[0]}'. Please check your .env file.`
+  );
+}
+
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
