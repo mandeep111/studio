@@ -415,3 +415,42 @@ export async function approveItem(type: 'problem' | 'solution', id: string) {
     const docRef = doc(db, collectionName, id);
     await updateDoc(docRef, { priceApproved: true });
 }
+
+export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user', id: string) {
+    const batch = writeBatch(db);
+
+    if (type === 'user') {
+        const userRef = doc(db, 'users', id);
+        batch.delete(userRef);
+        // Note: this leaves the user's content (problems, solutions, etc.) in the database.
+        // A more robust implementation might reassign content or perform a soft delete.
+    } else if (type === 'idea') {
+        const ideaRef = doc(db, 'ideas', id);
+        batch.delete(ideaRef);
+    } else if (type === 'solution') {
+        const solutionRef = doc(db, 'solutions', id);
+        const solutionDoc = await getDoc(solutionRef);
+        if (solutionDoc.exists()) {
+            const problemId = solutionDoc.data().problemId;
+            const problemRef = doc(db, 'problems', problemId);
+            // Decrement the solutionsCount on the parent problem.
+            batch.update(problemRef, { solutionsCount: increment(-1) });
+            batch.delete(solutionRef);
+        }
+    } else if (type === 'problem') {
+        const problemRef = doc(db, 'problems', id);
+        
+        // Also delete all solutions associated with this problem to prevent orphaned data.
+        const solutionsQuery = query(collection(db, 'solutions'), where('problemId', '==', id));
+        const solutionsSnapshot = await getDocs(solutionsQuery);
+        solutionsSnapshot.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        batch.delete(problemRef);
+    } else {
+        throw new Error("Invalid item type for deletion.");
+    }
+
+    await batch.commit();
+}

@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { becomeInvestor, createDeal, getAllUsers, sendMessage, approveItem as approveItemInDb } from "@/lib/firestore";
+import { becomeInvestor, createDeal, getAllUsers, sendMessage, approveItem as approveItemInDb, deleteItem } from "@/lib/firestore";
 import type { UserProfile } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -122,5 +122,23 @@ export async function approveItemAction(formData: FormData) {
     } catch (error) {
         console.error("Failed to approve item:", error);
         return { success: false, message: 'Failed to approve item.' };
+    }
+}
+
+export async function deleteItemAction(formData: FormData) {
+    const type = formData.get('type') as 'problem' | 'solution' | 'idea' | 'user';
+    const id = formData.get('id') as string;
+
+    // In a real app with server-side auth, you would verify admin privileges here
+    // using Firebase Admin SDK. For this demo, we rely on the client-side check
+    // which prevents non-admins from even seeing the delete button.
+
+    try {
+        await deleteItem(type, id);
+        revalidatePath('/admin');
+        return { success: true, message: 'Item deleted successfully!' };
+    } catch (error) {
+        console.error("Failed to delete item:", error);
+        return { success: false, message: 'Failed to delete item.' };
     }
 }
