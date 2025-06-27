@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
 import { getAiPairings, FormState } from "@/app/actions";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,7 @@ import { Wand2, Users, Link as LinkIcon, Loader2, ArrowRight } from "lucide-reac
 import { allCreators } from "@/lib/mock-data";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { useEffect } from "react";
+import { useActionState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 const initialState: FormState = {
@@ -37,7 +37,7 @@ function SubmitButton() {
 }
 
 export default function AiMatchmaking() {
-  const [state, formAction] = useFormState(getAiPairings, initialState);
+  const [state, formAction] = useActionState(getAiPairings, initialState);
   const { toast } = useToast();
 
   useEffect(() => {
