@@ -15,6 +15,7 @@ import SolutionCard from "@/components/solution-card";
 import AiMatchmaking from "@/components/ai-matchmaking";
 import RandomIdeas from "./random-ideas";
 import { SubmitIdeaDialog } from "./submit-idea-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface MainTabsProps {
     userProfile: UserProfile | null;
@@ -69,6 +70,7 @@ function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+    const { toast } = useToast();
 
     const fetchProblems = useCallback(async () => {
         setLoading(true);
@@ -83,8 +85,13 @@ function ProblemList() {
 
     const handleUpvote = async (problemId: string) => {
         if (!user) return;
-        await upvoteProblem(problemId, user.uid);
-        fetchProblems(); // Refetch to get the latest upvote count
+        try {
+            await upvoteProblem(problemId, user.uid);
+            fetchProblems();
+            toast({title: "Success", description: "Your upvote has been recorded."});
+        } catch (e) {
+            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+        }
     };
 
     if (loading) return <ContentSkeleton title="Open Problems" description="Browse challenges awaiting innovative solutions." />;
@@ -108,6 +115,7 @@ function SolutionList() {
     const [solutions, setSolutions] = useState<Solution[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+    const { toast } = useToast();
     
     const fetchSolutions = useCallback(async () => {
         setLoading(true);
@@ -122,8 +130,13 @@ function SolutionList() {
 
     const handleUpvote = async (solutionId: string) => {
         if (!user) return;
-        await upvoteSolution(solutionId, user.uid);
-        fetchSolutions(); // Refetch
+        try {
+            await upvoteSolution(solutionId, user.uid);
+            fetchSolutions();
+            toast({title: "Success", description: "Your upvote has been recorded."});
+        } catch (e) {
+            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+        }
     };
 
     if (loading) return <ContentSkeleton title="Proposed Solutions" description="Explore creative solutions submitted by our community." />;

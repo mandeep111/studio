@@ -7,11 +7,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import IdeaCard from "./idea-card";
 import { Skeleton } from "./ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RandomIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const fetchIdeas = useCallback(async () => {
     setLoading(true);
@@ -26,17 +28,29 @@ export default function RandomIdeas() {
 
   const handleUpvote = async (ideaId: string) => {
     if (!user) return;
-    await upvoteIdea(ideaId, user.uid);
+    
+    const originalIdeas = ideas;
+    const ideaToUpdate = ideas.find(i => i.id === ideaId);
+    if (!ideaToUpdate) return;
+    
+    const upvoted = ideaToUpdate.upvotedBy.includes(user.uid);
+
     // Optimistic update
     setIdeas(prevIdeas => prevIdeas.map(idea => {
         if (idea.id !== ideaId) return idea;
-        const upvoted = idea.upvotedBy.includes(user.uid);
         return {
             ...idea,
             upvotes: upvoted ? idea.upvotes - 1 : idea.upvotes + 1,
             upvotedBy: upvoted ? idea.upvotedBy.filter(id => id !== user.uid) : [...idea.upvotedBy, user.uid]
         }
     }));
+
+    try {
+        await upvoteIdea(ideaId, user.uid);
+    } catch(e) {
+        setIdeas(originalIdeas);
+        toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+    }
   };
 
   return (

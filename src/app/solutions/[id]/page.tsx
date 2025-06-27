@@ -11,9 +11,11 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, ExternalLink, ThumbsUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SolutionPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [solution, setSolution] = useState<Solution | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,17 +31,27 @@ export default function SolutionPage({ params }: { params: { id: string } }) {
 
   const handleUpvote = async () => {
     if (!user || !solution) return;
-    await upvoteSolution(solution.id, user.uid);
+
+    const originalSolution = solution;
+    const upvoted = originalSolution.upvotedBy.includes(user.uid);
+    
     // Optimistic update
     setSolution(prev => {
         if (!prev) return null;
-        const upvoted = prev.upvotedBy.includes(user.uid);
         return {
             ...prev,
             upvotes: upvoted ? prev.upvotes - 1 : prev.upvotes + 1,
             upvotedBy: upvoted ? prev.upvotedBy.filter(id => id !== user.uid) : [...prev.upvotedBy, user.uid]
         }
-    })
+    });
+
+    try {
+        await upvoteSolution(solution.id, user.uid);
+    } catch(e) {
+        // Revert on error
+        setSolution(originalSolution);
+        toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+    }
   };
 
   if (loading) {

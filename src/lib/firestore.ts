@@ -70,7 +70,7 @@ export async function getSolutionsForProblem(problemId: string): Promise<Solutio
 
 // --- Creation & Updates ---
 
-async function createNotification(userId: string, message: string, link: string) {
+async function createNotification(userId: string | "admins", message: string, link: string) {
     const notificationsCol = collection(db, "notifications");
     await addDoc(notificationsCol, {
         userId,
@@ -192,6 +192,10 @@ export async function createIdea(title: string, description: string, tags: strin
 async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas", docId: string, userId: string) {
     const docRef = doc(db, collectionName, docId);
     
+    // Data needed for notification, fetched outside transaction
+    let creatorId: string | null = null;
+    let isAlreadyUpvoted = false;
+
     await runTransaction(db, async (transaction) => {
         const docSnap = await transaction.get(docRef);
         if (!docSnap.exists()) {
@@ -200,36 +204,47 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas", 
 
         const data = docSnap.data();
         const upvotedBy = data.upvotedBy as string[];
-        const creatorId = data.creator.userId;
-        const creatorRef = doc(db, "users", creatorId);
+        creatorId = data.creator.userId; // Set for use outside transaction
+        isAlreadyUpvoted = upvotedBy.includes(userId); // Set for use outside transaction
 
-        const isUpvoted = upvotedBy.includes(userId);
-        const pointChange = isUpvoted ? -20 : 20;
+        const creatorRef = doc(db, "users", creatorId!);
+
+        const pointChange = (collectionName === 'problems' || collectionName === 'solutions')
+            ? (isAlreadyUpvoted ? -20 : 20)
+            : 0;
         
         transaction.update(docRef, {
-            upvotes: increment(isUpvoted ? -1 : 1),
-            upvotedBy: isUpvoted ? arrayRemove(userId) : arrayUnion(userId)
+            upvotes: increment(isAlreadyUpvoted ? -1 : 1),
+            upvotedBy: isAlreadyUpvoted ? arrayRemove(userId) : arrayUnion(userId)
         });
 
-        // Award/remove points
-        if (collectionName === 'problems' || collectionName === 'solutions') {
+        // Award/remove points to the content creator if it's not the creator upvoting their own content
+        if (pointChange !== 0 && creatorId !== userId) {
             transaction.update(creatorRef, { points: increment(pointChange) });
         }
-        
-        // Send notification
-        if (!isUpvoted && creatorId !== userId) {
-            await createNotification(
-                creatorId,
-                `${userId} upvoted your ${collectionName.slice(0, -1)}!`,
-                `/${collectionName}/${docId}`
-            );
-        }
     });
+
+    // Send notification outside the transaction
+    if (!isAlreadyUpvoted && creatorId && creatorId !== userId) {
+        const upvoterSnap = await getDoc(doc(db, "users", userId));
+        const upvoterName = upvoterSnap.exists() ? upvoterSnap.data().name : "Someone";
+        await createNotification(
+            creatorId,
+            `${upvoterName} upvoted your ${collectionName.slice(0, -1)}!`,
+            `/${collectionName}/${docId}`
+        );
+    }
 }
 
-export const upvoteProblem = (docId: string, userId: string) => toggleUpvote("problems", docId, userId);
-export const upvoteSolution = (docId: string, userId: string) => toggleUpvote("solutions", docId, userId);
-export const upvoteIdea = (docId: string, userId: string) => toggleUpvote("ideas", docId, userId);
+export async function upvoteProblem(docId: string, userId: string) {
+    await toggleUpvote("problems", docId, userId);
+}
+export async function upvoteSolution(docId: string, userId: string) {
+    await toggleUpvote("solutions", docId, userId);
+}
+export async function upvoteIdea(docId: string, userId: string) {
+    await toggleUpvote("ideas", docId, userId);
+}
 
 
 // --- Investor & Deals ---
@@ -251,8 +266,8 @@ export async function createDeal(investorProfile: UserProfile, problemCreatorId:
     if (!problemCreatorSnap.exists() || !solutionCreatorSnap.exists()) {
         throw new Error("Creator not found");
     }
-    const problemCreator = problemCreatorSnap.data() as UserProfile;
-    const solutionCreator = solutionCreatorSnap.data() as UserProfile;
+    const problemCreator = {uid: problemCreatorSnap.id, ...problemCreatorSnap.data()} as UserProfile;
+    const solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
 
     const dealsCol = collection(db, "deals");
     const newDealRef = await addDoc(dealsCol, {
@@ -316,7 +331,7 @@ export async function getLeaderboardData(): Promise<UserProfile[]> {
     const usersCol = collection(db, "users");
     const q = query(usersCol, where("points", ">", 0), orderBy("points", "desc"), limit(20));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as UserProfile);
+    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
 }
 
 export async function getUnapprovedItems() {
