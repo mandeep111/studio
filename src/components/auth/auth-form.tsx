@@ -63,19 +63,25 @@ export function AuthForm() {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Check if user exists in Firestore
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        // New user, create a profile in Firestore
+        const usersCollectionRef = collection(db, "users");
+        const q = query(usersCollectionRef, limit(1));
+        const existingUsersSnapshot = await getDocs(q);
+        const isFirstUser = existingUsersSnapshot.empty;
+        const userRole = isFirstUser ? "Admin" : "User";
+
         await setDoc(userDocRef, {
           uid: user.uid,
           email: user.email,
           name: user.displayName || "New User",
-          role: "User", // Default role for Google sign-up
+          role: userRole,
           expertise: "Not specified",
           avatarUrl: user.photoURL || `https://placehold.co/100x100.png`,
+          points: 0,
+          isPremium: isFirstUser, // First user is Admin and Premium
         });
       }
       toast({ title: "Success", description: "Logged in with Google successfully." });
@@ -100,7 +106,6 @@ export function AuthForm() {
         return;
     }
     try {
-      // Check if this is the first user signing up.
       const usersCollectionRef = collection(db, "users");
       const q = query(usersCollectionRef, limit(1));
       const existingUsersSnapshot = await getDocs(q);
@@ -114,7 +119,6 @@ export function AuthForm() {
       );
       const user = userCredential.user;
 
-      // Create user profile in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
@@ -122,6 +126,8 @@ export function AuthForm() {
         role: userRole,
         expertise,
         avatarUrl: `https://placehold.co/100x100.png`,
+        points: 0,
+        isPremium: isFirstUser, // First user is Admin and Premium
       });
       
       toast({ title: "Success", description: `Account created successfully. ${isFirstUser ? 'You are the Admin!' : ''}` });

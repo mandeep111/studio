@@ -9,6 +9,8 @@ export interface UserProfile {
   role: UserRole;
   avatarUrl: string;
   expertise: string;
+  points: number;
+  isPremium: boolean;
 }
 
 export type CreatorReference = {
@@ -18,36 +20,56 @@ export type CreatorReference = {
   expertise: string;
 };
 
-export type Problem = {
+export interface BaseItem {
   id: string;
-  title: string;
-  description: string;
-  tags: string[];
   creator: CreatorReference;
+  description: string;
   upvotes: number;
   upvotedBy: string[];
-  solutionsCount: number;
   createdAt: Timestamp;
-};
+  price?: number;
+  priceApproved: boolean;
+}
 
-export type Solution = {
-  id: string;
+export interface Problem extends BaseItem {
+  title: string;
+  tags: string[];
+  solutionsCount: number;
+}
+
+export interface Solution extends BaseItem {
   problemId: string;
   problemTitle: string;
-  creator: CreatorReference;
-  description: string;
-  upvotes: number;
-  upvotedBy: string[];
-  createdAt: Timestamp;
-};
+}
 
-export type Idea = {
-  id: string;
-  creator: CreatorReference;
+export interface Idea extends BaseItem {
   title: string;
-  description: string;
   tags: string[];
-  upvotes: number;
-  upvotedBy: string[];
-  createdAt: Timestamp;
-};
+}
+
+export interface Deal {
+    id: string;
+    investor: CreatorReference;
+    problemCreator: CreatorReference;
+    solutionCreator: CreatorReference;
+    problemId: string;
+    problemTitle: string;
+    createdAt: Timestamp;
+}
+
+export interface Message {
+    id: string;
+    dealId: string;
+    sender: CreatorReference;
+    text: string;
+    createdAt: Timestamp;
+}
+
+export interface Notification {
+    id: string;
+    userId: string;
+    message: string;
+    link: string;
+    read: boolean;
+    createdAt: Timestamp;
+}

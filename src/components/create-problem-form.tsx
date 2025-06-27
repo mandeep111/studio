@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from './submit-button';
+import { DollarSign } from 'lucide-react';
 
 export default function CreateProblemForm() {
   const { userProfile } = useAuth();
@@ -30,17 +31,22 @@ export default function CreateProblemForm() {
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const tags = formData.get('tags') as string;
+    const price = formData.get('price') ? parseFloat(formData.get('price') as string) : null;
     
-    // Basic validation
     if (!title || !description || !tags) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setLoading(false);
         return;
     }
+    if (price && isNaN(price)) {
+        toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
+        setLoading(false);
+        return;
+    }
 
     try {
-        await createProblem(title, description, tags, userProfile);
-        toast({ title: "Success!", description: "Problem submitted successfully." });
+        await createProblem(title, description, tags, price, userProfile);
+        toast({ title: "Success!", description: "Problem submitted successfully. You've earned 50 points!" });
         router.push('/');
     } catch (error) {
         console.error(error);
@@ -71,6 +77,16 @@ export default function CreateProblemForm() {
         <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required />
         <p className="text-xs text-muted-foreground">
           Comma-separated list of tags.
+        </p>
+      </div>
+       <div className="space-y-2">
+        <Label htmlFor="price">Price (Optional)</Label>
+        <div className="relative">
+             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Set a price for your problem. Prices over $1,000 require admin approval.
         </p>
       </div>
       <div className="flex justify-end">

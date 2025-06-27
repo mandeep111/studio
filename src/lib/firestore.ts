@@ -11,15 +11,17 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile } from "./types";
+import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification } from "./types";
 
-// Fetch all problems, solutions, ideas
+// --- Data Fetching ---
+
 export async function getProblems(): Promise<Problem[]> {
   const col = collection(db, "problems");
   const q = query(col, orderBy("createdAt", "desc"), limit(20));
@@ -29,7 +31,7 @@ export async function getProblems(): Promise<Problem[]> {
 
 export async function getSolutions(): Promise<Solution[]> {
   const col = collection(db, "solutions");
-  const q = query(col, orderBy("createdAt", "desc"), limit(20));
+  const q = query(col, orderBy("upvotes", "desc"), limit(20));
   const snapshot = await getDocs(q);
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
 }
@@ -41,56 +43,92 @@ export async function getIdeas(): Promise<Idea[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
 }
 
-export async function getUsers(): Promise<UserProfile[]> {
+export async function getAllUsers(): Promise<UserProfile[]> {
   const col = collection(db, "users");
   const snapshot = await getDocs(col);
   return snapshot.docs.map((doc) => ({ ...doc.data(), uid: doc.id } as UserProfile));
 }
 
-// Fetch a single document by ID
 export async function getProblem(id: string): Promise<Problem | null> {
     const docRef = doc(db, "problems", id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Problem : null;
 }
+
 export async function getSolution(id: string): Promise<Solution | null> {
     const docRef = doc(db, "solutions", id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Solution : null;
 }
+
 export async function getSolutionsForProblem(problemId: string): Promise<Solution[]> {
     const col = collection(db, "solutions");
-    const q = query(col, where("problemId", "==", problemId), orderBy("createdAt", "desc"));
+    const q = query(col, where("problemId", "==", problemId), orderBy("upvotes", "desc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
 }
 
+// --- Creation & Updates ---
 
-// Create new documents
-export async function createProblem(title: string, description: string, tags: string, creator: UserProfile) {
-  const problemsCol = collection(db, "problems");
-  await addDoc(problemsCol, {
-    title,
-    description,
-    tags: tags.split(',').map(t => t.trim()),
-    creator: {
-        userId: creator.uid,
-        name: creator.name,
-        avatarUrl: creator.avatarUrl,
-        expertise: creator.expertise,
-    },
-    upvotes: 0,
-    upvotedBy: [],
-    solutionsCount: 0,
-    createdAt: serverTimestamp(),
-  });
+async function createNotification(userId: string, message: string, link: string) {
+    const notificationsCol = collection(db, "notifications");
+    await addDoc(notificationsCol, {
+        userId,
+        message,
+        link,
+        read: false,
+        createdAt: serverTimestamp(),
+    });
 }
 
-export async function createSolution(description: string, problemId: string, problemTitle: string, creator: UserProfile) {
+export async function createProblem(title: string, description: string, tags: string, price: number | null, creator: UserProfile) {
+    await runTransaction(db, async (transaction) => {
+        const problemsCol = collection(db, "problems");
+        const newProblemRef = doc(problemsCol);
+
+        const priceApproved = price ? price <= 1000 : true;
+        
+        transaction.set(newProblemRef, {
+            title,
+            description,
+            tags: tags.split(',').map(t => t.trim()),
+            creator: {
+                userId: creator.uid,
+                name: creator.name,
+                avatarUrl: creator.avatarUrl,
+                expertise: creator.expertise,
+            },
+            upvotes: 0,
+            upvotedBy: [],
+            solutionsCount: 0,
+            createdAt: serverTimestamp(),
+            price: price || null,
+            priceApproved
+        });
+
+        // Award points to creator
+        const userRef = doc(db, "users", creator.uid);
+        transaction.update(userRef, { points: increment(50) });
+
+        if (!priceApproved) {
+            await createNotification(
+                "admins", // Special ID for admin notifications
+                `${creator.name} submitted a problem "${title}" with a price of $${price}, which requires approval.`,
+                `/problems/${newProblemRef.id}`
+            );
+        }
+    });
+}
+
+
+export async function createSolution(description: string, problemId: string, problemTitle: string, price: number | null, creator: UserProfile) {
     const batch = writeBatch(db);
     
-    // Add new solution
     const solutionRef = doc(collection(db, "solutions"));
+    const problemRef = doc(db, "problems", problemId);
+    
+    const priceApproved = price ? price <= 1000 : true;
+
     batch.set(solutionRef, {
         problemId,
         problemTitle,
@@ -104,15 +142,32 @@ export async function createSolution(description: string, problemId: string, pro
         upvotes: 0,
         upvotedBy: [],
         createdAt: serverTimestamp(),
+        price: price || null,
+        priceApproved
     });
 
-    // Increment solutionsCount on the problem
-    const problemRef = doc(db, "problems", problemId);
     batch.update(problemRef, { solutionsCount: increment(1) });
     
     await batch.commit();
-}
 
+    const problemDoc = await getDoc(problemRef);
+    const problemCreatorId = problemDoc.data()?.creator.userId;
+
+    if (problemCreatorId) {
+        await createNotification(
+            problemCreatorId,
+            `${creator.name} proposed a new solution for your problem: "${problemTitle}"`,
+            `/problems/${problemId}`
+        );
+    }
+    if (!priceApproved) {
+        await createNotification(
+            "admins",
+            `${creator.name} submitted a solution for "${problemTitle}" with a price of $${price}, which requires approval.`,
+            `/solutions/${solutionRef.id}`
+        );
+    }
+}
 
 export async function createIdea(title: string, description: string, tags: string, creator: UserProfile) {
   const ideasCol = collection(db, "ideas");
@@ -132,32 +187,155 @@ export async function createIdea(title: string, description: string, tags: strin
   });
 }
 
-// Upvote functionality
-async function toggleUpvote(collectionName: string, docId: string, userId: string) {
+// --- Upvote & Points ---
+
+async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas", docId: string, userId: string) {
     const docRef = doc(db, collectionName, docId);
-    const docSnap = await getDoc(docRef);
+    
+    await runTransaction(db, async (transaction) => {
+        const docSnap = await transaction.get(docRef);
+        if (!docSnap.exists()) {
+            throw new Error("Document does not exist!");
+        }
 
-    if (!docSnap.exists()) {
-        throw new Error("Document does not exist!");
-    }
+        const data = docSnap.data();
+        const upvotedBy = data.upvotedBy as string[];
+        const creatorId = data.creator.userId;
+        const creatorRef = doc(db, "users", creatorId);
 
-    const upvotedBy = docSnap.data().upvotedBy as string[];
-
-    if (upvotedBy.includes(userId)) {
-        // User has already upvoted, so remove upvote
-        await updateDoc(docRef, {
-            upvotes: increment(-1),
-            upvotedBy: arrayRemove(userId)
+        const isUpvoted = upvotedBy.includes(userId);
+        const pointChange = isUpvoted ? -20 : 20;
+        
+        transaction.update(docRef, {
+            upvotes: increment(isUpvoted ? -1 : 1),
+            upvotedBy: isUpvoted ? arrayRemove(userId) : arrayUnion(userId)
         });
-    } else {
-        // User has not upvoted, so add upvote
-        await updateDoc(docRef, {
-            upvotes: increment(1),
-            upvotedBy: arrayUnion(userId)
-        });
-    }
+
+        // Award/remove points
+        if (collectionName === 'problems' || collectionName === 'solutions') {
+            transaction.update(creatorRef, { points: increment(pointChange) });
+        }
+        
+        // Send notification
+        if (!isUpvoted && creatorId !== userId) {
+            await createNotification(
+                creatorId,
+                `${userId} upvoted your ${collectionName.slice(0, -1)}!`,
+                `/${collectionName}/${docId}`
+            );
+        }
+    });
 }
 
-export const upvoteProblem = async (docId: string, userId: string) => toggleUpvote("problems", docId, userId);
-export const upvoteSolution = async (docId: string, userId: string) => toggleUpvote("solutions", docId, userId);
-export const upvoteIdea = async (docId: string, userId: string) => toggleUpvote("ideas", docId, userId);
+export const upvoteProblem = (docId: string, userId: string) => toggleUpvote("problems", docId, userId);
+export const upvoteSolution = (docId: string, userId: string) => toggleUpvote("solutions", docId, userId);
+export const upvoteIdea = (docId: string, userId: string) => toggleUpvote("ideas", docId, userId);
+
+
+// --- Investor & Deals ---
+
+export async function becomeInvestor(userId: string) {
+    const userRef = doc(db, "users", userId);
+    await updateDoc(userRef, {
+        role: "Investor",
+        isPremium: true
+    });
+}
+
+export async function createDeal(investorProfile: UserProfile, problemCreatorId: string, solutionCreatorId: string, problemId: string): Promise<string> {
+    const problem = await getProblem(problemId);
+    if (!problem) throw new Error("Problem not found");
+
+    const problemCreatorSnap = await getDoc(doc(db, "users", problemCreatorId));
+    const solutionCreatorSnap = await getDoc(doc(db, "users", solutionCreatorId));
+    if (!problemCreatorSnap.exists() || !solutionCreatorSnap.exists()) {
+        throw new Error("Creator not found");
+    }
+    const problemCreator = problemCreatorSnap.data() as UserProfile;
+    const solutionCreator = solutionCreatorSnap.data() as UserProfile;
+
+    const dealsCol = collection(db, "deals");
+    const newDealRef = await addDoc(dealsCol, {
+        investor: { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise },
+        problemCreator: { userId: problemCreator.uid, name: problemCreator.name, avatarUrl: problemCreator.avatarUrl, expertise: problemCreator.expertise },
+        solutionCreator: { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise },
+        problemId: problem.id,
+        problemTitle: problem.title,
+        createdAt: serverTimestamp(),
+    });
+
+    // Notify creators
+    const dealLink = `/deals/${newDealRef.id}`;
+    await createNotification(problemCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name}!`, dealLink);
+    await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${problemCreator.name}!`, dealLink);
+
+    return newDealRef.id;
+}
+
+
+export async function getDeal(id: string): Promise<Deal | null> {
+    const docRef = doc(db, "deals", id);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Deal : null;
+}
+
+export async function getMessages(dealId: string): Promise<Message[]> {
+    const messagesCol = collection(db, `deals/${dealId}/messages`);
+    const q = query(messagesCol, orderBy("createdAt", "asc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+}
+
+export async function sendMessage(dealId: string, text: string, sender: UserProfile) {
+    const messagesCol = collection(db, `deals/${dealId}/messages`);
+    await addDoc(messagesCol, {
+        dealId,
+        text,
+        sender: {
+            userId: sender.uid,
+            name: sender.name,
+            avatarUrl: sender.avatarUrl,
+            expertise: sender.expertise
+        },
+        createdAt: serverTimestamp(),
+    });
+}
+
+
+// --- Notifications ---
+export async function getNotifications(userId: string): Promise<Notification[]> {
+    const col = collection(db, "notifications");
+    const q = query(col, where("userId", "in", [userId, "admins"]), orderBy("createdAt", "desc"), limit(50));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+}
+
+
+// --- Leaderboard & Admin ---
+export async function getLeaderboardData(): Promise<UserProfile[]> {
+    const usersCol = collection(db, "users");
+    const q = query(usersCol, where("points", ">", 0), orderBy("points", "desc"), limit(20));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as UserProfile);
+}
+
+export async function getUnapprovedItems() {
+    const problemsQuery = query(collection(db, "problems"), where("priceApproved", "==", false));
+    const solutionsQuery = query(collection(db, "solutions"), where("priceApproved", "==", false));
+
+    const [problemsSnap, solutionsSnap] = await Promise.all([
+        getDocs(problemsQuery),
+        getDocs(solutionsQuery)
+    ]);
+
+    const problems = problemsSnap.docs.map(doc => ({ type: 'problem', id: doc.id, ...doc.data() as Problem }));
+    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution', id: doc.id, ...doc.data() as Solution }));
+    
+    return [...problems, ...solutions];
+}
+
+export async function approveItem(type: 'problem' | 'solution', id: string) {
+    const collectionName = type === 'problem' ? 'problems' : 'solutions';
+    const docRef = doc(db, collectionName, id);
+    await updateDoc(docRef, { priceApproved: true });
+}

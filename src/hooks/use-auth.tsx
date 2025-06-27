@@ -3,7 +3,7 @@
 import { auth, db } from "@/lib/firebase/config";
 import type { UserProfile } from "@/lib/types";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -25,27 +25,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        const userDocRef = doc(db, "users", firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setUserProfile({ uid: userDoc.id, ...userDoc.data() } as UserProfile);
-        } else {
-          // Handle case where user exists in Auth but not Firestore, e.g., during signup process
-          setUserProfile(null);
-        }
-      } else {
-        setUser(null);
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      if (!firebaseUser) {
         setUserProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      const userDocRef = doc(db, "users", user.uid);
+      const unsubscribeFirestore = onSnapshot(userDocRef, (doc) => {
+        if (doc.exists()) {
+          setUserProfile({ uid: doc.id, ...doc.data() } as UserProfile);
+        } else {
+          setUserProfile(null);
+        }
+        setLoading(false);
+      });
+      return () => unsubscribeFirestore();
+    }
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, userProfile, loading }}>

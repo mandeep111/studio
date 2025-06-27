@@ -9,15 +9,17 @@ import Header from "@/components/header";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProblemPage({ params }: { params: { id: string } }) {
   const { user, userProfile } = useAuth();
+  const { toast } = useToast();
   const [problem, setProblem] = useState<Problem | null>(null);
   const [solutions, setSolutions] = useState<Solution[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,31 +41,24 @@ export default function ProblemPage({ params }: { params: { id: string } }) {
 
   const handleProblemUpvote = async () => {
     if (!user || !problem) return;
-    await upvoteProblem(problem.id, user.uid);
-    // Optimistic update
-    setProblem(prev => {
-        if (!prev) return null;
-        const upvoted = prev.upvotedBy.includes(user.uid);
-        return {
-            ...prev,
-            upvotes: upvoted ? prev.upvotes - 1 : prev.upvotes + 1,
-            upvotedBy: upvoted ? prev.upvotedBy.filter(id => id !== user.uid) : [...prev.upvotedBy, user.uid]
-        }
-    })
+    try {
+        await upvoteProblem(problem.id, user.uid);
+        fetchProblemAndSolutions();
+        toast({title: "Success", description: "Your upvote has been recorded."})
+    } catch(e) {
+        toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+    }
   };
 
   const handleSolutionUpvote = async (solutionId: string) => {
     if (!user) return;
-    await upvoteSolution(solutionId, user.uid);
-    setSolutions(prevSolutions => prevSolutions.map(sol => {
-        if (sol.id !== solutionId) return sol;
-        const upvoted = sol.upvotedBy.includes(user.uid);
-        return {
-            ...sol,
-            upvotes: upvoted ? sol.upvotes - 1 : sol.upvotes + 1,
-            upvotedBy: upvoted ? sol.upvotedBy.filter(id => id !== user.uid) : [...sol.upvotedBy, user.uid]
-        }
-    }));
+     try {
+        await upvoteSolution(solutionId, user.uid);
+        fetchProblemAndSolutions();
+        toast({title: "Success", description: "Your upvote has been recorded."})
+    } catch(e) {
+        toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+    }
   };
 
   if (loading) {
@@ -114,10 +109,18 @@ export default function ProblemPage({ params }: { params: { id: string } }) {
             </CardHeader>
             <CardContent>
               <p className="leading-relaxed">{problem.description}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {problem.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
-                ))}
+              <div className="mt-4 flex flex-wrap gap-4">
+                <div className="flex flex-wrap gap-2">
+                    {problem.tags.map((tag) => (
+                      <Badge key={tag} variant="secondary">{tag}</Badge>
+                    ))}
+                </div>
+                {problem.price && (
+                    <Badge variant={problem.priceApproved ? "default" : "destructive"} className="flex items-center gap-1">
+                        <DollarSign className="h-4 w-4" /> {problem.price.toFixed(2)}
+                        {problem.priceApproved ? <CheckCircle className="h-4 w-4" /> : '(Awaiting Approval)'}
+                    </Badge>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex items-center gap-6 text-muted-foreground">

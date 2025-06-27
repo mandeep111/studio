@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainCircuit, LogOut, User } from "lucide-react";
+import { BrainCircuit, LogOut, User, Trophy, BarChart, ShieldCheck, Gem } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
@@ -17,6 +17,7 @@ import { auth } from "@/lib/firebase/config";
 import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "./theme-toggle";
+import NotificationsIcon from "./notifications-icon";
 
 export default function Header() {
   const { user, userProfile, loading } = useAuth();
@@ -34,8 +35,16 @@ export default function Header() {
           <BrainCircuit className="h-6 w-6 text-primary" />
           <h1 className="ml-2 font-heading text-2xl font-bold">TriSolve</h1>
         </Link>
+        <nav className="flex items-center gap-4 text-sm font-medium">
+            <Link href="/leaderboard" className="text-muted-foreground transition-colors hover:text-foreground">Leaderboard</Link>
+            <Link href="/membership" className="text-muted-foreground transition-colors hover:text-foreground">Membership</Link>
+            {userProfile?.role === 'Admin' && (
+                 <Link href="/admin" className="text-muted-foreground transition-colors hover:text-foreground">Admin</Link>
+            )}
+        </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
           <ThemeToggle />
+          {!loading && userProfile && <NotificationsIcon userId={userProfile.uid} />}
           {!loading && (
             userProfile ? (
               <DropdownMenu>
@@ -54,11 +63,17 @@ export default function Header() {
                       <p className="text-xs leading-none text-muted-foreground">
                         {userProfile.email}
                       </p>
-                      <p className="text-xs leading-none text-muted-foreground pt-1">
-                        Role: <span className="font-semibold">{userProfile.role}</span>
-                      </p>
                     </div>
                   </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                   <DropdownMenuItem disabled>
+                      <Gem className="mr-2 h-4 w-4 text-yellow-500" />
+                      <span>{userProfile.points.toLocaleString()} Points</span>
+                   </DropdownMenuItem>
+                   <DropdownMenuItem disabled>
+                      <Trophy className="mr-2 h-4 w-4 text-primary" />
+                      <span>Role: {userProfile.role}</span>
+                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
                     <User className="mr-2 h-4 w-4" />

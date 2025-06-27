@@ -1,99 +1,76 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    // Helper function to check ownership or admin role
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
     function isAdmin() {
-      // Check if the user has an 'Admin' role in their user document.
-      // This requires the user to be able to read their own document.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-    // Rules for User profiles
+    // Users can be read by anyone, but only the user themselves or an admin can write.
+    // New users can create their own profile.
     match /users/{userId} {
-      // Any authenticated user can create their own profile document.
-      allow create: if request.auth != null && request.auth.uid == userId;
-      
-      // Any authenticated user can read any profile.
-      allow read: if request.auth != null;
-      
-      // A user can only update their own profile, unless they are an admin.
-      allow update: if request.auth.uid == userId || isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
     }
-    
-    // Rules for Problems
+
+    // Problems can be read by anyone.
+    // Creation is allowed for any signed-in user.
+    // Updates and deletes are restricted to the owner or an admin.
     match /problems/{problemId} {
-      function isOwner() {
-        return request.auth.uid == resource.data.creator.userId;
-      }
-      
-      // Any authenticated user can read problems.
-      allow read: if request.auth != null;
-      
-      // Any authenticated user can create problems.
-      allow create: if request.auth != null;
-      
-      // Update rules for problems.
-      allow update: if request.auth != null && (
-        // Allow owner or admin to update all fields.
-        isOwner() || isAdmin() ||
-        // Allow any authenticated user to update only the 'upvotedBy' field for upvoting.
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotedBy']) ||
-        // Allow incrementing solutionsCount by 1 when a new solution is added.
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['solutionsCount']) &&
-         request.resource.data.solutionsCount == resource.data.solutionsCount + 1)
-      );
-      
-      // Only the owner or an admin can delete a problem.
-      allow delete: if request.auth != null && (isOwner() || isAdmin());
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data.creator.userId) || isAdmin();
+    }
+
+    // Solutions have the same rules as Problems.
+    match /solutions/{solutionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data.creator.userId) || isAdmin();
     }
     
-    // Rules for Solutions
-    match /solutions/{solutionId} {
-      function isOwner() {
-        return request.auth.uid == resource.data.creator.userId;
-      }
-      
-      // Any authenticated user can read solutions.
-      allow read: if request.auth != null;
-      
-      // Any authenticated user can create solutions.
-      allow create: if request.auth != null;
-      
-      // Update rules for solutions.
-      allow update: if request.auth != null && (
-        // Allow owner or admin to update all fields.
-        isOwner() || isAdmin() ||
-        // Allow any authenticated user to update only the 'upvotedBy' field for upvoting.
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotedBy'])
-      );
-      
-      // Only the owner or an admin can delete a solution.
-      allow delete: if request.auth != null && (isOwner() || isAdmin());
+    // Ideas have the same rules as Problems.
+    match /ideas/{ideaId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isOwner(resource.data.creator.userId) || isAdmin();
     }
 
-    // Rules for Ideas
-    match /ideas/{ideaId} {
-      function isOwner() {
-        return request.auth.uid == resource.data.creator.userId;
-      }
+    // Notifications can only be read by the recipient or an admin (for admin-wide notifications).
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId) || (resource.data.userId == 'admins' && isAdmin());
+      allow create: if isSignedIn(); // System can create notifications
+      allow update: if isOwner(resource.data.userId); // User can mark as read
+    }
 
-      // Any authenticated user can read ideas.
-      allow read: if request.auth != null;
-      
-      // Any authenticated user can create ideas.
-      allow create: if request.auth != null;
-      
-      // Update rules for ideas.
-      allow update: if request.auth != null && (
-        // Allow owner or admin to update all fields.
-        isOwner() || isAdmin() ||
-        // Allow any authenticated user to update only the 'upvotedBy' field for upvoting.
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotedBy'])
-      );
-      
-      // Only the owner or an admin can delete an idea.
-      allow delete: if request.auth != null && (isOwner() || isAdmin());
+    // Deals can be created by Investors.
+    // Reading a deal is restricted to its participants (Investor, Problem Creator, Solution Creator) or an admin.
+    match /deals/{dealId} {
+      allow create: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Investor';
+      allow read: if isSignedIn() && (
+                    resource.data.investor.userId == request.auth.uid ||
+                    resource.data.problemCreator.userId == request.auth.uid ||
+                    resource.data.solutionCreator.userId == request.auth.uid ||
+                    isAdmin()
+                  );
+
+      // Messages within a deal can be created and read by the deal participants.
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn() && (
+                    get(/databases/$(database)/documents/deals/$(dealId)).data.investor.userId == request.auth.uid ||
+                    get(/databases/$(database)/documents/deals/$(dealId)).data.problemCreator.userId == request.auth.uid ||
+                    get(/databases/$(database)/documents/deals/$(dealId)).data.solutionCreator.userId == request.auth.uid ||
+                    isAdmin()
+                  );
+      }
     }
   }
 }

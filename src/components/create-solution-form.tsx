@@ -7,6 +7,9 @@ import { createSolution } from '@/lib/firestore';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Textarea } from './ui/textarea';
 import { SubmitButton } from './submit-button';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { DollarSign } from 'lucide-react';
 
 interface CreateSolutionFormProps {
     problemId: string;
@@ -32,15 +35,21 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
 
     const formData = new FormData(event.currentTarget);
     const description = formData.get('description') as string;
+    const price = formData.get('price') ? parseFloat(formData.get('price') as string) : null;
 
     if (!description || description.length < 20) {
         toast({ variant: "destructive", title: "Validation Error", description: "Description must be at least 20 characters." });
         setLoading(false);
         return;
     }
+     if (price && isNaN(price)) {
+        toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
+        setLoading(false);
+        return;
+    }
 
     try {
-        await createSolution(description, problemId, problemTitle, userProfile);
+        await createSolution(description, problemId, problemTitle, price, userProfile);
         toast({ title: "Success!", description: "Solution posted successfully." });
         formRef.current?.reset();
         onSolutionCreated(); // Callback to refetch solutions
@@ -55,8 +64,8 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
 
   return (
     <Card>
-      <form ref={formRef} onSubmit={handleSubmit}>
-        <CardContent className="pt-6">
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="pt-6 space-y-4">
           <Textarea
             name="description"
             placeholder="Describe your innovative solution here..."
@@ -64,6 +73,16 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
             required
             disabled={loading}
           />
+           <div className="space-y-2">
+            <Label htmlFor="price-solution">Price (Optional)</Label>
+             <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input id="price-solution" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+            Set a price for your solution. Prices over $1,000 require admin approval.
+            </p>
+          </div>
         </CardContent>
         <CardFooter>
           <SubmitButton className="ml-auto" disabled={loading} pendingText="Posting...">Post Solution</SubmitButton>

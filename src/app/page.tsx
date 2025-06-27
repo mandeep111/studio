@@ -7,7 +7,7 @@ import Header from "@/components/header";
 import MainTabs from "@/components/main-tabs";
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export default function Home() {
       <Header />
       <main className="flex-1 bg-background">
         <div className="container mx-auto px-4 py-8 md:px-6 lg:px-8">
-          <MainTabs />
+          <MainTabs userProfile={userProfile} />
         </div>
       </main>
     </div>

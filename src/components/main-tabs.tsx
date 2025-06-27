@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getProblems, getSolutions, upvoteProblem, upvoteSolution, getIdeas, upvoteIdea } from "@/lib/firestore";
-import type { Problem, Solution, Idea } from "@/lib/types";
+import type { Problem, Solution, Idea, UserProfile } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "./ui/skeleton";
@@ -16,10 +16,12 @@ import AiMatchmaking from "@/components/ai-matchmaking";
 import RandomIdeas from "./random-ideas";
 import { SubmitIdeaDialog } from "./submit-idea-dialog";
 
-export default function MainTabs() {
-  const [activeTab, setActiveTab] = useState("problems");
-  const { userProfile, loading: authLoading } = useAuth();
+interface MainTabsProps {
+    userProfile: UserProfile | null;
+}
 
+export default function MainTabs({ userProfile }: MainTabsProps) {
+  const [activeTab, setActiveTab] = useState("problems");
   const router = useRouter();
 
   const handleCreateProblem = () => {
@@ -33,18 +35,16 @@ export default function MainTabs() {
           <TabsTrigger value="problems">Problems</TabsTrigger>
           <TabsTrigger value="solutions">Solutions</TabsTrigger>
           <TabsTrigger value="random-ideas">Random Ideas</TabsTrigger>
-          {(userProfile?.role === 'Investor' || userProfile?.role === 'Admin') && (
-            <TabsTrigger value="ai-matchmaking">AI Matchmaking</TabsTrigger>
-          )}
+          <TabsTrigger value="ai-matchmaking">AI Matchmaking</TabsTrigger>
         </TabsList>
         <div className="h-10 w-full sm:w-auto">
-          {activeTab === 'problems' && userProfile?.role === 'User' && (
+          {activeTab === 'problems' && (userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
               <Button className="w-full" onClick={handleCreateProblem}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Submit a Problem
               </Button>
           )}
-          {activeTab === 'random-ideas' && userProfile?.role === 'User' && (
+          {activeTab === 'random-ideas' && (userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
              <SubmitIdeaDialog onIdeaCreated={() => { /* re-fetch could be implemented here */ }}/>
           )}
         </div>
@@ -65,7 +65,6 @@ export default function MainTabs() {
   );
 }
 
-// Separate components for lists to manage their own state and data fetching
 function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -133,7 +132,7 @@ function SolutionList() {
         <Card>
             <CardHeader>
                 <CardTitle>Proposed Solutions</CardTitle>
-                <CardDescription>Explore creative solutions submitted by our community.</CardDescription>
+                <CardDescription>Explore creative solutions submitted by our community. Sorted by most upvotes.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {solutions.map((solution) => (
