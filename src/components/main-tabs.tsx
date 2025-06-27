@@ -86,9 +86,7 @@ function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
                     <CardTitle>Open Problems</CardTitle>
                     <CardDescription>Browse challenges awaiting innovative solutions.</CardDescription>
                 </div>
-                 {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-                    <SubmitProblemDialog onProblemCreated={fetchProblems} />
-                )}
+                <SubmitProblemDialog onProblemCreated={fetchProblems} />
             </CardHeader>
             <CardContent>
                 {problems.length > 0 ? (
@@ -101,14 +99,12 @@ function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
                     <div className="text-center py-16">
                         <h3 className="text-xl font-semibold">No Problems Yet</h3>
                         <p className="text-muted-foreground mt-2 mb-6">Be the first to submit a problem and get the ball rolling.</p>
-                        {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-                           <SubmitProblemDialog onProblemCreated={fetchProblems}>
-                             <Button>
-                               <PlusCircle className="mr-2 h-4 w-4" />
-                               Submit a Problem
-                             </Button>
-                           </SubmitProblemDialog>
-                        )}
+                        <SubmitProblemDialog onProblemCreated={fetchProblems}>
+                            <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Submit a Problem
+                            </Button>
+                        </SubmitProblemDialog>
                     </div>
                 )}
             </CardContent>

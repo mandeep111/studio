@@ -22,9 +22,10 @@ import { createIdea } from "@/lib/firestore";
 
 interface SubmitIdeaDialogProps {
   onIdeaCreated: () => void;
+  children?: React.ReactNode;
 }
 
-export function SubmitIdeaDialog({ onIdeaCreated }: SubmitIdeaDialogProps) {
+export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogProps) {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
@@ -37,6 +38,12 @@ export function SubmitIdeaDialog({ onIdeaCreated }: SubmitIdeaDialogProps) {
 
     if (!userProfile) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit an idea." });
+        setLoading(false);
+        return;
+    }
+
+    if (userProfile.role !== 'User' && userProfile.role !== 'Admin') {
+        toast({ variant: "destructive", title: "Permission Denied", description: "Only Users and Admins can create ideas." });
         setLoading(false);
         return;
     }
@@ -70,10 +77,12 @@ export function SubmitIdeaDialog({ onIdeaCreated }: SubmitIdeaDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full">
-          <Lightbulb className="mr-2 h-4 w-4" />
-          Submit an Idea
-        </Button>
+        {children ? children : (
+            <Button>
+                <Lightbulb className="mr-2 h-4 w-4" />
+                Submit an Idea
+            </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

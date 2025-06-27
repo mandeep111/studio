@@ -69,9 +69,7 @@ export default function RandomIdeas() {
             A space for brilliant thoughts not tied to a specific problem.
           </CardDescription>
         </div>
-         {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-           <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
-        )}
+        <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -89,9 +87,7 @@ export default function RandomIdeas() {
             <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-xl font-semibold">No Ideas Yet</h3>
             <p className="text-muted-foreground mt-2 mb-6">Be the first to share a random spark of genius.</p>
-            {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-              <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
-            )}
+            <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
           </div>
         )}
       </CardContent>

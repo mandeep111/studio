@@ -30,6 +30,12 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         return;
     }
 
+    if (userProfile.role !== 'User' && userProfile.role !== 'Admin') {
+        toast({ variant: "destructive", title: "Permission Denied", description: "Only Users and Admins can create problems." });
+        setLoading(false);
+        return;
+    }
+
     const formData = new FormData(event.currentTarget);
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
