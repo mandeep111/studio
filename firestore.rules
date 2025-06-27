@@ -1,63 +1,97 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    function isSignedIn() {
+
+    // --- Helper Functions ---
+    function isAuth() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuth() && request.auth.uid == userId;
+    }
+    
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      return isAuth() && getUserData(request.auth.uid).role == 'Admin';
+    }
+    
+    // --- Collection Rules ---
+
+    // USERS: Users can manage their own profile. Admins can manage any.
+    // Points can be updated by anyone (for upvotes via server action).
+    // Role can be updated to 'Investor' by the user.
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow create: if isOwner(userId);
+      allow update: if isAdmin() || isOwner(userId)
+                      // Allow points to be changed by the system (via server actions)
+                      || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']))
+                      // Allow user to become an investor
+                      || (isOwner(userId) && request.resource.data.role == 'Investor' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'isPremium']));
+      allow delete: if isAdmin();
     }
 
-    // Users can read any profile.
-    // They can create/update their own profile.
-    // Any signed-in user can update the 'points' field of another user (for upvotes).
-    // Only admins can delete users.
-    match /users/{userId} {
-      allow read;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']));
-      allow delete: if isAdmin();
-    }
-    
-    // Any signed-in user can read, create, or update these items.
-    // Only admins can delete them.
+    // PUBLIC CONTENT: Problems, Solutions, Ideas
     match /problems/{problemId} {
-      allow read, create, update: if isSignedIn();
+      allow read: if true;
+      allow create: if isAuth() && request.resource.data.creator.userId == request.auth.uid;
+      allow update: if isAdmin() 
+                    || (isAuth() && resource.data.creator.userId == request.auth.uid)
+                    // Allow upvotes and solution count updates by any authenticated user
+                    || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['upvotes', 'upvotedBy', 'solutionsCount', 'priceApproved']));
       allow delete: if isAdmin();
     }
-    
+
     match /solutions/{solutionId} {
-      allow read, create, update: if isSignedIn();
+      allow read: if true;
+      allow create: if isAuth() && request.resource.data.creator.userId == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isAuth() && resource.data.creator.userId == request.auth.uid)
+                    // Allow upvotes and price approval
+                    || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['upvotes', 'upvotedBy', 'priceApproved']));
       allow delete: if isAdmin();
     }
 
     match /ideas/{ideaId} {
-      allow read, create, update: if isSignedIn();
+      allow read: if true;
+      allow create: if isAuth() && request.resource.data.creator.userId == request.auth.uid;
+      allow update: if isAdmin()
+                    || (isAuth() && resource.data.creator.userId == request.auth.uid)
+                    // Allow upvotes by any authenticated user
+                    || (isAuth() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy']));
       allow delete: if isAdmin();
     }
 
-    // Deals and their messages can be accessed by any signed in user.
-    // A more secure rule would check if the user is a participant.
+    // DEALS & MESSAGES: Private chat rooms
     match /deals/{dealId} {
-      allow read, create, update: if isSignedIn();
-
+      function isParticipant() {
+        return request.auth.uid == resource.data.investor.userId
+            || request.auth.uid == resource.data.problemCreator.userId
+            || request.auth.uid == resource.data.solutionCreator.userId;
+      }
+      
+      allow read: if isAuth() && isParticipant();
+      allow create: if isAuth() && (getUserData(request.auth.uid).role == 'Investor' || isAdmin());
+      allow update, delete: if false; // Deals are immutable for now
+      
       match /messages/{messageId} {
-        allow read, create: if isSignedIn();
+        allow read, list: if isAuth() && isParticipant();
+        allow create: if isAuth() && isParticipant() && request.resource.data.sender.userId == request.auth.uid;
+        allow update, delete: if false;
       }
     }
     
-    // Notifications can be read by their target user or by an admin.
-    // They are created by trusted server-side code.
+    // NOTIFICATIONS: For user updates
     match /notifications/{notificationId} {
-      allow read: if isSignedIn() && (isOwner(resource.data.userId) || (resource.data.userId == 'admins' && isAdmin()));
-      allow create: if isSignedIn();
+      allow read: if isAuth() && (resource.data.userId == request.auth.uid || (resource.data.userId == 'admins' && isAdmin()));
+      allow create: if isAuth(); // created via trusted server actions
+      allow update, delete: if false;
     }
   }
 }
