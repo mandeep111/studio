@@ -18,18 +18,20 @@ interface CreateSolutionFormProps {
 }
 
 export default function CreateSolutionForm({ problemId, problemTitle, onSolutionCreated }: CreateSolutionFormProps) {
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const isLoading = authLoading || formLoading;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
+    setFormLoading(true);
 
     if (!userProfile) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit a solution." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
@@ -39,12 +41,12 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
 
     if (!description || description.length < 20) {
         toast({ variant: "destructive", title: "Validation Error", description: "Description must be at least 20 characters." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
      if (price && isNaN(price)) {
         toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
@@ -57,7 +59,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
         console.error(error);
         toast({ variant: "destructive", title: "Error", description: "Failed to post solution." });
     } finally {
-        setLoading(false);
+        setFormLoading(false);
     }
   };
 
@@ -71,13 +73,13 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
             placeholder="Describe your innovative solution here..."
             className="min-h-[120px]"
             required
-            disabled={loading}
+            disabled={isLoading}
           />
            <div className="space-y-2">
             <Label htmlFor="price-solution">Price (Optional)</Label>
              <div className="relative">
                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="price-solution" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" />
+                <Input id="price-solution" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isLoading} />
             </div>
             <p className="text-xs text-muted-foreground">
             Set a price for your solution. Prices over $1,000 require admin approval.
@@ -85,7 +87,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
           </div>
         </CardContent>
         <CardFooter>
-          <SubmitButton className="ml-auto" disabled={loading} pendingText="Posting...">Post Solution</SubmitButton>
+          <SubmitButton className="ml-auto" disabled={isLoading} pendingText="Posting...">Post Solution</SubmitButton>
         </CardFooter>
       </form>
     </Card>

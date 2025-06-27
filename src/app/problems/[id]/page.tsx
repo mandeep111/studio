@@ -18,21 +18,21 @@ import { useToast } from "@/hooks/use-toast";
 import { SubmitProblemDialog } from "@/components/submit-problem-dialog";
 
 export default function ProblemPage({ params }: { params: { id: string } }) {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [problem, setProblem] = useState<Problem | null>(null);
   const [solutions, setSolutions] = useState<Solution[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const fetchProblemAndSolutions = useCallback(async () => {
-    setLoading(true);
+    setPageLoading(true);
     const problemData = await getProblem(params.id);
     if (problemData) {
       setProblem(problemData);
       const solutionsData = await getSolutionsForProblem(params.id);
       setSolutions(solutionsData);
     }
-    setLoading(false);
+    setPageLoading(false);
   }, [params.id]);
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function ProblemPage({ params }: { params: { id: string } }) {
     }
   };
 
-  if (loading) {
+  if (pageLoading || authLoading) {
     return <ProblemPageSkeleton />;
   }
 

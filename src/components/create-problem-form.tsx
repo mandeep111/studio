@@ -15,24 +15,26 @@ interface CreateProblemFormProps {
 }
 
 export default function CreateProblemForm({ onProblemCreated }: CreateProblemFormProps) {
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  const isLoading = authLoading || formLoading;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setLoading(true);
+    setFormLoading(true);
 
     if (!userProfile) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit a problem." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
     if (userProfile.role !== 'User' && userProfile.role !== 'Admin') {
         toast({ variant: "destructive", title: "Permission Denied", description: "Only Users and Admins can create problems." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
@@ -44,12 +46,12 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
     
     if (!title || !description || !tags) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
     if (price && isNaN(price)) {
         toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
-        setLoading(false);
+        setFormLoading(false);
         return;
     }
 
@@ -64,7 +66,7 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         console.error(error);
         toast({ variant: "destructive", title: "Error", description: "Failed to submit problem." });
     } finally {
-        setLoading(false);
+        setFormLoading(false);
     }
   };
 
@@ -72,7 +74,7 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
     <form onSubmit={handleSubmit} ref={formRef} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="title">Problem Title</Label>
-        <Input id="title" name="title" placeholder="e.g., Plastic waste in oceans" required disabled={loading} />
+        <Input id="title" name="title" placeholder="e.g., Plastic waste in oceans" required disabled={isLoading} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
@@ -82,12 +84,12 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
           placeholder="Describe the problem in detail. What is the context? Who is affected? What are the current challenges?"
           className="min-h-[120px]"
           required
-          disabled={loading}
+          disabled={isLoading}
         />
       </div>
       <div className="space-y-2">
         <Label htmlFor="tags">Tags</Label>
-        <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required disabled={loading}/>
+        <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required disabled={isLoading}/>
         <p className="text-xs text-muted-foreground">
           Comma-separated list of tags.
         </p>
@@ -96,14 +98,14 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         <Label htmlFor="price">Price (Optional)</Label>
         <div className="relative">
              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={loading}/>
+            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isLoading}/>
         </div>
         <p className="text-xs text-muted-foreground">
           Set a price for your problem. Prices over $1,000 require admin approval.
         </p>
       </div>
       <div className="flex justify-end pt-4">
-        <SubmitButton pendingText="Submitting..." disabled={loading}>Submit Problem</SubmitButton>
+        <SubmitButton pendingText="Submitting..." disabled={isLoading}>Submit Problem</SubmitButton>
       </div>
     </form>
   );
