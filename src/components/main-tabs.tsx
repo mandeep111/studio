@@ -23,11 +23,6 @@ interface MainTabsProps {
 
 export default function MainTabs({ userProfile }: MainTabsProps) {
   const [activeTab, setActiveTab] = useState("problems");
-  const router = useRouter();
-
-  const handleCreateProblem = () => {
-    router.push('/problems/new');
-  }
 
   return (
     <Tabs defaultValue="problems" className="w-full" onValueChange={setActiveTab} value={activeTab}>
@@ -38,17 +33,6 @@ export default function MainTabs({ userProfile }: MainTabsProps) {
           <TabsTrigger value="random-ideas">Random Ideas</TabsTrigger>
           <TabsTrigger value="ai-matchmaking">AI Matchmaking</TabsTrigger>
         </TabsList>
-        <div className="h-10 w-full sm:w-auto">
-          {activeTab === 'problems' && (userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-              <Button className="w-full" onClick={handleCreateProblem}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Submit a Problem
-              </Button>
-          )}
-          {activeTab === 'random-ideas' && (userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-             <SubmitIdeaDialog onIdeaCreated={() => { /* re-fetch could be implemented here */ }}/>
-          )}
-        </div>
       </div>
       <TabsContent value="problems" className="mt-6">
         <ProblemList userProfile={userProfile} />
@@ -95,13 +79,25 @@ function ProblemList({ userProfile }: { userProfile: UserProfile | null }) {
         }
     };
 
+    const handleCreateProblem = () => {
+      router.push('/problems/new');
+    }
+
     if (loading) return <ContentSkeleton title="Open Problems" description="Browse challenges awaiting innovative solutions." />;
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle>Open Problems</CardTitle>
-                <CardDescription>Browse challenges awaiting innovative solutions.</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Open Problems</CardTitle>
+                    <CardDescription>Browse challenges awaiting innovative solutions.</CardDescription>
+                </div>
+                 {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
+                    <Button onClick={handleCreateProblem}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Submit a Problem
+                    </Button>
+                )}
             </CardHeader>
             <CardContent>
                 {problems.length > 0 ? (

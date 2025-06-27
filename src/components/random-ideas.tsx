@@ -8,21 +8,24 @@ import { useAuth } from "@/hooks/use-auth";
 import IdeaCard from "./idea-card";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { SubmitIdeaDialog } from "./submit-idea-dialog";
+import { Lightbulb } from "lucide-react";
 
 export default function RandomIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const fetchIdeas = useCallback(async () => {
-    setLoading(true);
+    // Don't set loading to true here to avoid flicker on re-fetch
     const data = await getIdeas();
     setIdeas(data);
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     fetchIdeas();
   }, [fetchIdeas]);
 
@@ -53,21 +56,43 @@ export default function RandomIdeas() {
     }
   };
 
+  const onIdeaCreated = () => {
+    fetchIdeas();
+  };
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Random Ideas</CardTitle>
-        <CardDescription>
-          A space for brilliant thoughts not tied to a specific problem.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Random Ideas</CardTitle>
+          <CardDescription>
+            A space for brilliant thoughts not tied to a specific problem.
+          </CardDescription>
+        </div>
+         {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
+           <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
+        )}
       </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <CardContent>
         {loading ? (
-           [...Array(3)].map((_, i) => <IdeaCardSkeleton key={i} />)
+           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+             {[...Array(3)].map((_, i) => <IdeaCardSkeleton key={i} />)}
+           </div>
+        ) : ideas.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {ideas.map((idea) => (
+              <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} />
+            ))}
+          </div>
         ) : (
-          ideas.map((idea) => (
-            <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} />
-          ))
+          <div className="text-center py-16">
+            <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-4 text-xl font-semibold">No Ideas Yet</h3>
+            <p className="text-muted-foreground mt-2 mb-6">Be the first to share a random spark of genius.</p>
+            {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
+              <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
+            )}
+          </div>
         )}
       </CardContent>
     </Card>
