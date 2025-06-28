@@ -117,7 +117,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
   const isProblemCreator = user?.uid === problem?.creator.userId;
   const isProblemUpvoted = user && problem ? problem.upvotedBy.includes(user.uid) : false;
   const hasUserSubmittedSolution = user ? solutions.some(s => s.creator.userId === user.uid) : false;
-  const canSubmitSolution = userProfile && (userProfile.role === 'User' || userProfile.role === 'Admin') && !isProblemCreator && !hasUserSubmittedSolution;
+  const canSubmitSolution = userProfile && (userProfile.isPremium || userProfile.role === 'Admin') && !isProblemCreator && !hasUserSubmittedSolution;
   const canStartDeal = userProfile && (userProfile.role === 'Investor' || userProfile.role === 'Admin');
 
   if (!problem) return null;
@@ -134,7 +134,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           <ArrowLeft className="h-4 w-4" />
           Back to all problems
         </Link>
-        {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
+        {(userProfile?.isPremium || userProfile?.role === 'Admin') && (
           <SubmitProblemDialog />
         )}
       </div>

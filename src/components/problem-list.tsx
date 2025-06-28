@@ -65,7 +65,7 @@ export default function ProblemList() {
         }
     };
 
-    const canCreateProblem = userProfile?.role === 'User' || userProfile?.role === 'Admin';
+    const canCreateProblem = userProfile?.isPremium || userProfile?.role === 'Admin';
 
     return (
         <Card>

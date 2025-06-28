@@ -21,7 +21,7 @@ export default function BusinessList() {
     const [sortBy, setSortBy] = useState<'createdAt' | 'upvotes'>('upvotes');
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
     const [hasMore, setHasMore] = useState(true);
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const { toast } = useToast();
 
     const fetchBusinesses = useCallback(async (reset: boolean = false) => {
@@ -63,6 +63,8 @@ export default function BusinessList() {
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
+    
+    const canCreateBusiness = userProfile?.isPremium || userProfile?.role === 'Admin';
 
     return (
         <Card>
@@ -81,7 +83,7 @@ export default function BusinessList() {
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
-                    <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)} />
+                    {canCreateBusiness && <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)} />}
                 </div>
             </CardHeader>
             <CardContent>
@@ -126,12 +128,14 @@ export default function BusinessList() {
                          <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
                         <h3 className="text-xl font-semibold mt-4">No Businesses Listed</h3>
                         <p className="text-muted-foreground mt-2 mb-6">Be the first to list your business and attract investors.</p>
-                        <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)}>
-                            <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            List Your Business
-                            </Button>
-                        </SubmitBusinessDialog>
+                        {canCreateBusiness && (
+                            <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)}>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    List Your Business
+                                </Button>
+                            </SubmitBusinessDialog>
+                        )}
                     </div>
                 )}
             </CardContent>

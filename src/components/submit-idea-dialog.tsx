@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
-import { Lightbulb } from "lucide-react";
+import { Lightbulb, PlusCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { createIdea } from "@/lib/firestore";
 
@@ -42,12 +42,6 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
 
     if (!userProfile) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit an idea." });
-        setFormLoading(false);
-        return;
-    }
-
-    if (userProfile.role !== 'User' && userProfile.role !== 'Admin') {
-        toast({ variant: "destructive", title: "Permission Denied", description: "Only Users and Admins can create ideas." });
         setFormLoading(false);
         return;
     }

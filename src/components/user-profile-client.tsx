@@ -23,6 +23,7 @@ import BusinessCard from "./business-card";
 import { SubmitBusinessDialog } from "./submit-business-dialog";
 import Link from "next/link";
 import { format } from "date-fns";
+import { Badge } from "./ui/badge";
 
 interface UserProfileClientProps {
     userProfile: UserProfile;
@@ -62,7 +63,7 @@ export default function UserProfileClient({
             getIdeasByUser(userProfile.uid),
             getBusinessesByUser(userProfile.uid),
             isOwnProfile ? getUpvotedItems(userProfile.uid) : Promise.resolve([]),
-            getDealsForUser(userProfile.uid)
+            isOwnProfile ? getDealsForUser(userProfile.uid) : Promise.resolve([])
         ]);
         setProblems(problemsData);
         setSolutions(solutionsData);
@@ -161,7 +162,7 @@ export default function UserProfileClient({
 
             <div className="lg:col-span-2">
                 <Tabs defaultValue="problems">
-                    <TabsList className={cn("grid w-full", isOwnProfile ? "grid-cols-5" : "grid-cols-4")}>
+                    <TabsList className={cn("grid w-full", isOwnProfile ? "grid-cols-6" : "grid-cols-4")}>
                         <TabsTrigger value="problems">
                             <BrainCircuit className="mr-2 h-4 w-4" />
                             Problems ({problems.length})
@@ -179,9 +180,15 @@ export default function UserProfileClient({
                             Ideas ({ideas.length})
                         </TabsTrigger>
                         {isOwnProfile && (
-                            <TabsTrigger value="deals">
+                             <TabsTrigger value="deals">
                                 <Handshake className="mr-2 h-4 w-4" />
                                 My Deals ({deals.length})
+                            </TabsTrigger>
+                        )}
+                        {isOwnProfile && (
+                            <TabsTrigger value="upvoted-history">
+                                <History className="mr-2 h-4 w-4" />
+                                Upvoted ({upvotedItems.length})
                             </TabsTrigger>
                         )}
                     </TabsList>
@@ -295,6 +302,37 @@ export default function UserProfileClient({
                                         </div>
                                     ) : (
                                         <p className="text-muted-foreground text-center py-8">You are not part of any deals yet.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    )}
+                    {isOwnProfile && (
+                        <TabsContent value="upvoted-history" className="mt-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Upvoted History</CardTitle>
+                                    <CardDescription>A list of all content you have upvoted.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                     {upvotedItems.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {upvotedItems.map(item => (
+                                                <Link href={`/${item.type}s/${item.id}`} key={`${item.type}-${item.id}`} className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <p className="font-semibold">
+                                                                {item.type === 'solution' ? `Solution for: ${item.problemTitle}` : item.title}
+                                                            </p>
+                                                            <p className="text-sm text-muted-foreground">by {item.creator.name}</p>
+                                                        </div>
+                                                        <Badge variant="secondary" className="capitalize">{item.type}</Badge>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted-foreground text-center py-8">You haven't upvoted anything yet.</p>
                                     )}
                                 </CardContent>
                             </Card>

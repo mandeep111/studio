@@ -9,7 +9,7 @@ import IdeaCard from "./idea-card";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitIdeaDialog } from "./submit-idea-dialog";
-import { Lightbulb, Loader2 } from "lucide-react";
+import { Lightbulb, Loader2, PlusCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import type { DocumentSnapshot } from "firebase/firestore";
 import { Button } from "./ui/button";
@@ -21,7 +21,7 @@ export default function RandomIdeas() {
   const [sortBy, setSortBy] = useState<'createdAt' | 'upvotes'>('createdAt');
   const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const fetchIdeas = useCallback(async (reset: boolean = false) => {
@@ -67,6 +67,8 @@ export default function RandomIdeas() {
   const onIdeaCreated = () => {
     fetchIdeas(true);
   };
+  
+  const canCreateIdea = userProfile?.isPremium || userProfile?.role === 'Admin';
 
   return (
     <Card>
@@ -87,7 +89,7 @@ export default function RandomIdeas() {
                     <SelectItem value="upvotes">Most Upvoted</SelectItem>
                 </SelectContent>
             </Select>
-            <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
+            {canCreateIdea && <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />}
         </div>
       </CardHeader>
       <CardContent>
@@ -116,7 +118,14 @@ export default function RandomIdeas() {
             <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-xl font-semibold">No Ideas Yet</h3>
             <p className="text-muted-foreground mt-2 mb-6">Be the first to share a random spark of genius.</p>
-            <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />
+            {canCreateIdea && (
+                <SubmitIdeaDialog onIdeaCreated={onIdeaCreated}>
+                     <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Submit an Idea
+                    </Button>
+                </SubmitIdeaDialog>
+            )}
           </div>
         )}
       </CardContent>
