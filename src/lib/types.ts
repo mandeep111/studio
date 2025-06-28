@@ -34,6 +34,7 @@ export interface BaseItem {
   priceApproved: boolean;
   attachmentUrl?: string | null;
   attachmentFileName?: string | null;
+  interestedInvestorsCount: number;
 }
 
 export interface Problem extends BaseItem {
@@ -58,6 +59,7 @@ export interface Idea extends Omit<BaseItem, 'price' | 'priceApproved'> {
     tags: string[];
     attachmentUrl?: string | null;
     attachmentFileName?: string | null;
+    interestedInvestorsCount: number;
 }
 
 export interface Business extends BaseItem {

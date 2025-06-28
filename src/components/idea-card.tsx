@@ -3,7 +3,7 @@ import type { Idea } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { ThumbsUp } from "lucide-react";
+import { ThumbsUp, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
@@ -45,10 +45,19 @@ export default function IdeaCard({ idea, onUpvote }: IdeaCardProps) {
         </div>
       </CardContent>
       <CardFooter className="flex justify-between bg-muted/50 p-4">
-        <Button variant={isUpvoted ? 'default' : 'outline'} size="sm" onClick={() => onUpvote(idea.id)} disabled={!user || isCreator}>
-          <ThumbsUp className="h-4 w-4 mr-2" />
-          <span>{idea.upvotes.toLocaleString()}</span>
-        </Button>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <Button variant={isUpvoted ? 'default' : 'outline'} size="sm" onClick={() => onUpvote(idea.id)} disabled={!user || isCreator} className="flex items-center gap-1 px-2 h-8">
+              <ThumbsUp className="h-4 w-4" />
+              <span>{idea.upvotes.toLocaleString()}</span>
+            </Button>
+            <div className="flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                <span>{idea.interestedInvestorsCount || 0}</span>
+            </div>
+        </div>
+         <Link href={`/ideas/${idea.id}`} passHref>
+          <Button size="sm">View Details</Button>
+        </Link>
       </CardFooter>
     </Card>
   );

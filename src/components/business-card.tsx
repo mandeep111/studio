@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { ThumbsUp, Briefcase, DollarSign } from "lucide-react";
+import { ThumbsUp, Briefcase, DollarSign, Users } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -61,6 +61,10 @@ export default function BusinessCard({ business, onUpvote }: BusinessCardProps) 
                 <ThumbsUp className="h-4 w-4" />
                 <span>{business.upvotes.toLocaleString()}</span>
             </Button>
+             <div className="flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                <span>{business.interestedInvestorsCount || 0}</span>
+            </div>
         </div>
         <Link href={`/businesses/${business.id}`} passHref>
           <Button size="sm" variant="outline">

@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, Coffee, File, Gem } from "lucide-react";
+import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
@@ -135,15 +135,21 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
             )}
         </CardContent>
         <CardFooter className="flex flex-wrap items-center justify-between gap-4">
-          <Button
-            variant={isIdeaUpvoted ? "default" : "outline"}
-            size="sm"
-            onClick={handleIdeaUpvote}
-            disabled={!user || isCreator}
-          >
-            <ThumbsUp className="h-4 w-4 mr-2" />
-            <span>{idea.upvotes.toLocaleString()} Upvotes</span>
-          </Button>
+            <div className="flex items-center gap-6 text-muted-foreground">
+                <Button
+                    variant={isIdeaUpvoted ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleIdeaUpvote}
+                    disabled={!user || isCreator}
+                >
+                    <ThumbsUp className="h-4 w-4 mr-2" />
+                    <span>{idea.upvotes.toLocaleString()} Upvotes</span>
+                </Button>
+                 <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    <span>{idea.interestedInvestorsCount || 0} Investors</span>
+                </div>
+            </div>
            {userProfile?.role === "Investor" && !isCreator && (
             <Button onClick={() => setCoffeePopupOpen(true)}>
               <Coffee className="mr-2 h-4 w-4" />

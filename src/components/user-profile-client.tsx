@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business } from "@/lib/types";
+import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business, Deal } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness, getDealsForUser } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
@@ -18,43 +18,58 @@ import { SubmitIdeaDialog } from "./submit-idea-dialog";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, getDateFromTimestamp } from "@/lib/utils";
 import BusinessCard from "./business-card";
 import { SubmitBusinessDialog } from "./submit-business-dialog";
+import Link from "next/link";
+import { format } from "date-fns";
 
 interface UserProfileClientProps {
     userProfile: UserProfile;
     initialProblems: Problem[];
     initialSolutions: Solution[];
     initialIdeas: Idea[];
+    initialBusinesses: Business[];
     initialUpvotedItems: UpvotedItem[];
+    initialDeals: Deal[];
 }
 
-export default function UserProfileClient({ userProfile, initialProblems, initialSolutions, initialIdeas, initialUpvotedItems }: UserProfileClientProps) {
+export default function UserProfileClient({ 
+    userProfile, 
+    initialProblems, 
+    initialSolutions, 
+    initialIdeas, 
+    initialBusinesses,
+    initialUpvotedItems,
+    initialDeals,
+}: UserProfileClientProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const [problems, setProblems] = useState<Problem[]>(initialProblems);
     const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
     const [ideas, setIdeas] = useState<Idea[]>(initialIdeas);
-    const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [businesses, setBusinesses] = useState<Business[]>(initialBusinesses);
     const [upvotedItems, setUpvotedItems] = useState<UpvotedItem[]>(initialUpvotedItems);
+    const [deals, setDeals] = useState<Deal[]>(initialDeals);
     
     const isOwnProfile = user?.uid === userProfile.uid;
 
     const fetchData = useCallback(async () => {
-        const [problemsData, solutionsData, ideasData, businessesData, upvotedData] = await Promise.all([
+        const [problemsData, solutionsData, ideasData, businessesData, upvotedData, dealsData] = await Promise.all([
             getProblemsByUser(userProfile.uid),
             getSolutionsByUser(userProfile.uid),
             getIdeasByUser(userProfile.uid),
             getBusinessesByUser(userProfile.uid),
             isOwnProfile ? getUpvotedItems(userProfile.uid) : Promise.resolve([]),
+            getDealsForUser(userProfile.uid)
         ]);
         setProblems(problemsData);
         setSolutions(solutionsData);
         setIdeas(ideasData);
         setBusinesses(businessesData);
         setUpvotedItems(upvotedData as UpvotedItem[]);
+        setDeals(dealsData);
     }, [userProfile.uid, isOwnProfile]);
     
     useEffect(() => {
@@ -164,9 +179,9 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                             Ideas ({ideas.length})
                         </TabsTrigger>
                         {isOwnProfile && (
-                            <TabsTrigger value="history">
-                                <History className="mr-2 h-4 w-4" />
-                                Upvotes
+                            <TabsTrigger value="deals">
+                                <Handshake className="mr-2 h-4 w-4" />
+                                My Deals ({deals.length})
                             </TabsTrigger>
                         )}
                     </TabsList>
@@ -252,25 +267,34 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                         </Card>
                     </TabsContent>
                     {isOwnProfile && (
-                        <TabsContent value="history" className="mt-4">
+                        <TabsContent value="deals" className="mt-4">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Recent Upvotes</CardTitle>
-                                    <CardDescription>A list of items you've recently upvoted.</CardDescription>
+                                    <CardTitle>My Deals</CardTitle>
+                                    <CardDescription>All deals you are participating in.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {upvotedItems.length > 0 ? (
+                                    {deals.length > 0 ? (
                                         <div className="space-y-4">
-                                            {upvotedItems.map(item => {
-                                                if (item.type === 'problem') return <ProblemCard key={item.id} problem={item} onUpvote={() => handleProblemUpvote(item.id)} />;
-                                                if (item.type === 'solution') return <SolutionCard key={item.id} solution={item} onUpvote={() => handleSolutionUpvote(item.id)} />;
-                                                if (item.type === 'idea') return <IdeaCard key={item.id} idea={item} onUpvote={() => handleIdeaUpvote(item.id)} />;
-                                                if (item.type === 'business') return <BusinessCard key={item.id} business={item} onUpvote={() => handleBusinessUpvote(item.id)} />;
-                                                return null;
-                                            })}
+                                            {deals.map(deal => (
+                                                <Link href={`/deals/${deal.id}`} key={deal.id} className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                                                    <div className="flex justify-between items-center">
+                                                        <div>
+                                                            <p className="font-semibold">{deal.title}</p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                Created on {format(getDateFromTimestamp(deal.createdAt), 'PPP')}
+                                                            </p>
+                                                        </div>
+                                                        <Button variant="outline" size="sm">
+                                                            <MessageSquare className="mr-2 h-4 w-4" />
+                                                            Open Chat
+                                                        </Button>
+                                                    </div>
+                                                </Link>
+                                            ))}
                                         </div>
                                     ) : (
-                                        <p className="text-muted-foreground text-center py-8">You haven't upvoted anything recently.</p>
+                                        <p className="text-muted-foreground text-center py-8">You are not part of any deals yet.</p>
                                     )}
                                 </CardContent>
                             </Card>

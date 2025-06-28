@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { MessageSquare, ThumbsUp, Lightbulb } from "lucide-react";
+import { MessageSquare, ThumbsUp, Lightbulb, Users } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -54,10 +54,14 @@ export default function ProblemCard({ problem, onUpvote }: ProblemCardProps) {
                 <ThumbsUp className="h-4 w-4" />
                 <span>{problem.upvotes.toLocaleString()}</span>
             </Button>
-          <div className="flex items-center gap-1">
-            <MessageSquare className="h-4 w-4" />
-            <span>{problem.solutionsCount.toLocaleString()}</span>
-          </div>
+            <div className="flex items-center gap-1">
+                <Users className="h-4 w-4" />
+                <span>{problem.interestedInvestorsCount || 0}</span>
+            </div>
+            <div className="flex items-center gap-1">
+                <MessageSquare className="h-4 w-4" />
+                <span>{problem.solutionsCount.toLocaleString()}</span>
+            </div>
         </div>
         <Link href={`/problems/${problem.id}`} passHref>
           <Button size="sm" variant="outline">

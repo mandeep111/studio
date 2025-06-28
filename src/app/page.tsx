@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Header from "@/components/header";
 import MainTabs from "@/components/main-tabs";
+import DealsWidget from "@/components/deals-widget";
 
 export default function Home() {
   const { user, userProfile, loading } = useAuth();
@@ -29,6 +30,7 @@ export default function Home() {
           <MainTabs userProfile={userProfile} />
         </div>
       </main>
+      <DealsWidget />
     </div>
   );
 }

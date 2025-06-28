@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee } from "lucide-react";
+import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitBusinessDialog } from "@/components/submit-business-dialog";
 import { Button } from "./ui/button";
@@ -143,15 +143,21 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
             )}
         </CardContent>
         <CardFooter className="flex flex-wrap items-center justify-between gap-4">
-          <Button
-            variant={isBusinessUpvoted ? "default" : "outline"}
-            size="sm"
-            onClick={handleBusinessUpvote}
-            disabled={!user || isCreator}
-          >
-            <ThumbsUp className="h-4 w-4 mr-2" />
-            <span>{business.upvotes.toLocaleString()} Upvotes</span>
-          </Button>
+            <div className="flex items-center gap-6 text-muted-foreground">
+                <Button
+                    variant={isBusinessUpvoted ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleBusinessUpvote}
+                    disabled={!user || isCreator}
+                >
+                    <ThumbsUp className="h-4 w-4 mr-2" />
+                    <span>{business.upvotes.toLocaleString()} Upvotes</span>
+                </Button>
+                 <div className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    <span>{business.interestedInvestorsCount || 0} Investors</span>
+                </div>
+            </div>
            {userProfile?.role === "Investor" && !isCreator && (
             <Button onClick={() => setCoffeePopupOpen(true)}>
               <Coffee className="mr-2 h-4 w-4" />

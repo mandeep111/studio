@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
@@ -175,11 +175,15 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
               <span>{problem.upvotes.toLocaleString()} Upvotes</span>
             </Button>
             <div className="flex items-center gap-1">
+              <Users className="h-4 w-4" />
+              <span>{problem.interestedInvestorsCount || 0} Investors</span>
+            </div>
+            <div className="flex items-center gap-1">
               <MessageSquare className="h-4 w-4" />
               <span>{solutions.length} Solutions</span>
             </div>
           </div>
-          {userProfile?.role === "Investor" && (
+          {userProfile?.role === "Investor" && !isProblemCreator && (
             <Button onClick={() => setCoffeePopupOpen(true)}>
               <Coffee className="mr-2 h-4 w-4" />
               Start a Deal

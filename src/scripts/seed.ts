@@ -130,6 +130,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Solution for Problem 1
@@ -146,6 +147,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: false, 
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Problem 2
@@ -163,6 +165,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Problem 3 (from new user)
@@ -180,6 +183,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Solution for Problem 3 (from original solution creator)
@@ -196,6 +200,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: false, 
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Problem 4 (no solution)
@@ -213,6 +218,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
 
@@ -239,6 +245,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
     
     // Idea 2
@@ -253,6 +260,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Idea 3
@@ -267,6 +275,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     await batch.commit();
@@ -293,6 +302,7 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         stage: 'Early Revenue',
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 1,
     });
 
     batch.set(doc(businessesCollection), {
@@ -308,6 +318,7 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         stage: 'Scaling',
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
     
     await batch.commit();

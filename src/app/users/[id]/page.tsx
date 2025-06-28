@@ -1,5 +1,5 @@
 import Header from "@/components/header";
-import { getProblemsByUser, getSolutionsByUser, getUserProfile, getIdeasByUser, getUpvotedItems, getBusinessesByUser } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getUserProfile, getIdeasByUser, getUpvotedItems, getBusinessesByUser, getDealsForUser } from "@/lib/firestore";
 import { notFound } from "next/navigation";
 import UserProfileClient from "@/components/user-profile-client";
 import { auth } from "@/lib/firebase/config";
@@ -12,12 +12,13 @@ export default async function UserProfilePage({ params }: { params: { id: string
     notFound();
   }
 
-  const [problems, solutions, ideas, businesses, upvotedItems] = await Promise.all([
+  const [problems, solutions, ideas, businesses, upvotedItems, deals] = await Promise.all([
     getProblemsByUser(params.id),
     getSolutionsByUser(params.id),
     getIdeasByUser(params.id),
     getBusinessesByUser(params.id),
     currentUser?.uid === params.id ? getUpvotedItems(params.id) : Promise.resolve([]),
+    getDealsForUser(params.id),
   ]);
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
@@ -32,7 +33,9 @@ export default async function UserProfilePage({ params }: { params: { id: string
                 initialProblems={serializable(problems)}
                 initialSolutions={serializable(solutions)}
                 initialIdeas={serializable(ideas)}
+                initialBusinesses={serializable(businesses)}
                 initialUpvotedItems={serializable(upvotedItems)}
+                initialDeals={serializable(deals)}
             />
         </div>
       </main>

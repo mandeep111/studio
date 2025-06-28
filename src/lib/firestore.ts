@@ -286,6 +286,7 @@ export async function createProblem(title: string, description: string, tags: st
             priceApproved,
             attachmentUrl: attachmentData?.url || null,
             attachmentFileName: attachmentData?.name || null,
+            interestedInvestorsCount: 0,
         };
         
         transaction.set(newProblemRef, problemData);
@@ -335,6 +336,7 @@ export async function createSolution(description: string, problemId: string, pro
         priceApproved,
         attachmentUrl: attachmentData?.url || null,
         attachmentFileName: attachmentData?.name || null,
+        interestedInvestorsCount: 0, // Solutions inherit this, but it's managed on the problem
     };
     
     batch.set(solutionRef, solutionData);
@@ -385,6 +387,7 @@ export async function createIdea(title: string, description: string, tags: strin
     createdAt: serverTimestamp(),
     attachmentUrl: attachmentData?.url || null,
     attachmentFileName: attachmentData?.name || null,
+    interestedInvestorsCount: 0,
   });
 }
 
@@ -418,6 +421,7 @@ export async function createBusiness(title: string, description: string, tags: s
             priceApproved,
             attachmentUrl: attachmentData?.url || null,
             attachmentFileName: attachmentData?.name || null,
+            interestedInvestorsCount: 0,
         };
 
         transaction.set(newBusinessRef, businessData);
@@ -524,38 +528,52 @@ export async function createDeal(
     solutionCreatorId?: string
 ): Promise<string> {
     
+    const newDealRef = doc(collection(db, "deals"));
+
+    await runTransaction(db, async (transaction) => {
+        const primaryCreatorSnap = await transaction.get(doc(db, "users", primaryCreatorId));
+        if (!primaryCreatorSnap.exists()) {
+            throw new Error("Primary creator not found");
+        }
+        const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
+
+        const dealData: Omit<Deal, 'id'> = {
+            investor: { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise },
+            primaryCreator: { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise },
+            relatedItemId: itemId,
+            title: itemTitle,
+            type: itemType,
+            createdAt: serverTimestamp(),
+        };
+
+        let solutionCreator: UserProfile | null = null;
+        if (solutionCreatorId) {
+            const solutionCreatorSnap = await transaction.get(doc(db, "users", solutionCreatorId));
+            if (solutionCreatorSnap.exists()) {
+                solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
+                dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
+            }
+        }
+        
+        transaction.set(newDealRef, dealData);
+
+        // Increment interested investors count on the related item
+        const itemRef = doc(db, `${itemType}s`, itemId);
+        transaction.update(itemRef, { interestedInvestorsCount: increment(1) });
+    });
+    
+    // Send notifications after the transaction is successful
+    const dealLink = `/deals/${newDealRef.id}`;
     const primaryCreatorSnap = await getDoc(doc(db, "users", primaryCreatorId));
-    if (!primaryCreatorSnap.exists()) {
-        throw new Error("Primary creator not found");
-    }
     const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
 
-    const dealData: Omit<Deal, 'id'> = {
-        investor: { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise },
-        primaryCreator: { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise },
-        relatedItemId: itemId,
-        title: itemTitle,
-        type: itemType,
-        createdAt: serverTimestamp(),
-    };
-
-    let solutionCreator: UserProfile | null = null;
-    if (solutionCreatorId) {
+    if (solutionCreatorId) { // AI Matchmaking Case
         const solutionCreatorSnap = await getDoc(doc(db, "users", solutionCreatorId));
         if (solutionCreatorSnap.exists()) {
-            solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
-            dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
+            const solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
+            await createNotification(primaryCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name} about "${itemTitle}"!`, dealLink);
+            await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${primaryCreator.name} about "${itemTitle}"!`, dealLink);
         }
-    }
-    
-    const dealsCol = collection(db, "deals");
-    const newDealRef = await addDoc(dealsCol, dealData);
-
-    // Notify creators
-    const dealLink = `/deals/${newDealRef.id}`;
-    if (solutionCreator) { // AI Matchmaking Case
-        await createNotification(primaryCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name} about "${itemTitle}"!`, dealLink);
-        await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${primaryCreator.name} about "${itemTitle}"!`, dealLink);
     } else { // Direct Deal Case
         await createNotification(primaryCreatorId, `An investor wants to start a deal about your ${itemType}: "${itemTitle}"!`, dealLink);
     }
@@ -568,6 +586,42 @@ export async function getDeal(id: string): Promise<Deal | null> {
     const docRef = doc(db, "deals", id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Deal : null;
+}
+
+export async function getDealsForUser(userId: string): Promise<Deal[]> {
+    const dealsCol = collection(db, "deals");
+
+    const investorQuery = query(dealsCol, where("investor.userId", "==", userId));
+    const primaryCreatorQuery = query(dealsCol, where("primaryCreator.userId", "==", userId));
+    const solutionCreatorQuery = query(dealsCol, where("solutionCreator.userId", "==", userId));
+
+    const [investorSnap, primaryCreatorSnap, solutionCreatorSnap] = await Promise.all([
+        getDocs(investorQuery),
+        getDocs(primaryCreatorQuery),
+        getDocs(solutionCreatorQuery),
+    ]);
+
+    const dealsMap = new Map<string, Deal>();
+    const processSnapshot = (snap: any) => {
+        snap.docs.forEach((doc: any) => {
+            if (!dealsMap.has(doc.id)) {
+                dealsMap.set(doc.id, { id: doc.id, ...doc.data() } as Deal);
+            }
+        });
+    };
+
+    processSnapshot(investorSnap);
+    processSnapshot(primaryCreatorSnap);
+    processSnapshot(solutionCreatorSnap);
+
+    const allDeals = Array.from(dealsMap.values());
+    allDeals.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+    });
+
+    return allDeals;
 }
 
 export async function getMessages(dealId: string): Promise<Message[]> {
