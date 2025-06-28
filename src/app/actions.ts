@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus } from "@/lib/firestore";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus, getDeal, getUserProfile, createNotification, getIdeas } from "@/lib/firestore";
 import type { UserProfile, Ad, PaymentSettings, Deal } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -17,10 +17,10 @@ const SuggestPairingsSchema = z.object({
 export type AiPairingsFormState = {
   message: string;
   pairings?: {
-    problemCreatorId: string;
-    solutionCreatorId: string;
     problemId: string;
     problemTitle: string;
+    problemCreatorId: string;
+    solutionCreatorId: string;
     matchReason: string;
   }[];
   error?: boolean;
@@ -44,16 +44,15 @@ export async function getAiPairings(
     
     const { investorProfile } = validatedFields.data;
 
-    const [allUsers, businesses, problems] = await Promise.all([
+    const [allUsers, businesses, problems, ideas] = await Promise.all([
       getAllUsers(),
       getBusinesses(),
       getProblems(),
+      getIdeas(),
     ]);
     
-    const businessCreatorIds = new Set(businesses.map(b => b.creator.userId));
-
     const problemCreators = allUsers
-        .filter(u => u.role === 'User' || u.role === 'Admin' || businessCreatorIds.has(u.uid))
+        .filter(u => u.role === 'User' || u.role === 'Admin')
         .map(u => ({
             creatorId: u.uid,
             reputationScore: u.points, 
@@ -74,12 +73,20 @@ export async function getAiPairings(
         description: p.description,
         creatorId: p.creator.userId,
     }));
+    
+    const simplifiedIdeas = ideas.map(i => ({
+        id: i.id,
+        title: i.title,
+        description: i.description,
+        creatorId: i.creator.userId,
+    }));
 
     const pairingsResult = await suggestPairings({
       investorProfile,
       problems: simplifiedProblems,
       problemCreators,
       solutionCreators,
+      ideas: simplifiedIdeas
     });
     
     if (
@@ -307,6 +314,19 @@ export async function updateDealStatusAction(formData: FormData) {
         const result = await updateDealStatus(dealId, investorId, status);
         if (result.success) {
             revalidatePath(`/deals/${dealId}`);
+            
+            // Send notifications to other participants
+            const deal = await getDeal(dealId);
+            const investor = await getUserProfile(investorId);
+            if (deal && investor) {
+                const dealLink = `/deals/${deal.id}`;
+                const message = `${investor.name} has ${status} the deal: "${deal.title}"`;
+                for (const participantId of deal.participantIds) {
+                    if (participantId !== investorId) {
+                        await createNotification(participantId, message, dealLink);
+                    }
+                }
+            }
         }
         return result;
     } catch (error) {

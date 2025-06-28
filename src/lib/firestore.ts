@@ -306,7 +306,7 @@ export async function getContentByCreators(creatorIds: string[]): Promise<Array<
 
 // --- Creation & Updates ---
 
-async function createNotification(userId: string | "admins", message: string, link: string) {
+export async function createNotification(userId: string | "admins", message: string, link: string) {
     const notificationsCol = collection(db, "notifications");
     await addDoc(notificationsCol, {
         userId,
