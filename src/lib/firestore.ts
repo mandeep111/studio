@@ -246,9 +246,9 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
 }
 
 const INVESTOR_PAGE_SIZE = 12;
-export async function getPaginatedInvestors(options: { sortBy: 'points' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
+export async function getPaginatedInvestors(options: { sortBy?: 'points' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
-    const { sortBy, lastVisible } = options;
+    const { sortBy = 'points', lastVisible } = options;
 
     const qConstraints = [
         where("role", "==", "Investor"),
@@ -409,14 +409,18 @@ export async function createSolution(description: string, problemId: string, pro
     await batch.commit();
 }
 
-export async function createIdea(title: string, description: string, tags: string[], creator: UserProfile, attachment?: File) {
+export async function createIdea(title: string, description: string, tags: string[], price: number | null, creator: UserProfile, attachment?: File) {
   const ideasCol = collection(db, "ideas");
   
   let attachmentData: { url: string; name: string } | null = null;
     if (attachment) {
         attachmentData = await uploadAttachment(attachment);
     }
+    
+    const priceApproved = price ? price <= 1000 : true;
   
+  const newIdeaRef = doc(ideasCol);
+
   await addDoc(ideasCol, {
     title,
     description,
@@ -430,10 +434,20 @@ export async function createIdea(title: string, description: string, tags: strin
     upvotes: 0,
     upvotedBy: [],
     createdAt: serverTimestamp(),
+    price: price || null,
+    priceApproved,
     attachmentUrl: attachmentData?.url || null,
     attachmentFileName: attachmentData?.name || null,
     interestedInvestorsCount: 0,
   });
+
+   if (!priceApproved) {
+        await createNotification(
+            "admins",
+            `${creator.name} submitted an idea "${title}" with a price of $${price}, which requires approval.`,
+            `/ideas/${newIdeaRef.id}`
+        );
+    }
 
   await addTags(tags);
 }
@@ -817,22 +831,25 @@ export async function getUnapprovedItems() {
     const problemsQuery = query(collection(db, "problems"), where("priceApproved", "==", false));
     const solutionsQuery = query(collection(db, "solutions"), where("priceApproved", "==", false));
     const businessesQuery = query(collection(db, "businesses"), where("priceApproved", "==", false));
+    const ideasQuery = query(collection(db, "ideas"), where("priceApproved", "==", false));
 
-    const [problemsSnap, solutionsSnap, businessesSnap] = await Promise.all([
+    const [problemsSnap, solutionsSnap, businessesSnap, ideasSnap] = await Promise.all([
         getDocs(problemsQuery),
         getDocs(solutionsQuery),
         getDocs(businessesQuery),
+        getDocs(ideasQuery),
     ]);
 
     const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, id: doc.id, ...doc.data() as Problem }));
     const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, id: doc.id, ...doc.data() as Solution }));
     const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, id: doc.id, ...doc.data() as Business }));
+    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, id: doc.id, ...doc.data() as Idea }));
     
-    return [...problems, ...solutions, ...businesses];
+    return [...problems, ...solutions, ...businesses, ...ideas];
 }
 
-export async function approveItem(type: 'problem' | 'solution' | 'business', id: string) {
-    const collectionName = type === 'problem' ? 'problems' : (type === 'solution' ? 'solutions' : 'businesses');
+export async function approveItem(type: 'problem' | 'solution' | 'business' | 'idea', id: string) {
+    const collectionName = `${type}s`;
     const docRef = doc(db, collectionName, id);
     await updateDoc(docRef, { priceApproved: true });
 }
