@@ -12,7 +12,7 @@ import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users,
 import { useToast } from "@/hooks/use-toast";
 import { SubmitBusinessDialog } from "@/components/submit-business-dialog";
 import { Button } from "./ui/button";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { startDealAction, findExistingDealAction } from "@/app/actions";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { Loader2 } from "lucide-react";
@@ -27,9 +27,50 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [business, setBusiness] = useState<Business>(initialBusiness);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [isDealLoading, setIsDealLoading] = useState(false);
+
+  useEffect(() => {
+    const dealStatus = searchParams.get('deal');
+    if (dealStatus === 'pending' && userProfile && business) {
+        toast({
+            title: "Payment Successful!",
+            description: "Finalizing your deal, please wait...",
+        });
+
+        const pollForDeal = async () => {
+            let attempts = 0;
+            const maxAttempts = 10; // Poll for 10 seconds
+            
+            const intervalId = setInterval(async () => {
+                attempts++;
+                const existingDeal = await findExistingDealAction(business.id, userProfile.uid);
+                
+                if (existingDeal.dealId) {
+                    clearInterval(intervalId);
+                    toast({
+                        title: "Deal Ready!",
+                        description: "Redirecting you to the chat...",
+                    });
+                    router.push(`/deals/${existingDeal.dealId}`);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(intervalId);
+                     toast({
+                        variant: "destructive",
+                        title: "Deal Creation Timed Out",
+                        description: "There was an issue creating your deal. Please contact support if this persists.",
+                    });
+                }
+            }, 1000); // Poll every second
+
+            return () => clearInterval(intervalId);
+        };
+
+        pollForDeal();
+    }
+  }, [searchParams, business, userProfile, router, toast]);
 
   const fetchBusiness = useCallback(async () => {
     if (!business?.id) return;
@@ -87,7 +128,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
   };
 
   const handleStartDeal = async (amount: number) => {
-    if (!userProfile || userProfile.role !== "Investor" || !business) return;
+    if (!userProfile || (userProfile.role !== "Investor" && userProfile.role !== "Admin") || !business) return;
     
     setIsDealLoading(true);
 
@@ -128,8 +169,8 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
           <ArrowLeft className="h-4 w-4" />
           Back to all businesses
         </Link>
-        {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-          <SubmitBusinessDialog />
+        {userProfile?.isPremium && (
+          <SubmitBusinessDialog onBusinessCreated={() => router.push('/')} />
         )}
       </div>
       {!isPaymentEnabled && (
@@ -207,7 +248,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
                     <span>{business.interestedInvestorsCount || 0} Investors</span>
                 </div>
             </div>
-           {userProfile?.role === "Investor" && !isCreator && (
+           {(userProfile?.role === "Investor" || userProfile?.role === "Admin") && !isCreator && (
             <Button onClick={handleStartDealClick} disabled={isDealLoading}>
               {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
               {isPaymentEnabled ? "Start a Deal" : "Start Deal (Free)"}

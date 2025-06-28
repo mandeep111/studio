@@ -20,7 +20,7 @@ import { startDealAction, findExistingDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import AdDisplay from "./ad-display";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 interface ProblemClientPageProps {
@@ -34,11 +34,52 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [problem, setProblem] = useState<Problem>(initialProblem);
   const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [dealConfig, setDealConfig] = useState<{ solution?: Solution } | null>(null);
   const [isDealLoading, setIsDealLoading] = useState(false);
+
+  useEffect(() => {
+    const dealStatus = searchParams.get('deal');
+    if (dealStatus === 'pending' && userProfile && problem) {
+        toast({
+            title: "Payment Successful!",
+            description: "Finalizing your deal, please wait...",
+        });
+
+        const pollForDeal = async () => {
+            let attempts = 0;
+            const maxAttempts = 10; // Poll for 10 seconds
+            
+            const intervalId = setInterval(async () => {
+                attempts++;
+                const existingDeal = await findExistingDealAction(problem.id, userProfile.uid);
+                
+                if (existingDeal.dealId) {
+                    clearInterval(intervalId);
+                    toast({
+                        title: "Deal Ready!",
+                        description: "Redirecting you to the chat...",
+                    });
+                    router.push(`/deals/${existingDeal.dealId}`);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(intervalId);
+                     toast({
+                        variant: "destructive",
+                        title: "Deal Creation Timed Out",
+                        description: "There was an issue creating your deal. Please contact support if this persists.",
+                    });
+                }
+            }, 1000); // Poll every second
+
+            return () => clearInterval(intervalId);
+        };
+
+        pollForDeal();
+    }
+  }, [searchParams, problem, userProfile, router, toast]);
 
   useEffect(() => {
     setProblem(initialProblem);
@@ -155,7 +196,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
   const isProblemCreator = user?.uid === problem?.creator.userId;
   const isProblemUpvoted = user && problem ? problem.upvotedBy.includes(user.uid) : false;
   const hasUserSubmittedSolution = user ? solutions.some(s => s.creator.userId === user.uid) : false;
-  const canSubmitSolution = userProfile && (userProfile.role === 'User' || userProfile.role === 'Admin') && !isProblemCreator && !hasUserSubmittedSolution;
+  const canSubmitSolution = userProfile?.isPremium && !isProblemCreator && !hasUserSubmittedSolution;
   const canStartDeal = userProfile && (userProfile.role === 'Investor' || userProfile.role === 'Admin');
 
   if (!problem) return null;
@@ -172,8 +213,8 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           <ArrowLeft className="h-4 w-4" />
           Back to all problems
         </Link>
-        {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-          <SubmitProblemDialog />
+        {userProfile?.isPremium && (
+          <SubmitProblemDialog onProblemCreated={() => router.push('/')} />
         )}
       </div>
        {!isPaymentEnabled && (

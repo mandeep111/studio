@@ -123,6 +123,7 @@ export async function upgradeMembershipAction(
                 paymentFrequency,
                 details: 'Free upgrade (payments disabled)'
             });
+            revalidatePath('/membership');
             return { success: true, instant: true };
         } catch (error) {
             console.error("Error during free membership upgrade:", error);
@@ -193,6 +194,7 @@ export async function startDealAction(
     if (!isEnabled) {
         try {
             const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
+            revalidatePath(`/${itemType}s/${itemId}`);
             return { success: true, dealId };
         } catch (error) {
             console.error("Error creating free deal:", error);
@@ -225,7 +227,6 @@ export async function startDealAction(
         const metadata: Stripe.Metadata = {
             type: 'deal_creation',
             investorId: investorProfile.uid,
-            investorProfile: JSON.stringify(investorProfile),
             primaryCreatorId,
             itemId,
             itemTitle,
@@ -240,7 +241,7 @@ export async function startDealAction(
             payment_method_types: ['card'],
             line_items,
             mode: 'payment',
-            success_url: `${baseUrl}/${itemType}s/${itemId}?deal=pending`, // changed from success
+            success_url: `${baseUrl}/${itemType}s/${itemId}?deal=pending`,
             cancel_url: `${baseUrl}/${itemType}s/${itemId}`,
             metadata,
         });

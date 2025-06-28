@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
-import { createDeal, logPayment, updateUserMembership } from '@/lib/firestore';
+import { createDeal, logPayment, updateUserMembership, getUserProfile } from '@/lib/firestore';
 import type { UserProfile } from '@/lib/types';
 import { redirect } from 'next/navigation';
 
@@ -71,7 +71,6 @@ async function handleMembership(metadata: Stripe.Metadata) {
 
 async function handleDealCreation(metadata: Stripe.Metadata) {
     const { 
-        investorProfile: investorProfileStr, 
         primaryCreatorId, 
         itemId, 
         itemTitle, 
@@ -81,13 +80,16 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
         investorId,
     } = metadata;
 
-     if (!investorProfileStr || !primaryCreatorId || !itemId || !itemTitle || !itemType || !amount || !investorId) {
+     if (!primaryCreatorId || !itemId || !itemTitle || !itemType || !amount || !investorId) {
         throw new Error('Incomplete metadata for deal creation.');
     }
 
-    const investorProfile = JSON.parse(investorProfileStr) as UserProfile;
+    const investorProfile = await getUserProfile(investorId);
+    if (!investorProfile) {
+        throw new Error(`Investor profile not found for ID: ${investorId}`);
+    }
 
-    const dealId = await createDeal(
+    await createDeal(
         investorProfile,
         primaryCreatorId,
         itemId,
@@ -97,9 +99,6 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
         solutionCreatorId || undefined
     );
 
-    // Redirect user to the newly created deal page after successful payment
-    // This is a server-side redirect, which won't work directly from a webhook.
-    // The success_url on the checkout session should handle the client-side redirect.
-    // We update the success_url in `startDealAction` to point to the new deal page.
+    // The success_url on the checkout session handles the client-side redirect.
     // The webhook's job is just to create the deal in the DB.
 }
