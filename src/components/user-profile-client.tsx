@@ -162,33 +162,39 @@ export default function UserProfileClient({
 
             <div className="lg:col-span-2">
                 <Tabs defaultValue="problems">
-                    <TabsList className={cn("grid w-full", isOwnProfile ? "grid-cols-6" : "grid-cols-4")}>
+                    <TabsList className={cn("grid w-full", isOwnProfile ? "grid-cols-3 md:grid-cols-6" : "grid-cols-2 md:grid-cols-4")}>
                         <TabsTrigger value="problems">
-                            <BrainCircuit className="mr-2 h-4 w-4" />
-                            Problems ({problems.length})
+                            <BrainCircuit className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">Problems</span>
+                            <span className="md:hidden">({problems.length})</span>
                         </TabsTrigger>
                         <TabsTrigger value="solutions">
-                            <Lightbulb className="mr-2 h-4 w-4" />
-                            Solutions ({solutions.length})
+                            <Lightbulb className="h-4 w-4 md:mr-2" />
+                            <span className="hidden md:inline">Solutions</span>
+                            <span className="md:hidden">({solutions.length})</span>
                         </TabsTrigger>
                         <TabsTrigger value="businesses">
-                            <Briefcase className="mr-2 h-4 w-4" />
-                            Businesses ({businesses.length})
+                            <Briefcase className="h-4 w-4 md:mr-2" />
+                             <span className="hidden md:inline">Businesses</span>
+                             <span className="md:hidden">({businesses.length})</span>
                         </TabsTrigger>
                         <TabsTrigger value="ideas">
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            Ideas ({ideas.length})
+                            <Sparkles className="h-4 w-4 md:mr-2" />
+                             <span className="hidden md:inline">Ideas</span>
+                             <span className="md:hidden">({ideas.length})</span>
                         </TabsTrigger>
                         {isOwnProfile && (
                              <TabsTrigger value="deals">
-                                <Handshake className="mr-2 h-4 w-4" />
-                                My Deals ({deals.length})
+                                <Handshake className="h-4 w-4 md:mr-2" />
+                                <span className="hidden md:inline">My Deals</span>
+                                <span className="md:hidden">({deals.length})</span>
                             </TabsTrigger>
                         )}
                         {isOwnProfile && (
                             <TabsTrigger value="upvoted-history">
-                                <History className="mr-2 h-4 w-4" />
-                                Upvoted ({upvotedItems.length})
+                                <History className="h-4 w-4 md:mr-2" />
+                                <span className="hidden md:inline">Upvoted</span>
+                                 <span className="md:hidden">({upvotedItems.length})</span>
                             </TabsTrigger>
                         )}
                     </TabsList>

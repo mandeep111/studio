@@ -19,13 +19,15 @@ export default function MainTabs({ userProfile }: MainTabsProps) {
   return (
     <Tabs defaultValue="problems" className="w-full" onValueChange={setActiveTab} value={activeTab}>
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
-        <TabsList className="grid w-full grid-cols-2 sm:w-auto sm:grid-cols-5">
-          <TabsTrigger value="problems">Problems</TabsTrigger>
-          <TabsTrigger value="solutions">Solutions</TabsTrigger>
-          <TabsTrigger value="businesses">Running Businesses</TabsTrigger>
-          <TabsTrigger value="random-ideas">Random Ideas</TabsTrigger>
-          <TabsTrigger value="ai-matchmaking">AI Matchmaking</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto pb-2 sm:overflow-visible sm:pb-0">
+            <TabsList>
+                <TabsTrigger value="problems">Problems</TabsTrigger>
+                <TabsTrigger value="solutions">Solutions</TabsTrigger>
+                <TabsTrigger value="businesses">Running Businesses</TabsTrigger>
+                <TabsTrigger value="random-ideas">Random Ideas</TabsTrigger>
+                <TabsTrigger value="ai-matchmaking">AI Matchmaking</TabsTrigger>
+            </TabsList>
+        </div>
       </div>
       <TabsContent value="problems" className="mt-6">
         {activeTab === 'problems' && <ProblemList />}

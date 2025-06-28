@@ -188,7 +188,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
             )}
         </CardContent>
         <CardFooter className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-6 text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
             <Button
               variant={isProblemUpvoted ? "default" : "outline"}
               size="sm"

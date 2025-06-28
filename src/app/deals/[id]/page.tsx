@@ -40,7 +40,7 @@ export default async function DealPage({ params }: { params: { id: string } }) {
                 <CardHeader>
                     <CardTitle>Deal: {deal.title}</CardTitle>
                     <CardDescription>A conversation between the investor and creator(s).</CardDescription>
-                    <div className="flex items-center space-x-4 pt-2">
+                    <div className="flex flex-wrap items-center gap-4 pt-2">
                         <div className="font-semibold">Participants:</div>
                         {participants.map(p => (
                              <div key={p.uid} className="flex items-center gap-2">

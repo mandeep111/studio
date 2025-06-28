@@ -161,7 +161,7 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
             )}
         </CardContent>
         <CardFooter className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-6 text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
                 <Button
                     variant={isBusinessUpvoted ? "default" : "outline"}
                     size="sm"

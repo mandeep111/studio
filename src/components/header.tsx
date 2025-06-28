@@ -35,7 +35,7 @@ export default function Header() {
           <BrainCircuit className="h-6 w-6 text-primary" />
           <h1 className="ml-2 font-heading text-2xl font-bold">VentureForge</h1>
         </Link>
-        <nav className="flex items-center gap-4 text-sm font-medium">
+        <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
             <Link href="/leaderboard" className="text-muted-foreground transition-colors hover:text-foreground">Leaderboard</Link>
             <Link href="/membership" className="text-muted-foreground transition-colors hover:text-foreground">Membership</Link>
             {userProfile?.role === 'Admin' && (
