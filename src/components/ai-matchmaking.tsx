@@ -1,6 +1,6 @@
 "use client";
 
-import { getAiPairings, startDealAction, type AiPairingsFormState } from "@/app/actions";
+import { getAiPairings, startDealAction, type AiPairingsFormState, findExistingDealAction } from "@/app/actions";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,12 @@ import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
 import { useAuth } from "@/hooks/use-auth";
 import type { UserProfile } from "@/lib/types";
-import { getAllUsers } from "@/lib/firestore";
+import { getAllUsers, getPaymentSettings } from "@/lib/firestore";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import MembershipPopup from "./membership-popup";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
+import { useRouter } from "next/navigation";
 
 const initialState: AiPairingsFormState = {
   message: "",
@@ -24,6 +25,7 @@ const initialState: AiPairingsFormState = {
 
 export default function AiMatchmaking() {
   const { userProfile } = useAuth();
+  const router = useRouter();
   const [state, formAction] = useActionState(getAiPairings, initialState);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const { toast } = useToast();
@@ -32,9 +34,12 @@ export default function AiMatchmaking() {
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [selectedPairing, setSelectedPairing] = useState<any>(null);
   const [isDealLoading, setIsDealLoading] = useState(false);
+  const [isPaymentEnabled, setIsPaymentEnabled] = useState(true);
+
 
   useEffect(() => {
     getAllUsers().then(setAllUsers);
+    getPaymentSettings().then(settings => setIsPaymentEnabled(settings.isEnabled));
   }, []);
 
   useEffect(() => {
@@ -49,9 +54,24 @@ export default function AiMatchmaking() {
 
   const findCreator = (id: string) => allUsers.find(c => c.uid === id);
   
-  const handleStartDealClick = (pairing: any) => {
+  const handleStartDealClick = async (pairing: any) => {
+    if (!userProfile) return;
+    
     setSelectedPairing(pairing);
-    setCoffeePopupOpen(true);
+    setIsDealLoading(true);
+
+    const existingDeal = await findExistingDealAction(pairing.problemId, userProfile.uid);
+    if (existingDeal.dealId) {
+      router.push(`/deals/${existingDeal.dealId}`);
+      return;
+    }
+
+    if (isPaymentEnabled) {
+      setCoffeePopupOpen(true);
+      setIsDealLoading(false);
+    } else {
+      await confirmStartDeal(0);
+    }
   }
 
   const confirmStartDeal = async (amount: number) => {
@@ -71,6 +91,9 @@ export default function AiMatchmaking() {
 
     if (result.success && result.url) {
         window.location.href = result.url;
+    } else if (result.success && result.dealId) {
+        toast({ title: "Deal Started!", description: "The deal has been created successfully." });
+        router.push(`/deals/${result.dealId}`);
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
         setIsDealLoading(false);
