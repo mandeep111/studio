@@ -22,6 +22,7 @@ import { Loader2 } from "lucide-react";
 import AdDisplay from "./ad-display";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
@@ -296,10 +297,28 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
             </div>
           </div>
           {canStartDeal && !isProblemCreator && (
-            <Button onClick={() => handleStartDealClick()} disabled={isDealLoading}>
-              {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
-              {isPaymentEnabled ? "Start Deal with Creator" : "Start Deal (Free)"}
-            </Button>
+            solutions.length > 0 ? (
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                        <span tabIndex={0}>
+                            <Button disabled>
+                                <Coffee className="mr-2 h-4 w-4" />
+                                Start a Deal
+                            </Button>
+                        </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                        <p>Start a deal from one of the proposed solutions below.</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            ) : (
+                <Button onClick={() => handleStartDealClick()} disabled={isDealLoading}>
+                    {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
+                    {isPaymentEnabled ? "Start Deal with Creator" : "Start Deal (Free)"}
+                </Button>
+            )
           )}
         </CardFooter>
       </Card>
@@ -317,6 +336,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
                 onUpvote={() => handleSolutionUpvote(solution.id)}
                 onStartDeal={handleStartDealClick} 
                 isPaymentEnabled={isPaymentEnabled}
+                isUpvoting={false}
               />
             ))
           ) : (

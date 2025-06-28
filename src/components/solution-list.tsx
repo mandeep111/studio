@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedSolutions, upvoteSolution } from "@/lib/firestore";
-import type { Solution } from "@/lib/types";
+import { getPaginatedSolutions, upvoteSolution, getActiveAdForPlacement } from "@/lib/firestore";
+import type { Solution, Ad } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import type { DocumentSnapshot } from "firebase/firestore";
 import SolutionCard from "./solution-card";
 import { Input } from "./ui/input";
+import AdCard from "./ad-card";
 
 export default function SolutionList() {
     const [solutions, setSolutions] = useState<Solution[]>([]);
@@ -22,10 +23,15 @@ export default function SolutionList() {
     const [sortBy, setSortBy] = useState<'createdAt' | 'upvotes'>('upvotes');
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
     const [hasMore, setHasMore] = useState(true);
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
+    const [ad, setAd] = useState<Ad | null>(null);
+
+     useEffect(() => {
+        getActiveAdForPlacement('solution-list').then(setAd);
+    }, []);
 
     const fetchSolutions = useCallback(async (reset: boolean = false) => {
         if (reset) {
@@ -98,6 +104,14 @@ export default function SolutionList() {
         solution.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const solutionCards = filteredSolutions.map((solution) => (
+       <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} />
+    ));
+
+    if (ad && !userProfile?.isPremium && solutionCards.length > 2) {
+      solutionCards.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+    }
+
     return (
         <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -151,9 +165,7 @@ export default function SolutionList() {
                 ) : filteredSolutions.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {filteredSolutions.map((solution) => (
-                                <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} />
-                            ))}
+                            {solutionCards}
                         </div>
                         {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">

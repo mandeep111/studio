@@ -121,7 +121,15 @@ export interface Ad {
   title: string;
   imageUrl: string;
   linkUrl: string;
-  placement: 'problem-detail' | 'solution-detail' | 'idea-detail' | 'business-detail';
+  placement: 
+    | 'problem-detail' 
+    | 'solution-detail' 
+    | 'idea-detail' 
+    | 'business-detail'
+    | 'problem-list'
+    | 'solution-list'
+    | 'idea-list'
+    | 'business-list';
   isActive: boolean;
   createdAt: SerializableTimestamp;
 }

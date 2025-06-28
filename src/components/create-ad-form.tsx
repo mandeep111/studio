@@ -58,10 +58,14 @@ export default function CreateAdForm({ onAdCreated }: CreateAdFormProps) {
                 <SelectValue placeholder="Select where to display the ad" />
             </SelectTrigger>
             <SelectContent>
-                <SelectItem value="problem-detail">Problem Detail</SelectItem>
-                <SelectItem value="solution-detail">Solution Detail</SelectItem>
-                <SelectItem value="idea-detail">Idea Detail</SelectItem>
-                <SelectItem value="business-detail">Business Detail</SelectItem>
+                <SelectItem value="problem-detail">Problem Detail Page</SelectItem>
+                <SelectItem value="solution-detail">Solution Detail Page</SelectItem>
+                <SelectItem value="idea-detail">Idea Detail Page</SelectItem>
+                <SelectItem value="business-detail">Business Detail Page</SelectItem>
+                 <SelectItem value="problem-list">Problem List</SelectItem>
+                <SelectItem value="solution-list">Solution List</SelectItem>
+                <SelectItem value="idea-list">Idea List</SelectItem>
+                <SelectItem value="business-list">Business List</SelectItem>
             </SelectContent>
         </Select>
       </div>

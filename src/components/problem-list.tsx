@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedProblems, upvoteProblem } from "@/lib/firestore";
-import type { Problem } from "@/lib/types";
+import { getPaginatedProblems, upvoteProblem, getActiveAdForPlacement } from "@/lib/firestore";
+import type { Problem, Ad } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import type { DocumentSnapshot } from "firebase/firestore";
 import ProblemCard from "./problem-card";
 import { Input } from "./ui/input";
+import AdCard from "./ad-card";
 
 export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
@@ -27,6 +28,11 @@ export default function ProblemList() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
+    const [ad, setAd] = useState<Ad | null>(null);
+
+    useEffect(() => {
+        getActiveAdForPlacement('problem-list').then(setAd);
+    }, []);
 
     const fetchProblems = useCallback(async (reset: boolean = false) => {
         if (reset) {
@@ -102,6 +108,14 @@ export default function ProblemList() {
         problem.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
+    const problemCards = filteredProblems.map((problem) => (
+      <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} isUpvoting={upvotingId === problem.id} />
+    ));
+
+    if (ad && !userProfile?.isPremium && problemCards.length > 2) {
+      problemCards.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+    }
+
     return (
         <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -157,9 +171,7 @@ export default function ProblemList() {
                 ) : filteredProblems.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {filteredProblems.map((problem) => (
-                                <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} isUpvoting={upvotingId === problem.id} />
-                            ))}
+                           {problemCards}
                         </div>
                         {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">

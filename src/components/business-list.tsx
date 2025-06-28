@@ -1,10 +1,10 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedBusinesses, upvoteBusiness } from "@/lib/firestore";
-import type { Business } from "@/lib/types";
+import { getPaginatedBusinesses, upvoteBusiness, getActiveAdForPlacement } from "@/lib/firestore";
+import type { Business, Ad } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import type { DocumentSnapshot } from "firebase/firestore";
 import BusinessCard from "./business-card";
 import { Input } from "./ui/input";
+import AdCard from "./ad-card";
 
 export default function BusinessList() {
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -27,6 +28,11 @@ export default function BusinessList() {
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
+    const [ad, setAd] = useState<Ad | null>(null);
+
+    useEffect(() => {
+        getActiveAdForPlacement('business-list').then(setAd);
+    }, []);
 
     const fetchBusinesses = useCallback(async (reset: boolean = false) => {
         if (reset) {
@@ -101,6 +107,14 @@ export default function BusinessList() {
         business.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
+    const businessCards = filteredBusinesses.map((business) => (
+        <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
+    ));
+
+    if (ad && !userProfile?.isPremium && businessCards.length > 2) {
+        businessCards.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+    }
+
     return (
         <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -154,9 +168,7 @@ export default function BusinessList() {
                 ) : filteredBusinesses.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {filteredBusinesses.map((business) => (
-                                <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
-                            ))}
+                            {businessCards}
                         </div>
                         {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">
