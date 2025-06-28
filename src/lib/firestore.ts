@@ -245,6 +245,29 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
     return { data, lastVisible: newLastVisible };
 }
 
+const INVESTOR_PAGE_SIZE = 12;
+export async function getPaginatedInvestors(options: { sortBy: 'points' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
+    const usersCol = collection(db, "users");
+    const { sortBy, lastVisible } = options;
+
+    const qConstraints = [
+        where("role", "==", "Investor"),
+        orderBy(sortBy, sortBy === 'points' ? "desc" : "asc"),
+        limit(INVESTOR_PAGE_SIZE)
+    ];
+
+    if (lastVisible) {
+        qConstraints.push(startAfter(lastVisible));
+    }
+
+    const q = query(usersCol, ...qConstraints);
+    const snapshot = await getDocs(q);
+    const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+    const newLastVisible = snapshot.docs.length === INVESTOR_PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
+    
+    return { users, lastVisible: newLastVisible };
+}
+
 
 // --- Creation & Updates ---
 
@@ -493,7 +516,7 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
 
         const creatorRef = doc(db, "users", creatorId!);
         
-        const pointValues = { problems: 20, solutions: 20, businesses: 10, ideas: 0 };
+        const pointValues = { problems: 20, solutions: 20, businesses: 10, ideas: 10 };
         const pointChange = pointValues[collectionName] * (isAlreadyUpvoted ? -1 : 1);
         
         transaction.update(docRef, {
@@ -548,14 +571,12 @@ export async function logPayment(paymentData: Omit<Payment, 'id' | 'createdAt'>)
     });
 }
 
-export async function updateUserMembership(userId: string, plan: 'creator' | 'investor') {
+export async function updateUserMembership(userId: string, plan: 'investor') {
     const userRef = doc(db, "users", userId);
     const updates: Partial<UserProfile> = {
         isPremium: true,
+        role: 'Investor'
     };
-    if (plan === 'investor') {
-        updates.role = 'Investor';
-    }
     await updateDoc(userRef, updates);
 }
 

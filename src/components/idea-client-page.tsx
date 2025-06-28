@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info } from "lucide-react";
+import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
@@ -167,7 +167,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
           <ArrowLeft className="h-4 w-4" />
           Back to all ideas
         </Link>
-        {userProfile?.isPremium && (
+        {userProfile && (
           <SubmitIdeaDialog onIdeaCreated={fetchIdea} />
         )}
       </div>
@@ -197,10 +197,18 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
         </CardHeader>
         <CardContent>
           <p className="leading-relaxed">{idea.description}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {idea.tags.map((tag) => (
-                <Badge key={tag} variant="secondary">{tag}</Badge>
-            ))}
+          <div className="mt-4 flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-2">
+              {idea.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">{tag}</Badge>
+              ))}
+            </div>
+            {idea.price && (
+                <Badge variant={idea.priceApproved ? "default" : "destructive"} className="flex items-center gap-1">
+                    <DollarSign className="h-4 w-4" /> {idea.price.toFixed(2)}
+                    {idea.priceApproved ? <CheckCircle className="h-4 w-4 ml-1" /> : '(Awaiting Approval)'}
+                </Badge>
+            )}
           </div>
            {idea.attachmentUrl && (
                 <div className="mt-6 border-t pt-4">
@@ -215,7 +223,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
                     ) : (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
                             <Gem className="h-4 w-4 text-primary" />
-                            <span>A file is attached. <Link href="/membership" className="underline text-primary">Upgrade to Premium</Link> to view.</span>
+                            <span>A file is attached. <Link href="/membership" className="underline text-primary">Upgrade to view.</Link></span>
                         </div>
                     )}
                 </div>

@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Wand2, Link as LinkIcon, Sparkles, Coffee, Loader2 } from "lucide-react";
+import { Wand2, Link as LinkIcon, Sparkles, Coffee, Loader2, ArrowRight } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,6 +23,16 @@ const initialState: AiPairingsFormState = {
   message: "",
 };
 
+type GroupedPairing = {
+  problemId: string;
+  problemTitle: string;
+  problemCreatorId: string;
+  solutions: {
+    solutionCreatorId: string;
+    matchReason: string;
+  }[];
+}
+
 export default function AiMatchmaking() {
   const { userProfile } = useAuth();
   const router = useRouter();
@@ -35,7 +45,6 @@ export default function AiMatchmaking() {
   const [selectedPairing, setSelectedPairing] = useState<any>(null);
   const [isDealLoading, setIsDealLoading] = useState(false);
   const [isPaymentEnabled, setIsPaymentEnabled] = useState(true);
-
 
   useEffect(() => {
     getAllUsers().then(setAllUsers);
@@ -51,6 +60,23 @@ export default function AiMatchmaking() {
       });
     }
   }, [state, toast]);
+  
+  const groupedPairings = useMemo(() => {
+    if (!state.pairings) return {};
+    return state.pairings.reduce((acc, pairing) => {
+      const { problemId, problemTitle, problemCreatorId, solutionCreatorId, matchReason } = pairing;
+      if (!acc[problemId]) {
+        acc[problemId] = {
+          problemId,
+          problemTitle,
+          problemCreatorId,
+          solutions: [],
+        };
+      }
+      acc[problemId].solutions.push({ solutionCreatorId, matchReason });
+      return acc;
+    }, {} as Record<string, GroupedPairing>);
+  }, [state.pairings]);
 
   const findCreator = (id: string) => allUsers.find(c => c.uid === id);
   
@@ -146,64 +172,89 @@ export default function AiMatchmaking() {
           </CardFooter>
         </form>
         
-        {state.pairings && state.pairings.length > 0 && isInvestor && (
-          <div className="border-t p-6">
+        {Object.keys(groupedPairings).length > 0 && isInvestor && (
+          <div className="border-t p-4 md:p-6">
             <h3 className="mb-4 text-lg font-semibold">Suggested Pairings</h3>
-            <div className="space-y-4">
-              {state.pairings.map((pairing, index) => {
-                const problemCreator = findCreator(pairing.problemCreatorId);
-                const solutionCreator = findCreator(pairing.solutionCreatorId);
-                if (!problemCreator || !solutionCreator) return null;
+            <div className="space-y-6">
+              {Object.values(groupedPairings).map((group) => {
+                const problemCreator = findCreator(group.problemCreatorId);
+                if (!problemCreator) return null;
 
                 return (
-                  <Card key={index} className="bg-muted/50">
+                  <Card key={group.problemId} className="bg-muted/50">
                     <CardHeader>
-                      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:gap-6 sm:text-left">
-                        <div className="flex items-center gap-2">
-                          <Avatar>
-                            <AvatarImage src={problemCreator.avatarUrl} />
-                            <AvatarFallback>{problemCreator.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="font-semibold">
-                            <p className="text-sm text-muted-foreground">Problem</p>
-                            {problemCreator.name}
-                          </div>
-                        </div>
-                        <LinkIcon className="h-5 w-5 shrink-0 text-primary" />
-                        <div className="flex items-center gap-2">
-                           <Avatar>
-                            <AvatarImage src={solutionCreator.avatarUrl} />
-                            <AvatarFallback>{solutionCreator.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div className="font-semibold">
-                            <p className="text-sm text-muted-foreground">Solution</p>
-                            {solutionCreator.name}
-                          </div>
-                        </div>
-                      </div>
+                      <CardTitle>
+                        <Link href={`/problems/${group.problemId}`} className="hover:underline flex items-center gap-2">
+                          {group.problemTitle} <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </CardTitle>
+                       <CardDescription>
+                         Problem by <span className="font-medium text-foreground">{problemCreator.name}</span>
+                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <Alert>
-                        <Wand2 className="h-4 w-4" />
-                        <AlertTitle>AI's Reasoning</AlertTitle>
-                        <AlertDescription>{pairing.matchReason}</AlertDescription>
-                      </Alert>
+                    <CardContent className="space-y-4">
+                      {group.solutions.map((solution, index) => {
+                         const solutionCreator = findCreator(solution.solutionCreatorId);
+                         if (!solutionCreator) return null;
+                         
+                         const fullPairingInfo = {
+                           problemId: group.problemId,
+                           problemTitle: group.problemTitle,
+                           problemCreatorId: group.problemCreatorId,
+                           solutionCreatorId: solution.solutionCreatorId,
+                         };
+
+                         return (
+                            <Card key={index} className="bg-background">
+                                <CardContent className="p-4">
+                                     <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
+                                        <div className="flex items-center gap-2">
+                                          <Avatar>
+                                            <AvatarImage src={problemCreator.avatarUrl} />
+                                            <AvatarFallback>{problemCreator.name.charAt(0)}</AvatarFallback>
+                                          </Avatar>
+                                          <div className="font-semibold">
+                                            <p className="text-sm text-muted-foreground">Problem</p>
+                                            {problemCreator.name}
+                                          </div>
+                                        </div>
+                                        <LinkIcon className="h-5 w-5 shrink-0 text-primary" />
+                                        <div className="flex items-center gap-2">
+                                          <Avatar>
+                                            <AvatarImage src={solutionCreator.avatarUrl} />
+                                            <AvatarFallback>{solutionCreator.name.charAt(0)}</AvatarFallback>
+                                          </Avatar>
+                                          <div className="font-semibold">
+                                            <p className="text-sm text-muted-foreground">Solution</p>
+                                            {solutionCreator.name}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    <Alert className="mt-4">
+                                        <Wand2 className="h-4 w-4" />
+                                        <AlertTitle>AI's Reasoning</AlertTitle>
+                                        <AlertDescription>{solution.matchReason}</AlertDescription>
+                                    </Alert>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button 
+                                        size="sm" 
+                                        className="ml-auto" 
+                                        onClick={() => handleStartDealClick(fullPairingInfo)}
+                                        disabled={isDealLoading && selectedPairing?.solutionCreatorId === solution.solutionCreatorId}
+                                    >
+                                        {isDealLoading && selectedPairing?.solutionCreatorId === solution.solutionCreatorId ? (
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Coffee className="mr-2 h-4 w-4" />
+                                        )}
+                                        Start Deal with this Pairing
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                         )
+                      })}
                     </CardContent>
-                    <CardFooter>
-                      <Button 
-                        size="sm" 
-                        className="ml-auto" 
-                        onClick={() => handleStartDealClick(pairing)}
-                        disabled={isDealLoading && selectedPairing?.problemId === pairing.problemId}
-                       >
-                        {isDealLoading && selectedPairing?.problemId === pairing.problemId ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            <Coffee className="mr-2 h-4 w-4" />
-                        )}
-                        Start Deal
-                      </Button>
-                    </CardFooter>
                   </Card>
                 );
               })}

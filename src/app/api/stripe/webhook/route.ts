@@ -57,15 +57,15 @@ async function handleMembership(metadata: Stripe.Metadata) {
         throw new Error('Incomplete metadata for membership purchase.');
     }
 
-    await updateUserMembership(userId, plan as 'creator' | 'investor');
+    await updateUserMembership(userId, plan as 'investor');
     await logPayment({
         userId,
         userName,
         userAvatarUrl,
         type: 'membership',
         amount: Number(amount),
-        plan: plan as 'creator' | 'investor',
-        paymentFrequency: paymentFrequency as 'monthly' | 'lifetime',
+        plan: plan as 'investor',
+        paymentFrequency: paymentFrequency as 'lifetime',
     });
 }
 

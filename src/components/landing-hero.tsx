@@ -37,7 +37,7 @@ export default function LandingHero() {
                   Where Every Problem is a Link to an Opportunity
                 </h1>
                 <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                  OppChain is the marketplace for innovation. Connect with a community of thinkers, creators, and investors to turn brilliant ideas into reality.
+                  Problem2Profit is the marketplace for innovation. Connect with a community of thinkers, creators, and investors to turn brilliant ideas into reality.
                 </p>
               </div>
               <div className="flex flex-col gap-2 min-[400px]:flex-row">
@@ -62,7 +62,7 @@ export default function LandingHero() {
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
-              <h2 className="font-heading text-3xl font-bold tracking-tighter sm:text-5xl">How OppChain Works</h2>
+              <h2 className="font-heading text-3xl font-bold tracking-tighter sm:text-5xl">How Problem2Profit Works</h2>
               <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                 Our platform provides all the tools you need to connect, collaborate, and create value.
               </p>

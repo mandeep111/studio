@@ -60,7 +60,7 @@ export async function getAiPairings(
     }));
     
     const solutionCreators = allUsers
-        .filter(u => u.role === 'User' || u.role === 'Admin')
+        .filter(u => u.role === 'User' || u.role === 'Admin' || u.isPremium)
         .map(u => ({
             creatorId: u.uid,
             reputationScore: u.points,
@@ -99,8 +99,8 @@ export async function getAiPairings(
 }
 
 export async function upgradeMembershipAction(
-    plan: 'creator' | 'investor',
-    paymentFrequency: 'monthly' | 'lifetime',
+    plan: 'investor',
+    paymentFrequency: 'lifetime',
     price: number,
     userProfile: UserProfile
 ) {
@@ -112,18 +112,20 @@ export async function upgradeMembershipAction(
 
     if (!isEnabled) {
         try {
-            await updateUserMembership(userProfile.uid, plan as 'creator' | 'investor');
+            await updateUserMembership(userProfile.uid, plan);
             await logPayment({
                 userId: userProfile.uid,
                 userName: userProfile.name,
                 userAvatarUrl: userProfile.avatarUrl,
                 type: 'membership',
                 amount: 0,
-                plan: plan as 'creator' | 'investor',
+                plan,
                 paymentFrequency,
                 details: 'Free upgrade (payments disabled)'
             });
             revalidatePath('/membership');
+            revalidatePath('/investors');
+            revalidatePath(`/users/${userProfile.uid}`);
             return { success: true, instant: true };
         } catch (error) {
             console.error("Error during free membership upgrade:", error);
@@ -137,16 +139,13 @@ export async function upgradeMembershipAction(
     }
 
     try {
-        const mode = paymentFrequency === 'monthly' ? 'subscription' : 'payment';
-        
         const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{
             price_data: {
                 currency: 'usd',
                 product_data: {
-                    name: `${plan} Membership (${paymentFrequency})`,
+                    name: `Investor Membership (Lifetime)`,
                 },
                 unit_amount: price * 100, // Amount in cents
-                recurring: mode === 'subscription' ? { interval: 'month' } : undefined,
             },
             quantity: 1,
         }];
@@ -154,7 +153,7 @@ export async function upgradeMembershipAction(
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items,
-            mode,
+            mode: 'payment',
             success_url: `${baseUrl}/membership?payment=success`,
             cancel_url: `${baseUrl}/membership?payment=cancelled`,
             metadata: {
@@ -202,8 +201,8 @@ export async function startDealAction(
         }
     }
     
-    if (isNaN(amount) || amount < 5) {
-        return { success: false, message: "Invalid contribution amount." };
+    if (isNaN(amount) || amount < 10) {
+        return { success: false, message: "Invalid contribution amount. Minimum is $10." };
     }
 
      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -287,7 +286,7 @@ export async function postMessageAction(formData: FormData) {
 }
 
 export async function approveItemAction(formData: FormData) {
-    const type = formData.get('type') as 'problem' | 'solution' | 'business';
+    const type = formData.get('type') as 'problem' | 'solution' | 'business' | 'idea';
     const id = formData.get('id') as string;
 
     try {

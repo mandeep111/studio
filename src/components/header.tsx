@@ -1,6 +1,6 @@
 "use client";
 
-import { BrainCircuit, LogOut, User, Trophy, BarChart, ShieldCheck, Gem } from "lucide-react";
+import { BrainCircuit, LogOut, User, Trophy, BarChart, ShieldCheck, Gem, Users } from "lucide-react";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
@@ -33,10 +33,11 @@ export default function Header() {
       <div className="container flex h-14 max-w-screen-2xl items-center">
         <Link href="/" className="mr-4 flex items-center">
           <BrainCircuit className="h-6 w-6 text-primary" />
-          <h1 className="ml-2 font-heading text-2xl font-bold">OppChain</h1>
+          <h1 className="ml-2 font-heading text-2xl font-bold">Problem2Profit</h1>
         </Link>
-        <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
+        <nav className="hidden items-center gap-4 text-sm font-medium md:flex">
             <Link href="/leaderboard" className="text-muted-foreground transition-colors hover:text-foreground">Leaderboard</Link>
+            <Link href="/investors" className="text-muted-foreground transition-colors hover:text-foreground">Investors</Link>
             <Link href="/membership" className="text-muted-foreground transition-colors hover:text-foreground">Membership</Link>
             {userProfile?.role === 'Admin' && (
                  <Link href="/admin" className="text-muted-foreground transition-colors hover:text-foreground">Admin</Link>

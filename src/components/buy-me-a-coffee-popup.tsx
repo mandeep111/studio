@@ -22,15 +22,15 @@ interface BuyMeACoffeePopupProps {
 }
 
 export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: BuyMeACoffeePopupProps) {
-  const [amount, setAmount] = useState(5);
+  const [amount, setAmount] = useState(10);
   const { toast } = useToast();
   
   const handleConfirm = () => {
-    if (amount < 5) {
+    if (amount < 10) {
       toast({
         variant: "destructive",
         title: "Invalid Amount",
-        description: "The minimum contribution is $5."
+        description: "The minimum contribution is $10."
       });
       return;
     }
@@ -47,7 +47,7 @@ export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: B
             Support the Creators
           </DialogTitle>
           <DialogDescription>
-            Facilitate this introduction by buying a coffee for the creator(s). This small gesture helps keep the platform running and shows your appreciation.
+            Facilitate this introduction by contributing to the platform. This small gesture helps keep the platform running and shows your appreciation.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-2">
@@ -59,13 +59,13 @@ export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: B
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                min="5"
+                min="10"
                 step="1"
                 className="pl-8"
               />
             </div>
              <p className="text-xs text-muted-foreground">
-                Minimum contribution is $5. Payments are simulated in this demo.
+                Minimum contribution is $10.
             </p>
         </div>
         <DialogFooter>

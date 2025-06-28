@@ -9,73 +9,92 @@ import {
   doc,
   writeBatch,
   Timestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from '../src/lib/firebase/config';
 import type { UserProfile, CreatorReference } from '../src/lib/types';
+import { ADMIN_AVATARS, INVESTOR_AVATARS, USER_AVATARS } from '../src/lib/avatars';
 
 const USERS: Omit<UserProfile, 'uid'>[] = [
   {
-    email: 'admin@trisolve.com',
+    email: 'admin@problem2profit.com',
     name: 'Admin User',
     role: 'Admin',
-    avatarUrl: `https://i.pravatar.cc/150?u=admin@trisolve.com`,
+    avatarUrl: ADMIN_AVATARS[0],
     expertise: 'Platform Management',
     points: 100,
     isPremium: true,
+    unreadDealMessages: {},
   },
   {
-    email: 'problem.creator@trisolve.com',
+    email: 'problem.creator@problem2profit.com',
     name: 'Pat Problem',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=problem.creator@trisolve.com`,
+    avatarUrl: USER_AVATARS[0],
     expertise: 'Product Management',
     points: 50,
-    isPremium: false,
+    isPremium: true,
+    unreadDealMessages: {},
   },
   {
-    email: 'solution.creator@trisolve.com',
+    email: 'solution.creator@problem2profit.com',
     name: 'Sam Solution',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=solution.creator@trisolve.com`,
+    avatarUrl: USER_AVATARS[1],
     expertise: 'Software Engineering',
     points: 20,
-    isPremium: false,
+    isPremium: true,
+    unreadDealMessages: {},
   },
   {
-    email: 'investor@trisolve.com',
+    email: 'investor@problem2profit.com',
     name: 'Ivy Investor',
     role: 'Investor',
-    avatarUrl: `https://i.pravatar.cc/150?u=investor@trisolve.com`,
+    avatarUrl: INVESTOR_AVATARS[0],
     expertise: 'Venture Capital',
-    points: 0,
+    points: 120,
     isPremium: true,
+    unreadDealMessages: {},
   },
     {
-    email: 'idea.creator@trisolve.com',
+    email: 'idea.creator@problem2profit.com',
     name: 'Iggy Idea',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=idea.creator@trisolve.com`,
+    avatarUrl: USER_AVATARS[2],
     expertise: 'Creative Thinking',
     points: 10,
-    isPremium: false,
+    isPremium: true,
+    unreadDealMessages: {},
   },
   {
-    email: 'problem.creator2@trisolve.com',
+    email: 'problem.creator2@problem2profit.com',
     name: 'Penny Prospect',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=problem.creator2@trisolve.com`,
+    avatarUrl: USER_AVATARS[3],
     expertise: 'Urban Planning',
     points: 15,
-    isPremium: false,
+    isPremium: true,
+    unreadDealMessages: {},
   },
   {
-    email: 'business.owner@trisolve.com',
+    email: 'business.owner@problem2profit.com',
     name: 'Brenda Business',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=business.owner@trisolve.com`,
+    avatarUrl: USER_AVATARS[4],
     expertise: 'E-commerce',
     points: 40,
-    isPremium: false,
+    isPremium: true,
+    unreadDealMessages: {},
+  },
+   {
+    email: 'investor2@problem2profit.com',
+    name: 'Ian Invests',
+    role: 'Investor',
+    avatarUrl: INVESTOR_AVATARS[1],
+    expertise: 'Fintech',
+    points: 250,
+    isPremium: true,
+    unreadDealMessages: {},
   }
 ];
 
@@ -110,9 +129,9 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
     const solutionsCollection = collection(db, 'solutions');
     const batch = writeBatch(db);
 
-    const problemCreator = seededUsers.find(u => u.email === 'problem.creator@trisolve.com')!;
-    const solutionCreator = seededUsers.find(u => u.email === 'solution.creator@trisolve.com')!;
-    const problemCreator2 = seededUsers.find(u => u.email === 'problem.creator2@trisolve.com')!;
+    const problemCreator = seededUsers.find(u => u.email === 'problem.creator@problem2profit.com')!;
+    const solutionCreator = seededUsers.find(u => u.email === 'solution.creator@problem2profit.com')!;
+    const problemCreator2 = seededUsers.find(u => u.email === 'problem.creator2@problem2profit.com')!;
 
     // Problem 1
     const problem1Ref = doc(problemsCollection);
@@ -129,6 +148,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Solution for Problem 1
@@ -145,6 +165,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: false, 
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Problem 2
@@ -162,6 +183,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Problem 3 (from new user)
@@ -179,6 +201,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Solution for Problem 3 (from original solution creator)
@@ -195,6 +218,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: false, 
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Problem 4 (no solution)
@@ -212,6 +236,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         priceApproved: true,
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
 
@@ -224,7 +249,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
     const ideasCollection = collection(db, 'ideas');
     const batch = writeBatch(db);
 
-    const ideaCreator = seededUsers.find(u => u.email === 'idea.creator@trisolve.com')!;
+    const ideaCreator = seededUsers.find(u => u.email === 'idea.creator@problem2profit.com')!;
 
     // Idea 1
     const idea1Ref = doc(ideasCollection);
@@ -238,6 +263,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
     
     // Idea 2
@@ -252,6 +278,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     // Idea 3
@@ -266,6 +293,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
 
     await batch.commit();
@@ -277,7 +305,7 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
     const businessesCollection = collection(db, 'businesses');
     const batch = writeBatch(db);
 
-    const businessOwner = seededUsers.find(u => u.email === 'business.owner@trisolve.com')!;
+    const businessOwner = seededUsers.find(u => u.email === 'business.owner@problem2profit.com')!;
 
     batch.set(doc(businessesCollection), {
         title: 'EcoWear - Sustainable Fashion',
@@ -292,6 +320,7 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         stage: 'Early Revenue',
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 1,
     });
 
     batch.set(doc(businessesCollection), {
@@ -307,10 +336,18 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         stage: 'Scaling',
         attachmentUrl: null,
         attachmentFileName: null,
+        interestedInvestorsCount: 0,
     });
     
     await batch.commit();
     console.log('Businesses seeded successfully!');
+}
+
+async function seedSettings() {
+    console.log('Seeding settings...');
+    const settingsRef = doc(db, 'settings', 'payment');
+    await setDoc(settingsRef, { isEnabled: true });
+    console.log('Settings seeded successfully!');
 }
 
 
@@ -322,6 +359,7 @@ async function main() {
     await seedProblemsAndSolutions(seededUsers);
     await seedIdeas(seededUsers);
     await seedBusinesses(seededUsers);
+    await seedSettings();
 
     console.log('Database seeding complete! Your collections have been created.');
     process.exit(0);

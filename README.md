@@ -1,6 +1,6 @@
-# OppChain: Where every problem is a link to an opportunity
+# Problem2Profit: Where every problem is a link to an opportunity
 
-OppChain is a dynamic web platform designed to bridge the gap between real-world problems, innovative solutions, and strategic investors. It functions as a marketplace of ideas, fostering a community where problem-solvers, solution-crafters, and financial backers can connect, collaborate, and create value.
+Problem2Profit is a dynamic web platform designed to bridge the gap between real-world problems, innovative solutions, and strategic investors. It functions as a marketplace of ideas, fostering a community where problem-solvers, solution-crafters, and financial backers can connect, collaborate, and create value.
 
 ## Key Features
 
@@ -58,6 +58,7 @@ This project connects to Firebase. You'll need to create a local environment fil
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
     NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123...
     NEXT_PUBLIC_FIREBASE_APP_ID=1:123...:web:...
+    NEXT_PUBLIC_BASE_URL=http://localhost:9002
     ```
 
 ### 4. Seed the Database

@@ -20,7 +20,7 @@ const testData = {
 };
 
 async function main() {
-    console.log('🚀 Starting OppChain Integrity Test...');
+    console.log('🚀 Starting Problem2Profit Integrity Test...');
     try {
         await testFirestoreConnection();
         await testCoreFunctionality();
@@ -55,7 +55,7 @@ async function testCoreFunctionality() {
     // 1. Create temporary users
     const problemCreatorProfile: UserProfile = {
         uid: testData.problemCreatorId,
-        email: 'test.problem.creator@trisolve.com',
+        email: 'test.problem.creator@problem2profit.com',
         name: 'Test Problem Creator',
         role: 'User',
         avatarUrl: USER_AVATARS[5],
@@ -66,7 +66,7 @@ async function testCoreFunctionality() {
     
     const solutionCreatorProfile: UserProfile = {
         uid: testData.solutionCreatorId,
-        email: 'test.solution.creator@trisolve.com',
+        email: 'test.solution.creator@problem2profit.com',
         name: 'Test Solution Creator',
         role: 'User',
         avatarUrl: ADMIN_AVATARS[5],
@@ -137,7 +137,7 @@ async function testPaymentToggle() {
     // Create a temporary user for testing payments
     const paymentTestUser: UserProfile = {
         uid: testData.paymentTestUserId,
-        email: 'test.payment.user@trisolve.com',
+        email: 'test.payment.user@problem2profit.com',
         name: 'Test Payment User',
         role: 'User',
         avatarUrl: USER_AVATARS[6],
@@ -153,7 +153,7 @@ async function testPaymentToggle() {
         console.log('  - Payments disabled for test.');
 
         // 2. Test free membership upgrade
-        const upgradeResult = await upgradeMembershipAction('investor', 'lifetime', 100, paymentTestUser);
+        const upgradeResult = await upgradeMembershipAction('investor', 'lifetime', 50, paymentTestUser);
         if (!upgradeResult.success || !upgradeResult.instant) {
             throw new Error('Free membership upgrade failed. Expected instant success.');
         }

@@ -51,15 +51,22 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
     const formData = new FormData(event.currentTarget);
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
+    const priceStr = formData.get('price') as string;
+    const price = priceStr ? parseFloat(priceStr) : null;
 
     if (!title || !description || tags.length === 0) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setFormLoading(false);
         return;
     }
+     if (priceStr && isNaN(parseFloat(priceStr))) {
+        toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
+        setFormLoading(false);
+        return;
+    }
 
     try {
-        await createIdea(title, description, tags, userProfile, attachment || undefined);
+        await createIdea(title, description, tags, price, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Idea submitted successfully." });
         formRef.current?.reset();
         setTags([]);
@@ -120,7 +127,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
             <Label htmlFor="attachment-idea">Attachment (Optional)</Label>
             <Input id="attachment-idea" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
             <p className="text-xs text-muted-foreground">
-                Premium users will be able to see this attachment.
+                Investors will be able to see this attachment.
             </p>
           </div>
           <DialogFooter>

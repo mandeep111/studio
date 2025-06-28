@@ -49,18 +49,9 @@ export interface Solution extends BaseItem {
   problemTitle: string;
 }
 
-export interface Idea extends Omit<BaseItem, 'price' | 'priceApproved'> {
-    id: string;
+export interface Idea extends BaseItem {
     title: string;
-    description: string;
-    creator: CreatorReference;
-    upvotes: number;
-    upvotedBy: string[];
-    createdAt: SerializableTimestamp;
     tags: string[];
-    attachmentUrl?: string | null;
-    attachmentFileName?: string | null;
-    interestedInvestorsCount: number;
 }
 
 export interface Business extends BaseItem {
@@ -109,8 +100,8 @@ export interface Payment {
     type: 'membership' | 'deal_creation';
     amount: number;
     createdAt: SerializableTimestamp;
-    plan?: 'creator' | 'investor';
-    paymentFrequency?: 'monthly' | 'lifetime';
+    plan?: 'investor';
+    paymentFrequency?: 'lifetime';
     relatedDealId?: string;
     relatedDealTitle?: string;
     details?: string;

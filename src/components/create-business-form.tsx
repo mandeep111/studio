@@ -120,7 +120,7 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
         ) : (
            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
                 <Gem className="h-4 w-4 text-primary" />
-                <span><Link href="/membership" className="underline text-primary">Upgrade to Creator</Link> or earn 10,000 points to set a price.</span>
+                <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
             </div>
         )}
       </div>
@@ -140,7 +140,7 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
         <Label htmlFor="attachment-business">Attachment (Optional)</Label>
         <Input id="attachment-business" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
         <p className="text-xs text-muted-foreground">
-            Premium users will be able to see this attachment.
+            Investors will be able to see this attachment.
         </p>
       </div>
       <div className="flex justify-end pt-4">
