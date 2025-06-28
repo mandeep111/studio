@@ -31,6 +31,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
   const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [attachment, setAttachment] = useState<File | null>(null);
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
@@ -63,9 +64,10 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
     }
 
     try {
-        await createIdea(title, description, tags, userProfile);
+        await createIdea(title, description, tags, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Idea submitted successfully." });
         formRef.current?.reset();
+        setAttachment(null);
         onIdeaCreated();
         setOpen(false);
     } catch (error) {
@@ -87,7 +89,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
             </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Submit a Random Idea</DialogTitle>
           <DialogDescription>
@@ -95,23 +97,30 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} ref={formRef} className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right">
+          <div className="space-y-2">
+            <Label htmlFor="title">
               Title
             </Label>
-            <Input id="title" name="title" className="col-span-3" placeholder="A catchy title for your idea" required disabled={isFieldsDisabled} />
+            <Input id="title" name="title" placeholder="A catchy title for your idea" required disabled={isFieldsDisabled} />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="description" className="text-right">
+          <div className="space-y-2">
+            <Label htmlFor="description">
               Description
             </Label>
-            <Textarea id="description" name="description" className="col-span-3" placeholder="Describe your idea in detail" required disabled={isFieldsDisabled} />
+            <Textarea id="description" name="description" placeholder="Describe your idea in detail" required disabled={isFieldsDisabled} />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="tags" className="text-right">
+          <div className="space-y-2">
+            <Label htmlFor="tags">
               Tags
             </Label>
-            <Input id="tags" name="tags" className="col-span-3" placeholder="e.g. AI, Health (comma-separated)" required disabled={isFieldsDisabled} />
+            <Input id="tags" name="tags" placeholder="e.g. AI, Health (comma-separated)" required disabled={isFieldsDisabled} />
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="attachment-idea">Attachment (Optional)</Label>
+            <Input id="attachment-idea" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+            <p className="text-xs text-muted-foreground">
+                Premium users will be able to see this attachment.
+            </p>
           </div>
           <DialogFooter>
             <SubmitButton disabled={isSubmitDisabled} pendingText="Submitting...">Submit Idea</SubmitButton>

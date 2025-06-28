@@ -8,7 +8,7 @@ import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, ExternalLink, ThumbsUp } from "lucide-react";
+import { ArrowLeft, ExternalLink, ThumbsUp, File, Gem } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,7 +17,7 @@ interface SolutionClientPageProps {
 }
 
 export default function SolutionClientPage({ initialSolution }: SolutionClientPageProps) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const [solution, setSolution] = useState<Solution>(initialSolution);
   
@@ -34,6 +34,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
         if (updatedSolution) {
           setSolution(updatedSolution);
         }
+        toast({title: "Success", description: "Your upvote has been recorded."});
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
     }
@@ -68,6 +69,24 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
         </CardHeader>
         <CardContent>
           <p className="text-lg leading-relaxed">{solution.description}</p>
+           {solution.attachmentUrl && (
+                <div className="mt-6 border-t pt-4">
+                    <h4 className="font-semibold mb-2">Attachment</h4>
+                    {userProfile?.isPremium ? (
+                        <Button asChild variant="outline">
+                            <a href={solution.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                <File className="mr-2 h-4 w-4" />
+                                {solution.attachmentFileName || 'Download Attachment'}
+                            </a>
+                        </Button>
+                    ) : (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                            <Gem className="h-4 w-4 text-primary" />
+                            <span>A file is attached. <Link href="/membership" className="underline text-primary">Upgrade to Premium</Link> to view.</span>
+                        </div>
+                    )}
+                </div>
+            )}
         </CardContent>
         <CardFooter className="flex justify-between">
           <Button variant={isUpvoted ? "default" : "outline"} size="sm" onClick={handleUpvote} disabled={!user || isCreator}>

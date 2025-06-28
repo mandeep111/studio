@@ -1,4 +1,3 @@
-
 import {
   addDoc,
   arrayRemove,
@@ -19,8 +18,21 @@ import {
   type DocumentSnapshot,
   startAfter,
 } from "firebase/firestore";
-import { db } from "./firebase/config";
+import { db, storage } from "./firebase/config";
 import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business } from "./types";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { v4 as uuidv4 } from "uuid";
+
+async function uploadAttachment(file: File): Promise<{ url: string; name: string }> {
+  if (!file) {
+    throw new Error("No file provided for upload.");
+  }
+  const fileId = uuidv4();
+  const storageRef = ref(storage, `attachments/${fileId}-${file.name}`);
+  const snapshot = await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(snapshot.ref);
+  return { url, name: file.name };
+}
 
 // --- Data Fetching ---
 
@@ -238,14 +250,19 @@ async function createNotification(userId: string | "admins", message: string, li
     });
 }
 
-export async function createProblem(title: string, description: string, tags: string, price: number | null, creator: UserProfile) {
+export async function createProblem(title: string, description: string, tags: string, price: number | null, creator: UserProfile, attachment?: File) {
     await runTransaction(db, async (transaction) => {
+        let attachmentData: { url: string; name: string } | null = null;
+        if (attachment) {
+            attachmentData = await uploadAttachment(attachment);
+        }
+
         const problemsCol = collection(db, "problems");
         const newProblemRef = doc(problemsCol);
 
         const priceApproved = price ? price <= 1000 : true;
         
-        transaction.set(newProblemRef, {
+        const problemData: Omit<Problem, 'id'> = {
             title,
             description,
             tags: tags.split(',').map(t => t.trim()),
@@ -260,8 +277,12 @@ export async function createProblem(title: string, description: string, tags: st
             solutionsCount: 0,
             createdAt: serverTimestamp(),
             price: price || null,
-            priceApproved
-        });
+            priceApproved,
+            attachmentUrl: attachmentData?.url || null,
+            attachmentFileName: attachmentData?.name || null,
+        };
+        
+        transaction.set(newProblemRef, problemData);
 
         // Award points to creator
         const userRef = doc(db, "users", creator.uid);
@@ -278,15 +299,20 @@ export async function createProblem(title: string, description: string, tags: st
 }
 
 
-export async function createSolution(description: string, problemId: string, problemTitle: string, price: number | null, creator: UserProfile) {
+export async function createSolution(description: string, problemId: string, problemTitle: string, price: number | null, creator: UserProfile, attachment?: File) {
     const batch = writeBatch(db);
+    
+    let attachmentData: { url: string; name: string } | null = null;
+    if (attachment) {
+        attachmentData = await uploadAttachment(attachment);
+    }
     
     const solutionRef = doc(collection(db, "solutions"));
     const problemRef = doc(db, "problems", problemId);
     
     const priceApproved = price ? price <= 1000 : true;
 
-    batch.set(solutionRef, {
+    const solutionData: Omit<Solution, 'id'> = {
         problemId,
         problemTitle,
         description,
@@ -300,8 +326,12 @@ export async function createSolution(description: string, problemId: string, pro
         upvotedBy: [],
         createdAt: serverTimestamp(),
         price: price || null,
-        priceApproved
-    });
+        priceApproved,
+        attachmentUrl: attachmentData?.url || null,
+        attachmentFileName: attachmentData?.name || null,
+    };
+    
+    batch.set(solutionRef, solutionData);
 
     batch.update(problemRef, { solutionsCount: increment(1) });
 
@@ -326,8 +356,14 @@ export async function createSolution(description: string, problemId: string, pro
     }
 }
 
-export async function createIdea(title: string, description: string, tags: string, creator: UserProfile) {
+export async function createIdea(title: string, description: string, tags: string, creator: UserProfile, attachment?: File) {
   const ideasCol = collection(db, "ideas");
+  
+  let attachmentData: { url: string; name: string } | null = null;
+    if (attachment) {
+        attachmentData = await uploadAttachment(attachment);
+    }
+  
   await addDoc(ideasCol, {
     title,
     description,
@@ -341,17 +377,24 @@ export async function createIdea(title: string, description: string, tags: strin
     upvotes: 0,
     upvotedBy: [],
     createdAt: serverTimestamp(),
+    attachmentUrl: attachmentData?.url || null,
+    attachmentFileName: attachmentData?.name || null,
   });
 }
 
-export async function createBusiness(title: string, description: string, tags: string, stage: string, price: number | null, creator: UserProfile) {
+export async function createBusiness(title: string, description: string, tags: string, stage: string, price: number | null, creator: UserProfile, attachment?: File) {
     await runTransaction(db, async (transaction) => {
+        let attachmentData: { url: string; name: string } | null = null;
+        if (attachment) {
+            attachmentData = await uploadAttachment(attachment);
+        }
+
         const businessesCol = collection(db, "businesses");
         const newBusinessRef = doc(businessesCol);
 
         const priceApproved = price ? price <= 1000 : true;
         
-        transaction.set(newBusinessRef, {
+        const businessData: Omit<Business, 'id'> = {
             title,
             description,
             tags: tags.split(',').map(t => t.trim()),
@@ -366,8 +409,12 @@ export async function createBusiness(title: string, description: string, tags: s
             upvotedBy: [],
             createdAt: serverTimestamp(),
             price: price || null, // Represents funding sought
-            priceApproved
-        });
+            priceApproved,
+            attachmentUrl: attachmentData?.url || null,
+            attachmentFileName: attachmentData?.name || null,
+        };
+
+        transaction.set(newBusinessRef, businessData);
 
         // Award points to creator for listing a business
         const userRef = doc(db, "users", creator.uid);

@@ -19,6 +19,8 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
+
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
@@ -58,9 +60,10 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
     }
 
     try {
-        await createProblem(title, description, tags, price, userProfile);
+        await createProblem(title, description, tags, price, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Problem submitted successfully. You've earned 50 points!" });
         formRef.current?.reset();
+        setAttachment(null);
         if (onProblemCreated) {
             onProblemCreated();
         }
@@ -104,6 +107,13 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         </div>
         <p className="text-xs text-muted-foreground">
           Set a price for your problem. Prices over $1,000 require admin approval.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="attachment">Attachment (Optional)</Label>
+        <Input id="attachment" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+        <p className="text-xs text-muted-foreground">
+            Premium users will be able to see this attachment.
         </p>
       </div>
       <div className="flex justify-end pt-4">

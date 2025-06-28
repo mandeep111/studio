@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
@@ -39,13 +39,14 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
   }, [initialProblem, initialSolutions]);
 
   const fetchProblemAndSolutions = useCallback(async () => {
+    if (!problem?.id) return;
     const problemData = await getProblem(problem.id);
     if (problemData) {
       setProblem(problemData);
       const solutionsData = await getSolutionsForProblem(problem.id);
       setSolutions(solutionsData);
     }
-  }, [problem.id]);
+  }, [problem?.id]);
 
 
   const handleProblemUpvote = async () => {
@@ -88,10 +89,12 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
     }
   };
 
-  const isProblemCreator = user?.uid === problem.creator.userId;
-  const isProblemUpvoted = user ? problem.upvotedBy.includes(user.uid) : false;
-  const hasUserSubmittedSolution = solutions.some(s => s.creator.userId === user?.uid);
+  const isProblemCreator = user?.uid === problem?.creator.userId;
+  const isProblemUpvoted = user && problem ? problem.upvotedBy.includes(user.uid) : false;
+  const hasUserSubmittedSolution = user ? solutions.some(s => s.creator.userId === user.uid) : false;
   const canSubmitSolution = userProfile && (userProfile.role === 'User' || userProfile.role === 'Admin') && !isProblemCreator && !hasUserSubmittedSolution;
+
+  if (!problem) return null;
 
   return (
     <>
@@ -135,24 +138,42 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
             {problem.price && (
                 <Badge variant={problem.priceApproved ? "default" : "destructive"} className="flex items-center gap-1">
                     <DollarSign className="h-4 w-4" /> {problem.price.toFixed(2)}
-                    {problem.priceApproved ? <CheckCircle className="h-4 w-4" /> : '(Awaiting Approval)'}
+                    {problem.priceApproved ? <CheckCircle className="h-4 w-4 ml-1" /> : '(Awaiting Approval)'}
                 </Badge>
             )}
           </div>
+            {problem.attachmentUrl && (
+                <div className="mt-6 border-t pt-4">
+                    <h4 className="font-semibold mb-2">Attachment</h4>
+                    {userProfile?.isPremium ? (
+                        <Button asChild variant="outline">
+                            <a href={problem.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                <File className="mr-2 h-4 w-4" />
+                                {problem.attachmentFileName || 'Download Attachment'}
+                            </a>
+                        </Button>
+                    ) : (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                            <Gem className="h-4 w-4 text-primary" />
+                            <span>A file is attached. <Link href="/membership" className="underline text-primary">Upgrade to Premium</Link> to view.</span>
+                        </div>
+                    )}
+                </div>
+            )}
         </CardContent>
         <CardFooter className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-6 text-muted-foreground">
-            <button
-              className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none data-[upvoted=true]:bg-primary data-[upvoted=true]:text-primary-foreground data-[upvoted=true]:border-primary"
+            <Button
+              variant={isProblemUpvoted ? "default" : "outline"}
+              size="sm"
               onClick={handleProblemUpvote}
               disabled={!user || isProblemCreator}
-              data-upvoted={isProblemUpvoted}
             >
-              <ThumbsUp className="h-5 w-5" />
+              <ThumbsUp className="h-4 w-4 mr-2" />
               <span>{problem.upvotes.toLocaleString()} Upvotes</span>
-            </button>
+            </Button>
             <div className="flex items-center gap-1">
-              <MessageSquare className="h-5 w-5" />
+              <MessageSquare className="h-4 w-4" />
               <span>{solutions.length} Solutions</span>
             </div>
           </div>

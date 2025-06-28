@@ -8,9 +8,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign } from "lucide-react";
+import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitBusinessDialog } from "@/components/submit-business-dialog";
+import { Button } from "./ui/button";
 
 interface BusinessClientPageProps {
   initialBusiness: Business;
@@ -22,11 +23,12 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
   const [business, setBusiness] = useState<Business>(initialBusiness);
 
   const fetchBusiness = useCallback(async () => {
+    if (!business?.id) return;
     const businessData = await getBusiness(business.id);
     if (businessData) {
       setBusiness(businessData);
     }
-  }, [business.id]);
+  }, [business?.id]);
 
   useEffect(() => {
     setBusiness(initialBusiness);
@@ -44,7 +46,10 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
     }
   };
 
-  const isBusinessUpvoted = user ? business.upvotedBy.includes(user.uid) : false;
+  const isBusinessUpvoted = user && business ? business.upvotedBy.includes(user.uid) : false;
+  const isCreator = user?.uid === business?.creator.userId;
+
+  if (!business) return null;
 
   return (
     <>
@@ -88,16 +93,35 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
                 </Badge>
             )}
           </div>
+           {business.attachmentUrl && (
+                <div className="mt-6 border-t pt-4">
+                    <h4 className="font-semibold mb-2">Attachment</h4>
+                    {userProfile?.isPremium ? (
+                        <Button asChild variant="outline">
+                            <a href={business.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                <File className="mr-2 h-4 w-4" />
+                                {business.attachmentFileName || 'Download Attachment'}
+                            </a>
+                        </Button>
+                    ) : (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                            <Gem className="h-4 w-4 text-primary" />
+                            <span>A file is attached. <Link href="/membership" className="underline text-primary">Upgrade to Premium</Link> to view.</span>
+                        </div>
+                    )}
+                </div>
+            )}
         </CardContent>
         <CardFooter className="flex items-center gap-6 text-muted-foreground">
-          <button
-            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+          <Button
+            variant={isBusinessUpvoted ? "default" : "outline"}
+            size="sm"
             onClick={handleBusinessUpvote}
-            disabled={!user || isBusinessUpvoted}
+            disabled={!user || isCreator}
           >
-            <ThumbsUp className="h-5 w-5" />
+            <ThumbsUp className="h-4 w-4 mr-2" />
             <span>{business.upvotes.toLocaleString()} Upvotes</span>
-          </button>
+          </Button>
         </CardFooter>
       </Card>
     </>

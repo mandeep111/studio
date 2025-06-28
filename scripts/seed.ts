@@ -67,6 +67,15 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'Urban Planning',
     points: 15,
     isPremium: false,
+  },
+  {
+    email: 'business.owner@trisolve.com',
+    name: 'Brenda Business',
+    role: 'User',
+    avatarUrl: `https://i.pravatar.cc/150?u=business.owner@trisolve.com`,
+    expertise: 'E-commerce',
+    points: 40,
+    isPremium: false,
   }
 ];
 
@@ -76,8 +85,6 @@ async function seedUsers() {
   const batch = writeBatch(db);
 
   for (const user of USERS) {
-    // We'll use the email as the UID for simplicity in this seed script.
-    // In a real app, Firebase Auth would generate these UIDs.
     const userId = user.email; 
     const userRef = doc(usersCollection, userId);
     batch.set(userRef, { ...user, uid: userId });
@@ -85,7 +92,6 @@ async function seedUsers() {
 
   await batch.commit();
   console.log('Users seeded successfully!');
-  // Return the created user profiles with their UIDs for linking
   return USERS.map(u => ({...u, uid: u.email}));
 }
 
@@ -121,6 +127,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: 500,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Solution for Problem 1
@@ -134,7 +142,9 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         upvotedBy: [],
         createdAt: Timestamp.now(),
         price: 75000,
-        priceApproved: false, // Will require admin approval
+        priceApproved: false, 
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Problem 2
@@ -150,6 +160,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: null,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Problem 3 (from new user)
@@ -165,6 +177,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: 250,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Solution for Problem 3 (from original solution creator)
@@ -178,7 +192,9 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         upvotedBy: [],
         createdAt: Timestamp.now(),
         price: 25000,
-        priceApproved: false, // requires approval
+        priceApproved: false, 
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Problem 4 (no solution)
@@ -194,6 +210,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: null,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
 
@@ -218,6 +236,8 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         upvotes: 12,
         upvotedBy: [],
         createdAt: Timestamp.now(),
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
     
     // Idea 2
@@ -230,6 +250,8 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         upvotes: 5,
         upvotedBy: [],
         createdAt: Timestamp.now(),
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Idea 3
@@ -242,10 +264,53 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         upvotes: 9,
         upvotedBy: [],
         createdAt: Timestamp.now(),
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     await batch.commit();
     console.log('Ideas seeded successfully!');
+}
+
+async function seedBusinesses(seededUsers: UserProfile[]) {
+    console.log('Seeding businesses...');
+    const businessesCollection = collection(db, 'businesses');
+    const batch = writeBatch(db);
+
+    const businessOwner = seededUsers.find(u => u.email === 'business.owner@trisolve.com')!;
+
+    batch.set(doc(businessesCollection), {
+        title: 'EcoWear - Sustainable Fashion',
+        description: 'An e-commerce brand offering stylish apparel made from 100% recycled materials. We have a growing customer base and are seeking funding to expand our product line and marketing efforts.',
+        tags: ['E-commerce', 'Sustainability', 'Fashion', 'Retail'],
+        creator: createCreatorRef(businessOwner),
+        upvotes: 42,
+        upvotedBy: [],
+        createdAt: Timestamp.now(),
+        price: 150000, // funding sought
+        priceApproved: false,
+        stage: 'Early Revenue',
+        attachmentUrl: null,
+        attachmentFileName: null,
+    });
+
+    batch.set(doc(businessesCollection), {
+        title: 'LocalEats - Farm-to-Table Delivery',
+        description: 'A subscription service that partners with local farms to deliver fresh, organic produce directly to consumers. We are looking to scale our operations to three new cities.',
+        tags: ['Food Tech', 'Subscription', 'Logistics', 'Health'],
+        creator: createCreatorRef(businessOwner),
+        upvotes: 28,
+        upvotedBy: [],
+        createdAt: Timestamp.now(),
+        price: 250000,
+        priceApproved: false,
+        stage: 'Scaling',
+        attachmentUrl: null,
+        attachmentFileName: null,
+    });
+    
+    await batch.commit();
+    console.log('Businesses seeded successfully!');
 }
 
 
@@ -256,6 +321,7 @@ async function main() {
     const seededUsers = await seedUsers();
     await seedProblemsAndSolutions(seededUsers);
     await seedIdeas(seededUsers);
+    await seedBusinesses(seededUsers);
 
     console.log('Database seeding complete! Your collections have been created.');
     process.exit(0);

@@ -32,6 +32,8 @@ export interface BaseItem {
   createdAt: SerializableTimestamp;
   price?: number;
   priceApproved: boolean;
+  attachmentUrl?: string;
+  attachmentFileName?: string;
 }
 
 export interface Problem extends BaseItem {
@@ -54,6 +56,8 @@ export interface Idea extends Omit<BaseItem, 'price' | 'priceApproved'> {
     upvotedBy: string[];
     createdAt: SerializableTimestamp;
     tags: string[];
+    attachmentUrl?: string;
+    attachmentFileName?: string;
 }
 
 export interface Business extends BaseItem {

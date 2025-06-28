@@ -21,6 +21,7 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
   const [formLoading, setFormLoading] = useState(false);
   const [stage, setStage] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
@@ -52,9 +53,10 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
     }
 
     try {
-        await createBusiness(title, description, tags, stage, price, userProfile);
+        await createBusiness(title, description, tags, stage, price, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Business submitted successfully. You've earned 30 points!" });
         formRef.current?.reset();
+        setAttachment(null);
         if (onBusinessCreated) {
             onBusinessCreated();
         }
@@ -112,6 +114,13 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
         <Input id="tags" name="tags" placeholder="e.g. E-commerce, B2C, SaaS (comma-separated)" required disabled={isFieldsDisabled}/>
         <p className="text-xs text-muted-foreground">
           Comma-separated list of relevant tags.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="attachment-business">Attachment (Optional)</Label>
+        <Input id="attachment-business" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+        <p className="text-xs text-muted-foreground">
+            Premium users will be able to see this attachment.
         </p>
       </div>
       <div className="flex justify-end pt-4">
