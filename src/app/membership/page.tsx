@@ -35,7 +35,7 @@ export default function MembershipPage() {
                 <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Membership</div>
                 <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">Choose Your Path</h1>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Whether you're an innovator with the next big idea or an investor looking to fund it, TriSolve has a plan for you.
+                  Whether you're an innovator with the next big idea or an investor looking to fund it, VentureForge has a plan for you.
                 </p>
               </div>
             </div>

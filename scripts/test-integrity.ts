@@ -18,7 +18,7 @@ const testData = {
 };
 
 async function main() {
-    console.log('🚀 Starting TriSolve Integrity Test...');
+    console.log('🚀 Starting VentureForge Integrity Test...');
     try {
         await testFirestoreConnection();
         await testCoreFunctionality();

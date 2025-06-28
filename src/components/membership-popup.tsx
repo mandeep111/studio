@@ -27,21 +27,20 @@ export default function MembershipPopup({ isOpen, onOpenChange }: MembershipPopu
   const [loading, setLoading] = useState(false);
 
   const handleBecomeInvestor = async () => {
-    if (!userProfile) return;
+    if (!userProfile) {
+        toast({ variant: "destructive", title: "Error", description: "You must be logged in." });
+        return;
+    };
     setLoading(true);
-    
-    const formData = new FormData();
-    formData.append('userId', userProfile.uid);
-    formData.append('plan', 'investor');
 
-    const result = await upgradeMembershipAction(formData);
-    if (result.success) {
-      toast({ title: "Success!", description: result.message });
-      onOpenChange(false);
+    const result = await upgradeMembershipAction('investor', 'lifetime', 100, userProfile);
+
+    if (result.success && result.url) {
+      window.location.href = result.url;
     } else {
       toast({ variant: "destructive", title: "Error", description: result.message });
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -53,21 +52,16 @@ export default function MembershipPopup({ isOpen, onOpenChange }: MembershipPopu
             Unlock Investor Tools
           </DialogTitle>
           <DialogDescription>
-            To use AI-powered matchmaking and start deals, you need an Investor membership. This gives you exclusive access to find and fund the best new ideas on TriSolve.
+            To use AI-powered matchmaking and start deals, you need an Investor membership. This gives you exclusive access to find and fund the best new ideas on VentureForge.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-            <p className="text-sm text-muted-foreground">
-                For this demo, payments are not processed. Clicking 'Agree and Continue' will upgrade your account to an Investor role for free.
-            </p>
-        </div>
         <DialogFooter className="sm:justify-between">
           <Button variant="ghost" asChild>
             <Link href="/membership">Learn More</Link>
           </Button>
           <Button onClick={handleBecomeInvestor} disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-            Agree and Continue
+            Become an Investor
           </Button>
         </DialogFooter>
       </DialogContent>

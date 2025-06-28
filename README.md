@@ -1,6 +1,6 @@
-# TriSolve: The Innovation Marketplace
+# VentureForge: The Innovation Marketplace
 
-TriSolve is a dynamic web platform designed to bridge the gap between real-world problems, innovative solutions, and strategic investors. It functions as a marketplace of ideas, fostering a community where problem-solvers, solution-crafters, and financial backers can connect, collaborate, and create value.
+VentureForge is a dynamic web platform designed to bridge the gap between real-world problems, innovative solutions, and strategic investors. It functions as a marketplace of ideas, fostering a community where problem-solvers, solution-crafters, and financial backers can connect, collaborate, and create value.
 
 ## Key Features
 
@@ -79,3 +79,4 @@ npm run dev
 ```
 
 The application will be available at [http://localhost:9002](http://localhost:9002).
+```

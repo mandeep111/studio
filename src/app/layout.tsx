@@ -9,8 +9,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const metadata: Metadata = {
-  title: "TriSolve",
-  description: "Connecting problems, solutions, and investors.",
+  title: "VentureForge",
+  description: "Where great ideas meet smart investment.",
 };
 
 export default function RootLayout({
