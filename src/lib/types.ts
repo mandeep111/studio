@@ -32,8 +32,8 @@ export interface BaseItem {
   createdAt: SerializableTimestamp;
   price?: number;
   priceApproved: boolean;
-  attachmentUrl?: string;
-  attachmentFileName?: string;
+  attachmentUrl?: string | null;
+  attachmentFileName?: string | null;
 }
 
 export interface Problem extends BaseItem {
@@ -56,8 +56,8 @@ export interface Idea extends Omit<BaseItem, 'price' | 'priceApproved'> {
     upvotedBy: string[];
     createdAt: SerializableTimestamp;
     tags: string[];
-    attachmentUrl?: string;
-    attachmentFileName?: string;
+    attachmentUrl?: string | null;
+    attachmentFileName?: string | null;
 }
 
 export interface Business extends BaseItem {
@@ -71,10 +71,12 @@ export type UpvotedItem = (Problem & { type: 'problem' }) | (Solution & { type: 
 export interface Deal {
     id: string;
     investor: CreatorReference;
-    problemCreator: CreatorReference;
-    solutionCreator?: CreatorReference;
-    problemId: string;
-    problemTitle: string;
+    primaryCreator: CreatorReference;
+    // solutionCreator is for AI matchmaking where two creators are paired
+    solutionCreator?: CreatorReference; 
+    relatedItemId: string;
+    title: string;
+    type: 'problem' | 'idea' | 'business';
     createdAt: SerializableTimestamp;
 }
 

@@ -2,64 +2,64 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getBusiness, upvoteBusiness } from "@/lib/firestore";
-import type { Business } from "@/lib/types";
+import { getIdea, upvoteIdea } from "@/lib/firestore";
+import type { Idea } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee } from "lucide-react";
+import { ArrowLeft, ThumbsUp, Coffee, File, Gem } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { SubmitBusinessDialog } from "@/components/submit-business-dialog";
+import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
+import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
+import { startDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
-import { startDealAction } from "@/app/actions";
-import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 
-interface BusinessClientPageProps {
-  initialBusiness: Business;
+interface IdeaClientPageProps {
+  initialIdea: Idea;
 }
 
-export default function BusinessClientPage({ initialBusiness }: BusinessClientPageProps) {
+export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const [business, setBusiness] = useState<Business>(initialBusiness);
+  const [idea, setIdea] = useState<Idea>(initialIdea);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
 
-  const fetchBusiness = useCallback(async () => {
-    if (!business?.id) return;
-    const businessData = await getBusiness(business.id);
-    if (businessData) {
-      setBusiness(businessData);
+  const fetchIdea = useCallback(async () => {
+    if (!idea?.id) return;
+    const ideaData = await getIdea(idea.id);
+    if (ideaData) {
+      setIdea(ideaData);
     }
-  }, [business?.id]);
+  }, [idea?.id]);
 
   useEffect(() => {
-    setBusiness(initialBusiness);
-  }, [initialBusiness]);
+    setIdea(initialIdea);
+  }, [initialIdea]);
 
 
-  const handleBusinessUpvote = async () => {
-    if (!user || !business) return;
+  const handleIdeaUpvote = async () => {
+    if (!user || !idea) return;
     try {
-        await upvoteBusiness(business.id, user.uid);
-        fetchBusiness();
+        await upvoteIdea(idea.id, user.uid);
+        fetchIdea();
         toast({title: "Success", description: "Your upvote has been recorded."})
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
     }
   };
 
-  const handleStartDeal = async () => {
-    if (!userProfile || userProfile.role !== "Investor" || !business) return;
+   const handleStartDeal = async () => {
+    if (!userProfile || userProfile.role !== "Investor" || !idea) return;
   
     const formData = new FormData();
     formData.append('investorProfile', JSON.stringify(userProfile));
-    formData.append('primaryCreatorId', business.creator.userId);
-    formData.append('itemId', business.id);
-    formData.append('itemTitle', business.title);
-    formData.append('itemType', 'business');
+    formData.append('primaryCreatorId', idea.creator.userId);
+    formData.append('itemId', idea.id);
+    formData.append('itemTitle', idea.title);
+    formData.append('itemType', 'idea');
 
     const result = await startDealAction(formData);
 
@@ -71,10 +71,11 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
     }
   };
 
-  const isBusinessUpvoted = user && business ? business.upvotedBy.includes(user.uid) : false;
-  const isCreator = user?.uid === business?.creator.userId;
 
-  if (!business) return null;
+  const isIdeaUpvoted = user && idea ? idea.upvotedBy.includes(user.uid) : false;
+  const isCreator = user?.uid === idea?.creator.userId;
+
+  if (!idea) return null;
 
   return (
     <>
@@ -86,51 +87,42 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
       <div className="flex justify-between items-center mb-4">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
-          Back to all businesses
+          Back to all ideas
         </Link>
         {(userProfile?.role === 'User' || userProfile?.role === 'Admin') && (
-          <SubmitBusinessDialog />
+          <SubmitIdeaDialog onIdeaCreated={fetchIdea} />
         )}
       </div>
       <Card>
         <CardHeader>
           <div className="flex items-start gap-4">
             <Avatar className="h-12 w-12">
-              <AvatarImage src={business.creator.avatarUrl} alt={business.creator.name} />
-              <AvatarFallback>{business.creator.name.charAt(0)}</AvatarFallback>
+              <AvatarImage src={idea.creator.avatarUrl} alt={idea.creator.name} />
+              <AvatarFallback>{idea.creator.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl lg:text-3xl">{business.title}</CardTitle>
+              <CardTitle className="text-2xl lg:text-3xl">{idea.title}</CardTitle>
               <CardDescription className="mt-1">
-                Business by {business.creator.name} &bull; Expertise: {business.creator.expertise}
+                Idea by {idea.creator.name} &bull; Expertise: {idea.creator.expertise}
               </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="leading-relaxed">{business.description}</p>
-          <div className="mt-4 flex flex-wrap gap-4">
-            <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">{business.stage}</Badge>
-                {business.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
-                ))}
-            </div>
-            {business.price && (
-                <Badge variant={business.priceApproved ? "default" : "destructive"} className="flex items-center gap-1">
-                    <DollarSign className="h-4 w-4" /> Funding Sought: {business.price.toLocaleString()}
-                    {business.priceApproved ? <CheckCircle className="h-4 w-4 ml-1" /> : '(Awaiting Approval)'}
-                </Badge>
-            )}
+          <p className="leading-relaxed">{idea.description}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {idea.tags.map((tag) => (
+                <Badge key={tag} variant="secondary">{tag}</Badge>
+            ))}
           </div>
-           {business.attachmentUrl && (
+           {idea.attachmentUrl && (
                 <div className="mt-6 border-t pt-4">
                     <h4 className="font-semibold mb-2">Attachment</h4>
                     {userProfile?.isPremium ? (
                         <Button asChild variant="outline">
-                            <a href={business.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                            <a href={idea.attachmentUrl} target="_blank" rel="noopener noreferrer">
                                 <File className="mr-2 h-4 w-4" />
-                                {business.attachmentFileName || 'Download Attachment'}
+                                {idea.attachmentFileName || 'Download Attachment'}
                             </a>
                         </Button>
                     ) : (
@@ -144,13 +136,13 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
         </CardContent>
         <CardFooter className="flex flex-wrap items-center justify-between gap-4">
           <Button
-            variant={isBusinessUpvoted ? "default" : "outline"}
+            variant={isIdeaUpvoted ? "default" : "outline"}
             size="sm"
-            onClick={handleBusinessUpvote}
+            onClick={handleIdeaUpvote}
             disabled={!user || isCreator}
           >
             <ThumbsUp className="h-4 w-4 mr-2" />
-            <span>{business.upvotes.toLocaleString()} Upvotes</span>
+            <span>{idea.upvotes.toLocaleString()} Upvotes</span>
           </Button>
            {userProfile?.role === "Investor" && !isCreator && (
             <Button onClick={() => setCoffeePopupOpen(true)}>

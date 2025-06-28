@@ -76,13 +76,15 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
   
     const formData = new FormData();
     formData.append('investorProfile', JSON.stringify(userProfile));
-    formData.append('problemCreatorId', problem.creator.userId);
-    formData.append('problemId', problem.id);
+    formData.append('primaryCreatorId', problem.creator.userId);
+    formData.append('itemId', problem.id);
+    formData.append('itemTitle', problem.title);
+    formData.append('itemType', 'problem');
 
     const result = await startDealAction(formData);
 
     if (result.success && result.dealId) {
-        toast({ title: "Deal Started!", description: "You can now chat with the creators." });
+        toast({ title: "Deal Started!", description: "You can now chat with the creator." });
         router.push(`/deals/${result.dealId}`);
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });

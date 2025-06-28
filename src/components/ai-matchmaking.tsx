@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Wand2, Users, Link as LinkIcon, ArrowRight, Sparkles, Coffee } from "lucide-react";
+import { Wand2, Link as LinkIcon, Sparkles, Coffee } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useActionState, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -60,9 +60,11 @@ export default function AiMatchmaking() {
 
     const formData = new FormData();
     formData.append('investorProfile', JSON.stringify(userProfile));
-    formData.append('problemCreatorId', selectedPairing.problemCreatorId);
+    formData.append('primaryCreatorId', selectedPairing.problemCreatorId);
     formData.append('solutionCreatorId', selectedPairing.solutionCreatorId);
-    formData.append('problemId', selectedPairing.problemId); // This needs to be available in the pairing
+    formData.append('itemId', selectedPairing.problemId); 
+    formData.append('itemTitle', selectedPairing.problemTitle);
+    formData.append('itemType', 'problem');
 
     const result = await startDealAction(formData);
 

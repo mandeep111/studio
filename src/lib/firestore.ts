@@ -88,6 +88,12 @@ export async function getSolution(id: string): Promise<Solution | null> {
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Solution : null;
 }
 
+export async function getIdea(id: string): Promise<Idea | null> {
+    const docRef = doc(db, "ideas", id);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Idea : null;
+}
+
 export async function getBusiness(id: string): Promise<Business | null> {
     const docRef = doc(db, "businesses", id);
     const docSnap = await getDoc(docRef);
@@ -509,32 +515,37 @@ export async function becomeInvestor(userId: string) {
     });
 }
 
-export async function createDeal(investorProfile: UserProfile, problemCreatorId: string, problemId: string, solutionCreatorId?: string): Promise<string> {
-    const problem = await getProblem(problemId);
-    if (!problem) throw new Error("Problem not found");
-
-    const problemCreatorSnap = await getDoc(doc(db, "users", problemCreatorId));
-    if (!problemCreatorSnap.exists()) {
-        throw new Error("Problem creator not found");
+export async function createDeal(
+    investorProfile: UserProfile, 
+    primaryCreatorId: string, 
+    itemId: string, 
+    itemTitle: string, 
+    itemType: 'problem' | 'idea' | 'business', 
+    solutionCreatorId?: string
+): Promise<string> {
+    
+    const primaryCreatorSnap = await getDoc(doc(db, "users", primaryCreatorId));
+    if (!primaryCreatorSnap.exists()) {
+        throw new Error("Primary creator not found");
     }
-    const problemCreator = {uid: problemCreatorSnap.id, ...problemCreatorSnap.data()} as UserProfile;
+    const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
 
-    const dealData: any = {
+    const dealData: Omit<Deal, 'id'> = {
         investor: { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise },
-        problemCreator: { userId: problemCreator.uid, name: problemCreator.name, avatarUrl: problemCreator.avatarUrl, expertise: problemCreator.expertise },
-        problemId: problem.id,
-        problemTitle: problem.title,
+        primaryCreator: { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise },
+        relatedItemId: itemId,
+        title: itemTitle,
+        type: itemType,
         createdAt: serverTimestamp(),
     };
 
     let solutionCreator: UserProfile | null = null;
     if (solutionCreatorId) {
         const solutionCreatorSnap = await getDoc(doc(db, "users", solutionCreatorId));
-        if (!solutionCreatorSnap.exists()) {
-            throw new Error("Solution creator not found");
+        if (solutionCreatorSnap.exists()) {
+            solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
+            dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
         }
-        solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
-        dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
     }
     
     const dealsCol = collection(db, "deals");
@@ -542,11 +553,11 @@ export async function createDeal(investorProfile: UserProfile, problemCreatorId:
 
     // Notify creators
     const dealLink = `/deals/${newDealRef.id}`;
-    if (solutionCreator) {
-        await createNotification(problemCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name}!`, dealLink);
-        await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${problemCreator.name}!`, dealLink);
-    } else {
-        await createNotification(problemCreatorId, `An investor wants to start a deal about your problem: "${problem.title}"!`, dealLink);
+    if (solutionCreator) { // AI Matchmaking Case
+        await createNotification(primaryCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name} about "${itemTitle}"!`, dealLink);
+        await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${primaryCreator.name} about "${itemTitle}"!`, dealLink);
+    } else { // Direct Deal Case
+        await createNotification(primaryCreatorId, `An investor wants to start a deal about your ${itemType}: "${itemTitle}"!`, dealLink);
     }
 
     return newDealRef.id;

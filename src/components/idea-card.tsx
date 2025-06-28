@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ThumbsUp } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import Link from "next/link";
 
 interface IdeaCardProps {
   idea: Idea;
@@ -26,13 +27,17 @@ export default function IdeaCard({ idea, onUpvote }: IdeaCardProps) {
             <AvatarFallback>{idea.creator.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <CardTitle className="text-lg">{idea.title}</CardTitle>
+            <CardTitle className="text-lg">
+              <Link href={`/ideas/${idea.id}`} className="hover:underline">
+                {idea.title}
+              </Link>
+            </CardTitle>
             <CardDescription>by {idea.creator.name}</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
-        <p className="text-sm text-muted-foreground">{idea.description}</p>
+        <p className="text-sm text-muted-foreground line-clamp-3">{idea.description}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {idea.tags.map((tag) => (
             <Badge key={tag} variant="secondary">{tag}</Badge>

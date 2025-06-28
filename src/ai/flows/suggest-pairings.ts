@@ -15,6 +15,12 @@ import {z} from 'genkit';
 
 const SuggestPairingsInputSchema = z.object({
   investorProfile: z.string().describe('A description of the investor profile, including their investment interests and criteria.'),
+  problems: z.array(z.object({
+    id: z.string().describe('The unique identifier of the problem.'),
+    title: z.string().describe('The title of the problem.'),
+    description: z.string().describe('The description of the problem.'),
+    creatorId: z.string().describe('The unique identifier of the problem creator.'),
+  })).describe('A list of problems available for investment.'),
   problemCreators: z.array(z.object({
     creatorId: z.string().describe('The unique identifier of the problem creator.'),
     reputationScore: z.number().describe('The reputation score of the problem creator based on public reviews and upvotes.'),
@@ -31,6 +37,8 @@ export type SuggestPairingsInput = z.infer<typeof SuggestPairingsInputSchema>;
 
 const SuggestPairingsOutputSchema = z.object({
   suggestedPairings: z.array(z.object({
+    problemId: z.string().describe('The unique identifier of the problem being addressed.'),
+    problemTitle: z.string().describe('The title of the problem being addressed.'),
     problemCreatorId: z.string().describe('The unique identifier of the suggested problem creator.'),
     solutionCreatorId: z.string().describe('The unique identifier of the suggested solution creator.'),
     matchReason: z.string().describe('The AI’s reasoning for suggesting this pairing.'),
@@ -47,26 +55,31 @@ const prompt = ai.definePrompt({
   name: 'suggestPairingsPrompt',
   input: {schema: SuggestPairingsInputSchema},
   output: {schema: SuggestPairingsOutputSchema},
-  prompt: `You are an AI assistant designed to suggest potential problem/solution creator pairings to investors based on their profile, and the creators\' reputation and expertise.
+  prompt: `You are an expert matchmaker for a venture capital firm. Your goal is to connect promising problem creators with innovative solution creators, based on an investor's profile.
 
-Investor Profile: {{{investorProfile}}}
+Analyze the investor's profile, the list of available problems, and the profiles of the problem and solution creators.
 
-Problem Creators:
+Suggest 1-3 high-potential pairings. For each pairing, you must identify a specific problem and then match its creator with a suitable solution creator. Your reasoning should explain why the problem aligns with the investor's interests and why the two creators are a good match based on their expertise and reputation.
+
+**Investor Profile:**
+{{{investorProfile}}}
+
+**Available Problems:**
+{{#each problems}}
+- Problem ID: {{{id}}}, Title: {{{title}}}, Creator ID: {{{creatorId}}}, Description: {{{description}}}
+{{/each}}
+
+**Problem Creators:**
 {{#each problemCreators}}
 - Creator ID: {{{creatorId}}}, Reputation: {{{reputationScore}}}, Expertise: {{{expertise}}}
 {{/each}}
 
-Solution Creators:
+**Solution Creators:**
 {{#each solutionCreators}}
 - Creator ID: {{{creatorId}}}, Reputation: {{{reputationScore}}}, Expertise: {{{expertise}}}
 {{/each}}
 
-Based on this information, suggest potential problem/solution creator pairings that would be valuable for the investor. Explain your reasoning for each pairing.
-
-Suggested Pairings:
-{{#each suggestedPairings}}
-- Problem Creator ID: {{{problemCreatorId}}}, Solution Creator ID: {{{solutionCreatorId}}}, Reason: {{{matchReason}}}
-{{/each}}`,
+Provide your output in the format specified.`,
 });
 
 const suggestPairingsFlow = ai.defineFlow(
@@ -76,21 +89,11 @@ const suggestPairingsFlow = ai.defineFlow(
     outputSchema: SuggestPairingsOutputSchema,
   },
   async input => {
-    const {text} = await ai.generate({
-        prompt: prompt,
-        input
-    });
-    try {
-      // Attempt to parse the AI's text response as JSON.
-      const parsedOutput = JSON.parse(text);
-      return parsedOutput as SuggestPairingsOutput;
-    } catch (error) {
-      // If parsing fails, return a default object or handle the error as needed.
-      console.error('Failed to parse AI output:', error);
-      console.error('AI output:', text);
-      return {
-        suggestedPairings: [], // Return an empty array or handle the error as needed.
-      };
+    const {output} = await prompt(input);
+    if (!output) {
+      console.error('AI output was null or undefined.');
+      return { suggestedPairings: [] };
     }
+    return output;
   }
 );

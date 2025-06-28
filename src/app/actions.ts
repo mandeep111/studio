@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { becomeInvestor, createDeal, getAllUsers, sendMessage, approveItem as approveItemInDb, deleteItem, getBusinesses } from "@/lib/firestore";
+import { becomeInvestor, createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems } from "@/lib/firestore";
 import type { UserProfile } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -16,6 +16,7 @@ export type AiPairingsFormState = {
     problemCreatorId: string;
     solutionCreatorId: string;
     problemId: string;
+    problemTitle: string;
     matchReason: string;
   }[];
   error?: boolean;
@@ -39,8 +40,11 @@ export async function getAiPairings(
     
     const { investorProfile } = validatedFields.data;
 
-    const allUsers = await getAllUsers();
-    const businesses = await getBusinesses();
+    const [allUsers, businesses, problems] = await Promise.all([
+      getAllUsers(),
+      getBusinesses(),
+      getProblems(),
+    ]);
     
     const businessCreatorIds = new Set(businesses.map(b => b.creator.userId));
 
@@ -61,8 +65,16 @@ export async function getAiPairings(
             expertise: u.expertise
         }));
 
+    const simplifiedProblems = problems.map(p => ({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        creatorId: p.creator.userId,
+    }));
+
     const pairingsResult = await suggestPairings({
       investorProfile,
+      problems: simplifiedProblems,
       problemCreators,
       solutionCreators,
     });
@@ -97,12 +109,15 @@ export async function becomeInvestorAction(userId: string) {
 
 export async function startDealAction(formData: FormData) {
     const investorProfile = JSON.parse(formData.get('investorProfile') as string) as UserProfile;
-    const problemCreatorId = formData.get('problemCreatorId') as string;
-    const problemId = formData.get('problemId') as string;
+    const primaryCreatorId = formData.get('primaryCreatorId') as string;
+    const itemId = formData.get('itemId') as string;
+    const itemTitle = formData.get('itemTitle') as string;
+    const itemType = formData.get('itemType') as 'problem' | 'idea' | 'business';
     const solutionCreatorId = formData.get('solutionCreatorId') as string | undefined;
 
     try {
-        const dealId = await createDeal(investorProfile, problemCreatorId, problemId, solutionCreatorId);
+        const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, solutionCreatorId);
+        revalidatePath(`/deals/${dealId}`);
         return { success: true, dealId };
     } catch (error) {
         console.error("Failed to start deal:", error);

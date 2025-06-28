@@ -17,7 +17,8 @@ export default async function DealPage({ params }: { params: { id: string } }) {
   const initialMessages = await getMessages(params.id);
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
-  const participants = [deal.investor, deal.problemCreator];
+  
+  const participants = [deal.investor, deal.primaryCreator];
   if (deal.solutionCreator) {
     participants.push(deal.solutionCreator);
   }
@@ -34,8 +35,8 @@ export default async function DealPage({ params }: { params: { id: string } }) {
 
             <Card className="mb-4">
                 <CardHeader>
-                    <CardTitle>Deal: {deal.problemTitle}</CardTitle>
-                    <CardDescription>A conversation between the investor and creators.</CardDescription>
+                    <CardTitle>Deal: {deal.title}</CardTitle>
+                    <CardDescription>A conversation between the investor and creator(s).</CardDescription>
                     <div className="flex items-center space-x-4 pt-2">
                         <div className="font-semibold">Participants:</div>
                         {participants.map(p => (
