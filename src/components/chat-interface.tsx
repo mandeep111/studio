@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import type { Message, UserProfile } from '@/lib/types';
+import type { Message } from '@/lib/types';
 import { postMessageAction } from '@/app/actions';
 import { db } from '@/lib/firebase/config';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { cn } from '@/lib/utils';
+import { cn, getDateFromTimestamp } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
+import { format } from 'date-fns';
 
 interface ChatInterfaceProps {
     dealId: string;
@@ -23,14 +23,15 @@ export default function ChatInterface({ dealId, initialMessages }: ChatInterface
   const { userProfile } = useAuth();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [newMessage, setNewMessage] = useState('');
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const q = query(collection(db, `deals/${dealId}/messages`), orderBy('createdAt', 'asc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const newMessages: Message[] = [];
         querySnapshot.forEach((doc) => {
-            newMessages.push({ id: doc.id, ...doc.data() } as Message);
+            const data = doc.data();
+            newMessages.push({ id: doc.id, ...data } as Message);
         });
         setMessages(newMessages);
     });
@@ -38,9 +39,9 @@ export default function ChatInterface({ dealId, initialMessages }: ChatInterface
   }, [dealId]);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTo({
-            top: scrollAreaRef.current.scrollHeight,
+    if (viewportRef.current) {
+        viewportRef.current.scrollTo({
+            top: viewportRef.current.scrollHeight,
             behavior: 'smooth'
         });
     }
@@ -60,49 +61,61 @@ export default function ChatInterface({ dealId, initialMessages }: ChatInterface
   };
 
   return (
-    <Card className="flex-1 flex flex-col">
-        <ScrollArea className="flex-grow p-4 space-y-4" ref={scrollAreaRef}>
-            {messages.map(msg => (
-                <div key={msg.id} className={cn(
-                    "flex items-end gap-2",
-                    msg.sender.userId === userProfile?.uid ? 'justify-end' : 'justify-start'
-                )}>
-                    {msg.sender.userId !== userProfile?.uid && (
-                         <Avatar className="h-8 w-8">
-                            <AvatarImage src={msg.sender.avatarUrl} />
-                            <AvatarFallback>{msg.sender.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    )}
-                    <div className={cn(
-                        "max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-lg",
-                         msg.sender.userId === userProfile?.uid 
-                         ? 'bg-primary text-primary-foreground' 
-                         : 'bg-background border'
+    <div className="flex-1 flex flex-col bg-muted/20 rounded-lg border">
+        <ScrollArea className="flex-grow p-4 space-y-4" viewportRef={viewportRef}>
+            {messages.map((msg, index) => {
+                const isSender = msg.sender.userId === userProfile?.uid;
+                const showAvatar = !isSender && (index === messages.length - 1 || messages[index+1].sender.userId !== msg.sender.userId);
+                
+                return (
+                    <div key={msg.id} className={cn(
+                        "flex items-end gap-2 w-full",
+                        isSender ? 'justify-end' : 'justify-start'
                     )}>
-                        <p className="text-sm">{msg.text}</p>
+                        {!isSender && (
+                            <div className="w-8 shrink-0">
+                                {showAvatar && (
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={msg.sender.avatarUrl} />
+                                        <AvatarFallback>{msg.sender.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                )}
+                            </div>
+                        )}
+                        <div className={cn(
+                            "max-w-xs md:max-w-md lg:max-w-lg p-3 rounded-lg flex flex-col",
+                             isSender 
+                             ? 'bg-primary text-primary-foreground rounded-br-none' 
+                             : 'bg-background border rounded-bl-none'
+                        )}>
+                            {!isSender && <p className="text-xs font-semibold pb-1">{msg.sender.name}</p>}
+                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                            <p className={cn(
+                                "text-xs pt-1 text-right",
+                                isSender ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                            )}>
+                                {msg.createdAt && format(getDateFromTimestamp(msg.createdAt), 'p')}
+                            </p>
+                        </div>
                     </div>
-                     {msg.sender.userId === userProfile?.uid && (
-                         <Avatar className="h-8 w-8">
-                            <AvatarImage src={msg.sender.avatarUrl} />
-                            <AvatarFallback>{msg.sender.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    )}
-                </div>
-            ))}
+                )
+            })}
         </ScrollArea>
-        <div className="p-4 border-t">
+        <div className="p-2 border-t bg-background rounded-b-lg">
             <form onSubmit={handleSendMessage} className="flex gap-2">
                 <Input 
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message..."
+                    placeholder="Type a message..."
+                    autoComplete="off"
                     disabled={!userProfile}
                 />
                 <Button type="submit" size="icon" disabled={!newMessage.trim() || !userProfile}>
                     <Send className="h-4 w-4" />
+                    <span className="sr-only">Send</span>
                 </Button>
             </form>
         </div>
-    </Card>
+    </div>
   );
 }

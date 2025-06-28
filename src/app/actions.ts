@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { becomeInvestor, createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems } from "@/lib/firestore";
+import { becomeInvestor, createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage } from "@/lib/firestore";
 import type { UserProfile } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
