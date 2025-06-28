@@ -1,11 +1,12 @@
 import Header from "@/components/header";
-import { getDeal, getMessages } from "@/lib/firestore";
+import { getDeal, getMessages, getUserProfile } from "@/lib/firestore";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import ChatInterface from "@/components/chat-interface";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
+import type { UserProfile } from "@/lib/types";
 
 export default async function DealPage({ params }: { params: { id: string } }) {
   const deal = await getDeal(params.id);
@@ -18,10 +19,12 @@ export default async function DealPage({ params }: { params: { id: string } }) {
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
   
-  const participants = [deal.investor, deal.primaryCreator];
-  if (deal.solutionCreator) {
-    participants.push(deal.solutionCreator);
-  }
+  const participantProfiles = await Promise.all(
+      (deal.participantIds || []).map(id => getUserProfile(id))
+  );
+  
+  const participants = participantProfiles.filter(p => p !== null) as UserProfile[];
+
 
   return (
     <div className="flex flex-col h-screen">
@@ -40,7 +43,7 @@ export default async function DealPage({ params }: { params: { id: string } }) {
                     <div className="flex items-center space-x-4 pt-2">
                         <div className="font-semibold">Participants:</div>
                         {participants.map(p => (
-                             <div key={p.userId} className="flex items-center gap-2">
+                             <div key={p.uid} className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
                                     <AvatarImage src={p.avatarUrl} />
                                     <AvatarFallback>{p.name.charAt(0)}</AvatarFallback>

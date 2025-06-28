@@ -31,7 +31,7 @@ export interface BaseItem {
   upvotes: number;
   upvotedBy: string[];
   createdAt: SerializableTimestamp;
-  price?: number;
+  price?: number | null;
   priceApproved: boolean;
   attachmentUrl?: string | null;
   attachmentFileName?: string | null;
@@ -81,6 +81,7 @@ export interface Deal {
     title: string;
     type: 'problem' | 'idea' | 'business';
     createdAt: SerializableTimestamp;
+    participantIds: string[];
 }
 
 export interface Message {

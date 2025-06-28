@@ -32,6 +32,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
   const [problem, setProblem] = useState<Problem>(initialProblem);
   const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
+  const [dealConfig, setDealConfig] = useState<{ solution?: Solution } | null>(null);
 
   useEffect(() => {
     setProblem(initialProblem);
@@ -56,7 +57,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
         fetchProblemAndSolutions();
         toast({title: "Success", description: "Your upvote has been recorded."})
     } catch(e) {
-        toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+        toast({variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Could not record upvote."})
     }
   };
 
@@ -67,12 +68,18 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
         fetchProblemAndSolutions();
         toast({title: "Success", description: "Your upvote has been recorded."})
     } catch(e) {
-        toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+        toast({variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Could not record upvote."})
     }
   };
+  
+  const handleStartDealClick = (solution?: Solution) => {
+      if (!userProfile || (userProfile.role !== "Investor" && userProfile.role !== "Admin")) return;
+      setDealConfig({ solution });
+      setCoffeePopupOpen(true);
+  }
 
-  const handleStartDeal = async () => {
-    if (!userProfile || userProfile.role !== "Investor" || !problem) return;
+  const confirmAndStartDeal = async () => {
+    if (!userProfile || !problem || !dealConfig) return;
   
     const formData = new FormData();
     formData.append('investorProfile', JSON.stringify(userProfile));
@@ -81,20 +88,26 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
     formData.append('itemTitle', problem.title);
     formData.append('itemType', 'problem');
 
+    if (dealConfig.solution) {
+        formData.append('solutionCreatorId', dealConfig.solution.creator.userId);
+    }
+
     const result = await startDealAction(formData);
 
     if (result.success && result.dealId) {
-        toast({ title: "Deal Started!", description: "You can now chat with the creator." });
+        toast({ title: "Deal Started!", description: "You can now chat with the creators." });
         router.push(`/deals/${result.dealId}`);
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
     }
   };
 
+
   const isProblemCreator = user?.uid === problem?.creator.userId;
   const isProblemUpvoted = user && problem ? problem.upvotedBy.includes(user.uid) : false;
   const hasUserSubmittedSolution = user ? solutions.some(s => s.creator.userId === user.uid) : false;
   const canSubmitSolution = userProfile && (userProfile.role === 'User' || userProfile.role === 'Admin') && !isProblemCreator && !hasUserSubmittedSolution;
+  const canStartDeal = userProfile && (userProfile.role === 'Investor' || userProfile.role === 'Admin');
 
   if (!problem) return null;
 
@@ -103,7 +116,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
       <BuyMeACoffeePopup 
         isOpen={isCoffeePopupOpen} 
         onOpenChange={setCoffeePopupOpen} 
-        onConfirm={handleStartDeal} 
+        onConfirm={confirmAndStartDeal} 
       />
       <div className="flex justify-between items-center mb-4">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
@@ -183,10 +196,10 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
               <span>{solutions.length} Solutions</span>
             </div>
           </div>
-          {userProfile?.role === "Investor" && !isProblemCreator && (
-            <Button onClick={() => setCoffeePopupOpen(true)}>
+          {canStartDeal && !isProblemCreator && (
+            <Button onClick={() => handleStartDealClick()}>
               <Coffee className="mr-2 h-4 w-4" />
-              Start a Deal
+              Start a Deal with Creator
             </Button>
           )}
         </CardFooter>
@@ -197,7 +210,12 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
         <div className="space-y-6">
           {solutions.length > 0 ? (
             solutions.map(solution => (
-              <SolutionCard key={solution.id} solution={solution} onUpvote={() => handleSolutionUpvote(solution.id)} />
+              <SolutionCard 
+                key={solution.id} 
+                solution={solution} 
+                onUpvote={() => handleSolutionUpvote(solution.id)}
+                onStartDeal={handleStartDealClick} 
+              />
             ))
           ) : (
             <p className="text-muted-foreground">No solutions proposed yet. Be the first to propose one!</p>

@@ -20,7 +20,7 @@ import {
   deleteField,
 } from "firebase/firestore";
 import { db, storage } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business } from "./types";
+import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference } from "./types";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 
@@ -349,7 +349,7 @@ export async function createSolution(description: string, problemId: string, pro
     const problemDoc = await getDoc(problemRef);
     const problemCreatorId = problemDoc.data()?.creator.userId;
 
-    if (problemCreatorId) {
+    if (problemCreatorId && problemCreatorId !== creator.uid) {
         await createNotification(
             problemCreatorId,
             `${creator.name} proposed a new solution for your problem: "${problemTitle}"`,
@@ -445,13 +445,11 @@ export async function createBusiness(title: string, description: string, tags: s
 // --- Upvote & Points ---
 
 async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" | "businesses", docId: string, userId: string) {
-    const docRef = doc(db, collectionName, docId);
-    
-    // Data needed for notification, fetched outside transaction
     let creatorId: string | null = null;
     let isAlreadyUpvoted = false;
 
     await runTransaction(db, async (transaction) => {
+        const docRef = doc(db, collectionName, docId);
         const docSnap = await transaction.get(docRef);
         if (!docSnap.exists()) {
             throw new Error("Document does not exist!");
@@ -461,7 +459,6 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
         creatorId = data.creator.userId;
 
         if (creatorId === userId) {
-            // This server-side check prevents self-upvoting even if the client-side check fails.
             throw new Error("You cannot upvote your own content.");
         }
 
@@ -469,7 +466,6 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
 
         const creatorRef = doc(db, "users", creatorId!);
         
-        // Award/remove points.
         const pointValues = { problems: 20, solutions: 20, businesses: 10, ideas: 0 };
         const pointChange = pointValues[collectionName] * (isAlreadyUpvoted ? -1 : 1);
         
@@ -483,7 +479,6 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
         }
     });
 
-    // Send notification outside the transaction
     if (!isAlreadyUpvoted && creatorId && creatorId !== userId) {
         const upvoterSnap = await getDoc(doc(db, "users", userId));
         const upvoterName = upvoterSnap.exists() ? upvoterSnap.data().name : "Someone";
@@ -532,12 +527,27 @@ export async function createDeal(
     const newDealRef = doc(collection(db, "deals"));
 
     await runTransaction(db, async (transaction) => {
-        const primaryCreatorSnap = await transaction.get(doc(db, "users", primaryCreatorId));
-        if (!primaryCreatorSnap.exists()) {
-            throw new Error("Primary creator not found");
-        }
-        const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
+        const participantsMap = new Map<string, CreatorReference>();
 
+        // Add investor
+        participantsMap.set(investorProfile.uid, { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise });
+
+        // Fetch and add primary creator
+        const primaryCreatorSnap = await transaction.get(doc(db, "users", primaryCreatorId));
+        if (!primaryCreatorSnap.exists()) throw new Error("Primary creator not found");
+        const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
+        participantsMap.set(primaryCreator.uid, { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise });
+
+        // Fetch and add solution creator if provided
+        let solutionCreator: UserProfile | null = null;
+        if (solutionCreatorId) {
+            const solutionCreatorSnap = await transaction.get(doc(db, "users", solutionCreatorId));
+            if (solutionCreatorSnap.exists()) {
+                solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
+                participantsMap.set(solutionCreator.uid, { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise });
+            }
+        }
+        
         const dealData: Omit<Deal, 'id'> = {
             investor: { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise },
             primaryCreator: { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise },
@@ -545,40 +555,33 @@ export async function createDeal(
             title: itemTitle,
             type: itemType,
             createdAt: serverTimestamp(),
+            participantIds: Array.from(participantsMap.keys()),
         };
 
-        let solutionCreator: UserProfile | null = null;
-        if (solutionCreatorId) {
-            const solutionCreatorSnap = await transaction.get(doc(db, "users", solutionCreatorId));
-            if (solutionCreatorSnap.exists()) {
-                solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
-                dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
-            }
+        if (solutionCreator) {
+            dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
         }
         
         transaction.set(newDealRef, dealData);
 
-        // Increment interested investors count on the related item
         const itemRef = doc(db, `${itemType}s`, itemId);
         transaction.update(itemRef, { interestedInvestorsCount: increment(1) });
     });
     
-    // Send notifications after the transaction is successful
+    // Notifications part
     const dealLink = `/deals/${newDealRef.id}`;
-    const primaryCreatorSnap = await getDoc(doc(db, "users", primaryCreatorId));
-    const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
+    const dealDoc = await getDoc(newDealRef);
+    if (!dealDoc.exists()) throw new Error("Could not create deal.");
+    
+    const dealData = dealDoc.data() as Deal;
 
-    if (solutionCreatorId) { // AI Matchmaking Case
-        const solutionCreatorSnap = await getDoc(doc(db, "users", solutionCreatorId));
-        if (solutionCreatorSnap.exists()) {
-            const solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
-            await createNotification(primaryCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name} about "${itemTitle}"!`, dealLink);
-            await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${primaryCreator.name} about "${itemTitle}"!`, dealLink);
-        }
-    } else { // Direct Deal Case
-        await createNotification(primaryCreatorId, `An investor wants to start a deal about your ${itemType}: "${itemTitle}"!`, dealLink);
+    const participantsToNotify = (dealData.participantIds || []).filter(id => id !== investorProfile.uid);
+    
+    for (const participantId of participantsToNotify) {
+        const message = `${investorProfile.name} wants to start a deal about "${itemTitle}"!`;
+        await createNotification(participantId, message, dealLink);
     }
-
+    
     return newDealRef.id;
 }
 
@@ -591,31 +594,10 @@ export async function getDeal(id: string): Promise<Deal | null> {
 
 export async function getDealsForUser(userId: string): Promise<Deal[]> {
     const dealsCol = collection(db, "deals");
+    const q = query(dealsCol, where("participantIds", "array-contains", userId));
+    const snapshot = await getDocs(q);
+    const allDeals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Deal));
 
-    const investorQuery = query(dealsCol, where("investor.userId", "==", userId));
-    const primaryCreatorQuery = query(dealsCol, where("primaryCreator.userId", "==", userId));
-    const solutionCreatorQuery = query(dealsCol, where("solutionCreator.userId", "==", userId));
-
-    const [investorSnap, primaryCreatorSnap, solutionCreatorSnap] = await Promise.all([
-        getDocs(investorQuery),
-        getDocs(primaryCreatorQuery),
-        getDocs(solutionCreatorQuery),
-    ]);
-
-    const dealsMap = new Map<string, Deal>();
-    const processSnapshot = (snap: any) => {
-        snap.docs.forEach((doc: any) => {
-            if (!dealsMap.has(doc.id)) {
-                dealsMap.set(doc.id, { id: doc.id, ...doc.data() } as Deal);
-            }
-        });
-    };
-
-    processSnapshot(investorSnap);
-    processSnapshot(primaryCreatorSnap);
-    processSnapshot(solutionCreatorSnap);
-
-    const allDeals = Array.from(dealsMap.values());
     allDeals.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
@@ -654,14 +636,11 @@ export async function sendMessage(dealId: string, text: string, sender: UserProf
     const dealSnap = await getDoc(dealRef);
     if (dealSnap.exists()) {
         const deal = dealSnap.data() as Deal;
-        const participants = [deal.investor, deal.primaryCreator];
-        if (deal.solutionCreator) {
-            participants.push(deal.solutionCreator);
-        }
+        const participantIds = deal.participantIds || [];
 
-        for (const participant of participants) {
-            if (participant.userId !== sender.uid) {
-                const userRef = doc(db, "users", participant.userId);
+        for (const participantId of participantIds) {
+            if (participantId !== sender.uid) {
+                const userRef = doc(db, "users", participantId);
                 const fieldPath = `unreadDealMessages.${dealId}`;
                 batch.update(userRef, { [fieldPath]: increment(1) });
             }
