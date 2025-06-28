@@ -689,7 +689,6 @@ export async function createDeal(
             createdAt: serverTimestamp(),
             participantIds: Array.from(participantsMap.keys()),
             status: 'active',
-            completionVotes: [],
         };
 
         if (solutionCreator) {

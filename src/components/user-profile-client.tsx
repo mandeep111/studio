@@ -56,6 +56,9 @@ const DealListItem = ({ deal }: { deal: Deal }) => (
             {deal.status === 'completed' && (
                 <Badge variant="secondary">Completed</Badge>
             )}
+             {deal.status === 'cancelled' && (
+                <Badge variant="destructive">Cancelled</Badge>
+            )}
         </div>
     </Link>
 );
@@ -185,7 +188,7 @@ export default function UserProfileClient({
             await upvoteBusiness(businessId, user.uid);
         } catch (e) {
             fetchData(); // revert
-            toast({ variant: "destructive", title: "Error", description: "Could not record upvote." });
+            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
 
@@ -195,7 +198,7 @@ export default function UserProfileClient({
     };
     
     const activeDeals = useMemo(() => deals.filter(d => d.status === 'active'), [deals]);
-    const completedDeals = useMemo(() => deals.filter(d => d.status === 'completed'), [deals]);
+    const archivedDeals = useMemo(() => deals.filter(d => d.status === 'completed' || d.status === 'cancelled'), [deals]);
 
     return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -374,10 +377,10 @@ export default function UserProfileClient({
                                     {workedWithContent.length > 0 ? (
                                         <div className="space-y-4">
                                             {workedWithContent.map(item => {
-                                                if (item.type === 'problem') {
+                                                if ('solutionsCount' in item) { // It's a Problem
                                                     return <ProblemCard key={item.id} problem={item} onUpvote={() => {}} isUpvoting={false} />;
                                                 }
-                                                if (item.type === 'solution') {
+                                                if ('problemId' in item) { // It's a Solution
                                                     return <SolutionCard key={item.id} solution={item} onUpvote={() => {}} isUpvoting={false} />;
                                                 }
                                                 return null;
@@ -411,15 +414,15 @@ export default function UserProfileClient({
                                                 )}
                                             </AccordionContent>
                                         </AccordionItem>
-                                        <AccordionItem value="completed">
-                                            <AccordionTrigger>Completed Deals ({completedDeals.length})</AccordionTrigger>
+                                        <AccordionItem value="archived">
+                                            <AccordionTrigger>Archived Deals ({archivedDeals.length})</AccordionTrigger>
                                             <AccordionContent className="pt-2">
-                                                 {completedDeals.length > 0 ? (
+                                                 {archivedDeals.length > 0 ? (
                                                     <div className="space-y-2">
-                                                        {completedDeals.map(deal => <DealListItem key={deal.id} deal={deal} />)}
+                                                        {archivedDeals.map(deal => <DealListItem key={deal.id} deal={deal} />)}
                                                     </div>
                                                 ) : (
-                                                    <p className="text-muted-foreground text-center py-4">No completed deals.</p>
+                                                    <p className="text-muted-foreground text-center py-4">No archived deals.</p>
                                                 )}
                                             </AccordionContent>
                                         </AccordionItem>

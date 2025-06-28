@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import type { Message, UserProfile } from '@/lib/types';
+import type { Message } from '@/lib/types';
 import { postMessageAction } from '@/app/actions';
 import { db } from '@/lib/firebase/config';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { Send, CheckCircle, Info } from 'lucide-react';
+import { Send, CheckCircle, Info, XCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { cn, getDateFromTimestamp } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -18,10 +18,10 @@ import { markDealAsRead } from '@/lib/firestore';
 interface ChatInterfaceProps {
     dealId: string;
     initialMessages: Message[];
-    isCompleted: boolean;
+    dealStatus: 'active' | 'completed' | 'cancelled';
 }
 
-export default function ChatInterface({ dealId, initialMessages, isCompleted }: ChatInterfaceProps) {
+export default function ChatInterface({ dealId, initialMessages, dealStatus }: ChatInterfaceProps) {
   const { userProfile } = useAuth();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [newMessage, setNewMessage] = useState('');
@@ -69,10 +69,22 @@ export default function ChatInterface({ dealId, initialMessages, isCompleted }: 
     await postMessageAction(formData);
   };
   
-  const isChatDisabled = isCompleted || !userProfile;
+  const isChatDisabled = dealStatus !== 'active' || !userProfile;
 
   return (
     <div className="flex-1 flex flex-col bg-muted/20 rounded-lg border">
+         {dealStatus === 'completed' && (
+            <div className="text-center text-sm text-green-600 p-2 flex items-center justify-center gap-2 bg-green-100 dark:bg-green-900/50 border-b rounded-t-lg">
+                <CheckCircle className="h-4 w-4" />
+                This deal has been finalized by the investor.
+            </div>
+        )}
+        {dealStatus === 'cancelled' && (
+             <div className="text-center text-sm text-red-600 p-2 flex items-center justify-center gap-2 bg-red-100 dark:bg-red-900/50 border-b rounded-t-lg">
+                <XCircle className="h-4 w-4" />
+                This deal has been cancelled by the investor.
+            </div>
+        )}
         <ScrollArea className="flex-grow p-4 space-y-4" viewportRef={viewportRef}>
             {messages.map((msg, index) => {
                 const isSender = msg.sender.userId === userProfile?.uid;
@@ -126,10 +138,10 @@ export default function ChatInterface({ dealId, initialMessages, isCompleted }: 
             })}
         </ScrollArea>
         <div className="p-2 border-t bg-background rounded-b-lg">
-            {isCompleted ? (
+            {isChatDisabled ? (
                 <div className="text-center text-sm text-muted-foreground p-2 flex items-center justify-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-primary" />
-                    This deal has been marked as complete.
+                    <Info className="h-4 w-4" />
+                    This chat is closed.
                 </div>
             ) : (
                 <form onSubmit={handleSendMessage} className="flex gap-2">

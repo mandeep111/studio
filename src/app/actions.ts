@@ -286,10 +286,10 @@ export async function postMessageAction(formData: FormData) {
     }
 }
 
-export async function markDealAsCompleteAction(formData: FormData) {
+export async function updateDealStatusAction(formData: FormData) {
     const dealId = formData.get('dealId') as string;
-    const userId = formData.get('userId') as string;
-    const userName = formData.get('userName') as string;
+    const status = formData.get('status') as 'completed' | 'cancelled';
+    const investorId = formData.get('investorId') as string;
 
     try {
         const dealRef = doc(db, 'deals', dealId);
@@ -299,35 +299,26 @@ export async function markDealAsCompleteAction(formData: FormData) {
         }
 
         const deal = dealSnap.data() as Deal;
-        if ((deal.completionVotes || []).includes(userId)) {
-             return { success: true, message: 'You have already voted.' };
+
+        if (deal.investor.userId !== investorId) {
+             return { success: false, message: 'Only the investor can update the deal status.' };
         }
 
-        const updatedVotes = [...(deal.completionVotes || []), userId];
-        const allVoted = updatedVotes.length === deal.participantIds.length;
-
-        const updates: Partial<Deal> = {
-            completionVotes: updatedVotes,
-        };
-
-        if (allVoted) {
-            updates.status = 'completed';
-        }
-
-        await updateDoc(dealRef, updates);
+        await updateDoc(dealRef, { status });
         
-        const message = allVoted
-            ? `${userName} cast the final vote. This deal is now complete!`
-            : `${userName} has voted to mark this deal as complete.`;
+        const investorName = deal.investor.name;
+        const message = status === 'completed' 
+            ? `${investorName} has marked this deal as finalized.`
+            : `${investorName} has cancelled this deal.`;
         
         await addSystemMessage(dealId, message);
 
         revalidatePath(`/deals/${dealId}`);
-        return { success: true, message: 'Your vote has been recorded.' };
+        return { success: true, message: `Deal has been ${status}.` };
 
     } catch (error) {
-        console.error("Failed to mark deal as complete:", error);
-        return { success: false, message: 'Failed to record your vote.' };
+        console.error(`Failed to update deal to ${status}:`, error);
+        return { success: false, message: 'Failed to update deal status.' };
     }
 }
 

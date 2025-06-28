@@ -74,8 +74,7 @@ export interface Deal {
     type: 'problem' | 'idea' | 'business';
     createdAt: SerializableTimestamp;
     participantIds: string[];
-    status: 'active' | 'completed';
-    completionVotes: string[];
+    status: 'active' | 'completed' | 'cancelled';
 }
 
 export interface Message {
