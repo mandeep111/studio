@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Problem, Solution, UserProfile, Idea, Payment, Ad } from "@/lib/types";
+import { Problem, Solution, UserProfile, Idea, Payment, Ad, Business } from "@/lib/types";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { approveItemAction, deleteItemAction, toggleAdStatusAction } from "@/app/actions";
@@ -14,14 +14,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { Power, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { format } from 'date-fns';
 import { getDateFromTimestamp } from "@/lib/utils";
 import CreateAdForm from "./create-ad-form";
 import { Switch } from "./ui/switch";
 
-type UnapprovedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' });
-type DeletableItem = { id: string; type: 'problem' | 'solution' | 'idea' | 'user' | 'ad' };
+type UnapprovedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' }) | (Business & { type: 'business' });
+type DeletableItem = { id: string; type: 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad' };
 
 interface AdminClientProps {
     initialItems: UnapprovedItem[];
@@ -31,6 +31,7 @@ interface AdminClientProps {
     initialIdeas: Idea[];
     initialPayments: Payment[];
     initialAds: Ad[];
+    initialBusinesses: Business[];
 }
 
 export default function AdminClient({ 
@@ -40,7 +41,8 @@ export default function AdminClient({
     initialSolutions, 
     initialIdeas,
     initialPayments,
-    initialAds
+    initialAds,
+    initialBusinesses
 }: AdminClientProps) {
     const { userProfile, loading } = useAuth();
     const router = useRouter();
@@ -50,6 +52,7 @@ export default function AdminClient({
     const [problems, setProblems] = useState(initialProblems);
     const [solutions, setSolutions] = useState(initialSolutions);
     const [ideas, setIdeas] = useState(initialIdeas);
+    const [businesses, setBusinesses] = useState(initialBusinesses);
     const [unapprovedItems, setUnapprovedItems] = useState(initialItems);
     const [payments, setPayments] = useState(initialPayments);
     const [ads, setAds] = useState(initialAds);
@@ -61,7 +64,7 @@ export default function AdminClient({
         }
     }, [userProfile, loading, router, toast]);
 
-    const handleApprove = async (type: 'problem' | 'solution', id: string) => {
+    const handleApprove = async (type: 'problem' | 'solution' | 'business', id: string) => {
         const formData = new FormData();
         formData.append('type', type);
         formData.append('id', id);
@@ -89,6 +92,7 @@ export default function AdminClient({
                 case 'solution': setSolutions(prev => prev.filter(s => s.id !== item.id)); break;
                 case 'idea': setIdeas(prev => prev.filter(i => i.id !== item.id)); break;
                 case 'ad': setAds(prev => prev.filter(a => a.id !== item.id)); break;
+                case 'business': setBusinesses(prev => prev.filter(b => b.id !== item.id)); break;
             }
         } else {
             toast({ variant: "destructive", title: "Error", description: result.message });
@@ -109,51 +113,62 @@ export default function AdminClient({
     }
     
     const handleAdCreated = (newAd: Ad) => {
+        // In a real app, we'd refetch, but for now this is fine.
         setAds(prev => [newAd, ...prev]);
     }
 
     if (loading || userProfile?.role !== 'Admin') {
         return <p>Loading or redirecting...</p>;
     }
+    
+    const AdminTab = ({ value, children, count }: { value: string, children: React.ReactNode, count: number }) => (
+        <TabsTrigger value={value} className="justify-center">
+            {children}
+            {count > 0 && <Badge variant="secondary" className="ml-2">{count}</Badge>}
+        </TabsTrigger>
+    );
 
     return (
         <Tabs defaultValue="approval">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
-                <TabsTrigger value="approval">Awaiting Approval</TabsTrigger>
-                <TabsTrigger value="payments">Payments</TabsTrigger>
-                <TabsTrigger value="ads">Ads</TabsTrigger>
-                <TabsTrigger value="users">Users</TabsTrigger>
-                <TabsTrigger value="problems">Problems</TabsTrigger>
-                <TabsTrigger value="solutions">Solutions</TabsTrigger>
-                <TabsTrigger value="ideas">Ideas</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 h-auto flex-wrap">
+                <AdminTab value="approval" count={unapprovedItems.length}>Approval</AdminTab>
+                <AdminTab value="payments" count={payments.length}>Payments</AdminTab>
+                <AdminTab value="ads" count={ads.length}>Ads</AdminTab>
+                <AdminTab value="users" count={users.length}>Users</AdminTab>
+                <AdminTab value="problems" count={problems.length}>Problems</AdminTab>
+                <AdminTab value="solutions" count={solutions.length}>Solutions</AdminTab>
+                <AdminTab value="ideas" count={ideas.length}>Ideas</AdminTab>
+                <AdminTab value="businesses" count={businesses.length}>Businesses</AdminTab>
             </TabsList>
             
             <TabsContent value="approval" className="mt-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Items Awaiting Approval</CardTitle>
-                        <CardDescription>Problems and solutions with a price over $1,000 need your approval before they are displayed with a price.</CardDescription>
+                        <CardDescription>Problems, solutions, and businesses with a price over $1,000 need your approval.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         {unapprovedItems.length === 0 ? (
-                            <p className="text-muted-foreground">No items are currently awaiting approval.</p>
+                            <p className="text-muted-foreground text-center py-8">No items are currently awaiting approval.</p>
                         ) : (
                             <div className="space-y-4">
                                 {unapprovedItems.map(item => (
-                                    <div key={item.id} className="flex items-center justify-between gap-4 rounded-md border p-4">
-                                        <div>
-                                            <Badge variant="secondary" className="capitalize mb-2">{item.type}</Badge>
-                                            <p className="font-semibold">
-                                                <Link href={`/${item.type}s/${item.id}`} className="hover:underline">
-                                                    { 'title' in item ? item.title : `Solution for: ${item.problemTitle}` }
-                                                </Link>
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Submitted by {item.creator.name} for ${item.price?.toLocaleString()}
-                                            </p>
+                                    <Card key={item.id} className="p-4">
+                                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                            <div>
+                                                <Badge variant="secondary" className="capitalize mb-2">{item.type}</Badge>
+                                                <p className="font-semibold">
+                                                    <Link href={`/${item.type}s/${item.id}`} className="hover:underline">
+                                                        {(item as any).title || `Solution for: ${item.problemTitle}`}
+                                                    </Link>
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Submitted by {item.creator.name} for ${item.price?.toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <Button onClick={() => handleApprove(item.type, item.id)}>Approve</Button>
                                         </div>
-                                        <Button onClick={() => handleApprove(item.type, item.id)}>Approve</Button>
-                                    </div>
+                                    </Card>
                                 ))}
                             </div>
                         )}
@@ -187,7 +202,7 @@ export default function AdminClient({
                                                     <AvatarImage src={payment.userAvatarUrl} />
                                                     <AvatarFallback>{payment.userName.charAt(0)}</AvatarFallback>
                                                 </Avatar>
-                                                <span>{payment.userName}</span>
+                                                <span className="truncate">{payment.userName}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -422,6 +437,45 @@ export default function AdminClient({
                                         <TableCell className="hidden lg:table-cell">{format(getDateFromTimestamp(idea.createdAt), 'PPP')}</TableCell>
                                         <TableCell className="text-right">
                                             <DeleteButton item={{type: 'idea', id: idea.id}} itemName={idea.title} onDelete={handleDelete} />
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            
+            <TabsContent value="businesses" className="mt-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Manage Businesses ({businesses.length})</CardTitle>
+                        <CardDescription>View and manage all submitted businesses.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Title</TableHead>
+                                    <TableHead className="hidden md:table-cell">Creator</TableHead>
+                                    <TableHead>Stage</TableHead>
+                                    <TableHead>Funding</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {businesses.map(business => (
+                                    <TableRow key={business.id}>
+                                        <TableCell className="font-medium">
+                                            <Link href={`/businesses/${business.id}`} className="hover:underline">
+                                                {business.title}
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">{business.creator.name}</TableCell>
+                                        <TableCell><Badge variant="outline">{business.stage}</Badge></TableCell>
+                                        <TableCell>${business.price?.toLocaleString() || 'N/A'}</TableCell>
+                                        <TableCell className="text-right">
+                                             <DeleteButton item={{type: 'business', id: business.id}} itemName={business.title} onDelete={handleDelete} />
                                         </TableCell>
                                     </TableRow>
                                 ))}
