@@ -18,9 +18,10 @@ import {
   type DocumentSnapshot,
   startAfter,
   deleteField,
+  deleteDoc,
 } from "firebase/firestore";
 import { db, storage } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment } from "./types";
+import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad } from "./types";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 
@@ -344,8 +345,6 @@ export async function createSolution(description: string, problemId: string, pro
 
     batch.update(problemRef, { solutionsCount: increment(1) });
 
-    await batch.commit();
-
     const problemDoc = await getDoc(problemRef);
     const problemCreatorId = problemDoc.data()?.creator.userId;
 
@@ -363,6 +362,8 @@ export async function createSolution(description: string, problemId: string, pro
             `/solutions/${solutionRef.id}`
         );
     }
+    
+    await batch.commit();
 }
 
 export async function createIdea(title: string, description: string, tags: string, creator: UserProfile, attachment?: File) {
@@ -526,6 +527,21 @@ export async function updateUserMembership(userId: string, plan: 'creator' | 'in
     await updateDoc(userRef, updates);
 }
 
+export async function findDealByUserAndItem(itemId: string, investorId: string): Promise<Deal | null> {
+    const dealsRef = collection(db, 'deals');
+    const q = query(
+        dealsRef, 
+        where('relatedItemId', '==', itemId), 
+        where('investor.userId', '==', investorId)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return null;
+    }
+    const dealDoc = snapshot.docs[0];
+    return { id: dealDoc.id, ...dealDoc.data() } as Deal;
+}
+
 export async function createDeal(
     investorProfile: UserProfile, 
     primaryCreatorId: string, 
@@ -582,6 +598,8 @@ export async function createDeal(
     
     // Notifications and Payment Logging
     const dealLink = `/deals/${newDealRef.id}`;
+    
+    // Send one notification to each creator involved (but not the investor)
     const dealDoc = await getDoc(newDealRef);
     if (!dealDoc.exists()) throw new Error("Could not create deal.");
     const dealData = dealDoc.data() as Deal;
@@ -750,7 +768,12 @@ export async function approveItem(type: 'problem' | 'solution' | 'business', id:
     await updateDoc(docRef, { priceApproved: true });
 }
 
-export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user' | 'business', id: string) {
+export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad', id: string) {
+    if (type === 'ad') {
+        await deleteDoc(doc(db, 'ads', id));
+        return;
+    }
+
     const batch = writeBatch(db);
     const collectionName = type === 'user' ? 'users' : `${type}s`;
     const itemRef = doc(db, collectionName, id);
@@ -772,4 +795,39 @@ export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user' 
 
     batch.delete(itemRef);
     await batch.commit();
+}
+
+
+// --- Ads ---
+
+export async function getAds(): Promise<Ad[]> {
+    const col = collection(db, "ads");
+    const q = query(col, orderBy("createdAt", "desc"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ad));
+}
+
+export async function getActiveAdForPlacement(placement: Ad['placement']): Promise<Ad | null> {
+    const col = collection(db, "ads");
+    const q = query(col, where("placement", "==", placement), where("isActive", "==", true), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        return null;
+    }
+    const adDoc = snapshot.docs[0];
+    return { id: adDoc.id, ...adDoc.data() } as Ad;
+}
+
+export async function createAd(data: Omit<Ad, 'id' | 'createdAt' | 'isActive'>) {
+    const col = collection(db, "ads");
+    await addDoc(col, {
+        ...data,
+        isActive: true,
+        createdAt: serverTimestamp(),
+    });
+}
+
+export async function toggleAdStatus(id: string, isActive: boolean) {
+    const docRef = doc(db, "ads", id);
+    await updateDoc(docRef, { isActive });
 }

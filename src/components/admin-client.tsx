@@ -4,22 +4,24 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Problem, Solution, UserProfile, Idea, Payment } from "@/lib/types";
+import { Problem, Solution, UserProfile, Idea, Payment, Ad } from "@/lib/types";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { approveItemAction, deleteItemAction } from "@/app/actions";
+import { approveItemAction, deleteItemAction, toggleAdStatusAction } from "@/app/actions";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { DollarSign, Trash2 } from "lucide-react";
+import { Power, Trash2 } from "lucide-react";
 import { format } from 'date-fns';
 import { getDateFromTimestamp } from "@/lib/utils";
+import CreateAdForm from "./create-ad-form";
+import { Switch } from "./ui/switch";
 
 type UnapprovedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' });
-type DeletableItem = { id: string; type: 'problem' | 'solution' | 'idea' | 'user' };
+type DeletableItem = { id: string; type: 'problem' | 'solution' | 'idea' | 'user' | 'ad' };
 
 interface AdminClientProps {
     initialItems: UnapprovedItem[];
@@ -28,6 +30,7 @@ interface AdminClientProps {
     initialSolutions: Solution[];
     initialIdeas: Idea[];
     initialPayments: Payment[];
+    initialAds: Ad[];
 }
 
 export default function AdminClient({ 
@@ -36,19 +39,20 @@ export default function AdminClient({
     initialProblems, 
     initialSolutions, 
     initialIdeas,
-    initialPayments
+    initialPayments,
+    initialAds
 }: AdminClientProps) {
     const { userProfile, loading } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
 
-    // State for client-side updates after deletion
     const [users, setUsers] = useState(initialUsers);
     const [problems, setProblems] = useState(initialProblems);
     const [solutions, setSolutions] = useState(initialSolutions);
     const [ideas, setIdeas] = useState(initialIdeas);
     const [unapprovedItems, setUnapprovedItems] = useState(initialItems);
     const [payments, setPayments] = useState(initialPayments);
+    const [ads, setAds] = useState(initialAds);
 
     useEffect(() => {
         if (!loading && userProfile?.role !== 'Admin') {
@@ -79,16 +83,33 @@ export default function AdminClient({
         const result = await deleteItemAction(formData);
         if (result.success) {
             toast({ title: "Success", description: result.message });
-            // Update local state to reflect deletion
             switch(item.type) {
                 case 'user': setUsers(prev => prev.filter(u => u.uid !== item.id)); break;
                 case 'problem': setProblems(prev => prev.filter(p => p.id !== item.id)); break;
                 case 'solution': setSolutions(prev => prev.filter(s => s.id !== item.id)); break;
                 case 'idea': setIdeas(prev => prev.filter(i => i.id !== item.id)); break;
+                case 'ad': setAds(prev => prev.filter(a => a.id !== item.id)); break;
             }
         } else {
             toast({ variant: "destructive", title: "Error", description: result.message });
         }
+    }
+    
+    const handleToggleAdStatus = async (ad: Ad) => {
+        const formData = new FormData();
+        formData.append('id', ad.id);
+        formData.append('isActive', String(!ad.isActive));
+        const result = await toggleAdStatusAction(formData);
+        if (result.success) {
+            toast({ title: "Success", description: result.message });
+            setAds(prev => prev.map(a => a.id === ad.id ? {...a, isActive: !a.isActive} : a));
+        } else {
+            toast({ variant: "destructive", title: "Error", description: result.message });
+        }
+    }
+    
+    const handleAdCreated = (newAd: Ad) => {
+        setAds(prev => [newAd, ...prev]);
     }
 
     if (loading || userProfile?.role !== 'Admin') {
@@ -97,9 +118,10 @@ export default function AdminClient({
 
     return (
         <Tabs defaultValue="approval">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
                 <TabsTrigger value="approval">Awaiting Approval</TabsTrigger>
                 <TabsTrigger value="payments">Payments</TabsTrigger>
+                <TabsTrigger value="ads">Ads</TabsTrigger>
                 <TabsTrigger value="users">Users</TabsTrigger>
                 <TabsTrigger value="problems">Problems</TabsTrigger>
                 <TabsTrigger value="solutions">Solutions</TabsTrigger>
@@ -195,6 +217,68 @@ export default function AdminClient({
                         </Table>
                     </CardContent>
                 </Card>
+            </TabsContent>
+            
+            <TabsContent value="ads" className="mt-4">
+                <div className="grid gap-6 md:grid-cols-3">
+                    <div className="md:col-span-1">
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Create Ad</CardTitle>
+                                <CardDescription>Create a new advertisement to display on the site.</CardDescription>
+                             </CardHeader>
+                             <CardContent>
+                                <CreateAdForm onAdCreated={handleAdCreated} />
+                             </CardContent>
+                        </Card>
+                    </div>
+                    <div className="md:col-span-2">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Manage Ads</CardTitle>
+                                <CardDescription>Toggle ads on or off, or delete them.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                               <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Title</TableHead>
+                                            <TableHead>Placement</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {ads.map(ad => (
+                                            <TableRow key={ad.id}>
+                                                <TableCell className="font-medium">
+                                                    <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">{ad.title}</a>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="secondary">{ad.placement}</Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant={ad.isActive ? "default" : "outline"}>
+                                                        {ad.isActive ? "Active" : "Inactive"}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Switch
+                                                        checked={ad.isActive}
+                                                        onCheckedChange={() => handleToggleAdStatus(ad)}
+                                                        aria-label="Toggle ad status"
+                                                        className="mr-2"
+                                                    />
+                                                    <DeleteButton item={{type: 'ad', id: ad.id}} itemName={ad.title} onDelete={handleDelete} />
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             </TabsContent>
 
             <TabsContent value="users" className="mt-4">

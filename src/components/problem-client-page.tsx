@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { getProblem, getSolutionsForProblem, upvoteProblem, upvoteSolution } from "@/lib/firestore";
-import type { Problem, Solution } from "@/lib/types";
+import type { Problem, Solution, Ad } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -15,18 +15,22 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitProblemDialog } from "@/components/submit-problem-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { startDealAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
+import AdDisplay from "./ad-display";
+import { useRouter } from "next/navigation";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
   initialSolutions: Solution[];
+  ad: Ad | null;
 }
 
-export default function ProblemClientPage({ initialProblem, initialSolutions }: ProblemClientPageProps) {
+export default function ProblemClientPage({ initialProblem, initialSolutions, ad }: ProblemClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [problem, setProblem] = useState<Problem>(initialProblem);
   const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
@@ -71,10 +75,19 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
     }
   };
   
-  const handleStartDealClick = (solution?: Solution) => {
+  const handleStartDealClick = async (solution?: Solution) => {
       if (!userProfile || (userProfile.role !== "Investor" && userProfile.role !== "Admin")) return;
-      setDealConfig({ solution });
-      setCoffeePopupOpen(true);
+      setIsDealLoading(true);
+
+      const existingDeal = await findExistingDealAction(problem.id, userProfile.uid);
+      if(existingDeal.dealId) {
+        router.push(`/deals/${existingDeal.dealId}`);
+      } else {
+        setDealConfig({ solution });
+        setCoffeePopupOpen(true);
+      }
+
+      setIsDealLoading(false);
   }
 
   const confirmAndStartDeal = async (amount: number) => {
@@ -202,6 +215,8 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
           )}
         </CardFooter>
       </Card>
+
+      {ad && !userProfile?.isPremium && <AdDisplay ad={ad} />}
 
       <section className="mt-8">
         <h2 className="text-2xl font-bold mb-4">Proposed Solutions ({solutions.length})</h2>

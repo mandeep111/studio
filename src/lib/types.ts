@@ -114,3 +114,13 @@ export interface Payment {
     relatedDealId?: string;
     relatedDealTitle?: string;
 }
+
+export interface Ad {
+  id: string;
+  title: string;
+  imageUrl: string;
+  linkUrl: string;
+  placement: 'problem-detail' | 'solution-detail' | 'idea-detail' | 'business-detail';
+  isActive: boolean;
+  createdAt: SerializableTimestamp;
+}

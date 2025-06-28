@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ThemeProvider } from "@/components/theme-provider";
+import { DealsWidgetWrapper } from "@/components/deals-widget-wrapper";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
@@ -29,6 +30,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             {children}
+            <DealsWidgetWrapper />
           </AuthProvider>
           <Toaster />
         </ThemeProvider>

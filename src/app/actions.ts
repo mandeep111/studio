@@ -1,12 +1,13 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment } from "@/lib/firestore";
-import type { UserProfile } from "@/lib/types";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getAds, deleteAd } from "@/lib/firestore";
+import type { UserProfile, Ad } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import type Stripe from "stripe";
+import { auth } from "./lib/firebase/config";
 
 const SuggestPairingsSchema = z.object({
   investorProfile: z.string().min(10, { message: "Investor profile must be at least 10 characters long." }),
@@ -92,8 +93,8 @@ export async function getAiPairings(
       pairings: pairingsResult.suggestedPairings,
     };
   } catch (e) {
-    console.error(e);
-    return { message: "An unexpected error occurred. Please try again.", error: true };
+    console.error("AI Pairing Error:", (e as Error).message);
+    return { message: "An unexpected error occurred with the AI. Please try again.", error: true };
   }
 }
 
@@ -150,7 +151,7 @@ export async function upgradeMembershipAction(
 
         return { success: true, url: session.url };
     } catch (error) {
-        console.error("Failed to create Stripe session:", error);
+        console.error("Stripe Error (Membership):", (error as Error).message);
         return { success: false, message: "Could not connect to payment provider. Please try again."};
     }
 }
@@ -189,6 +190,7 @@ export async function startDealAction(
 
         const metadata: Stripe.Metadata = {
             type: 'deal_creation',
+            investorId: investorProfile.uid,
             investorProfile: JSON.stringify(investorProfile),
             primaryCreatorId,
             itemId,
@@ -204,7 +206,7 @@ export async function startDealAction(
             payment_method_types: ['card'],
             line_items,
             mode: 'payment',
-            success_url: `${baseUrl}/${itemType}s/${itemId}?deal=success`,
+            success_url: `${baseUrl}/${itemType}s/${itemId}?deal=pending`, // changed from success
             cancel_url: `${baseUrl}/${itemType}s/${itemId}`,
             metadata,
         });
@@ -215,8 +217,21 @@ export async function startDealAction(
 
         return { success: true, url: session.url };
     } catch (error) {
-        console.error("Failed to start deal:", error);
+        console.error("Stripe Error (Start Deal):", (error as Error).message);
         return { success: false, message: "Could not start the deal. Please try again."};
+    }
+}
+
+export async function findExistingDealAction(itemId: string, investorId: string) {
+    try {
+        const deal = await findDealByUserAndItem(itemId, investorId);
+        if (deal) {
+            return { dealId: deal.id };
+        }
+        return { dealId: null };
+    } catch (error) {
+        console.error("Failed to find existing deal:", error);
+        return { dealId: null, error: "An error occurred while checking for existing deals." };
     }
 }
 
@@ -251,7 +266,7 @@ export async function approveItemAction(formData: FormData) {
 }
 
 export async function deleteItemAction(formData: FormData) {
-    const type = formData.get('type') as 'problem' | 'solution' | 'idea' | 'user' | 'business';
+    const type = formData.get('type') as 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad';
     const id = formData.get('id') as string;
 
     try {
@@ -262,5 +277,47 @@ export async function deleteItemAction(formData: FormData) {
     } catch (error) {
         console.error("Failed to delete item:", error);
         return { success: false, message: 'Failed to delete item.' };
+    }
+}
+
+
+export async function createAdAction(formData: FormData) {
+    try {
+        const adData = {
+            title: formData.get('title') as string,
+            imageUrl: formData.get('imageUrl') as string,
+            linkUrl: formData.get('linkUrl') as string,
+            placement: formData.get('placement') as Ad['placement'],
+        };
+        
+        // Basic server-side validation
+        if (!adData.title || !adData.imageUrl || !adData.linkUrl || !adData.placement) {
+            return { success: false, message: "All fields are required." };
+        }
+
+        await createAd(adData);
+        revalidatePath('/admin');
+        return { success: true, message: 'Ad created successfully!' };
+    } catch (error) {
+        console.error("Failed to create ad:", error);
+        return { success: false, message: 'Failed to create the ad.' };
+    }
+}
+
+export async function toggleAdStatusAction(formData: FormData) {
+    try {
+        const id = formData.get('id') as string;
+        const isActive = formData.get('isActive') === 'true';
+
+        if (!id) {
+            return { success: false, message: "Ad ID is missing." };
+        }
+
+        await toggleAdStatus(id, isActive);
+        revalidatePath('/admin');
+        return { success: true, message: `Ad status updated.` };
+    } catch (error) {
+        console.error("Failed to toggle ad status:", error);
+        return { success: false, message: 'Failed to update ad status.' };
     }
 }

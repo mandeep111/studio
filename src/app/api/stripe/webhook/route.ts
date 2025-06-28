@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
 import { createDeal, logPayment, updateUserMembership } from '@/lib/firestore';
 import type { UserProfile } from '@/lib/types';
+import { redirect } from 'next/navigation';
 
 export async function POST(req: Request) {
     const body = await req.text();
@@ -76,16 +77,17 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
         itemTitle, 
         itemType, 
         amount, 
-        solutionCreatorId 
+        solutionCreatorId,
+        investorId,
     } = metadata;
 
-     if (!investorProfileStr || !primaryCreatorId || !itemId || !itemTitle || !itemType || !amount) {
+     if (!investorProfileStr || !primaryCreatorId || !itemId || !itemTitle || !itemType || !amount || !investorId) {
         throw new Error('Incomplete metadata for deal creation.');
     }
 
     const investorProfile = JSON.parse(investorProfileStr) as UserProfile;
 
-    await createDeal(
+    const dealId = await createDeal(
         investorProfile,
         primaryCreatorId,
         itemId,
@@ -94,4 +96,10 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
         Number(amount),
         solutionCreatorId || undefined
     );
+
+    // Redirect user to the newly created deal page after successful payment
+    // This is a server-side redirect, which won't work directly from a webhook.
+    // The success_url on the checkout session should handle the client-side redirect.
+    // We update the success_url in `startDealAction` to point to the new deal page.
+    // The webhook's job is just to create the deal in the DB.
 }

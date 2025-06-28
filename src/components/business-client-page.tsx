@@ -13,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { SubmitBusinessDialog } from "@/components/submit-business-dialog";
 import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
-import { startDealAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction } from "@/app/actions";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { Loader2 } from "lucide-react";
 
@@ -52,6 +52,20 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
     }
   };
+
+  const handleStartDealClick = async () => {
+    if (!userProfile || !business) return;
+    setIsDealLoading(true);
+
+    const existingDeal = await findExistingDealAction(business.id, userProfile.uid);
+    if(existingDeal.dealId) {
+      router.push(`/deals/${existingDeal.dealId}`);
+    } else {
+      setCoffeePopupOpen(true);
+    }
+    
+    setIsDealLoading(false);
+  }
 
   const handleStartDeal = async (amount: number) => {
     if (!userProfile || userProfile.role !== "Investor" || !business) return;
@@ -163,7 +177,7 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
                 </div>
             </div>
            {userProfile?.role === "Investor" && !isCreator && (
-            <Button onClick={() => setCoffeePopupOpen(true)} disabled={isDealLoading}>
+            <Button onClick={handleStartDealClick} disabled={isDealLoading}>
               {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
               Start a Deal
             </Button>

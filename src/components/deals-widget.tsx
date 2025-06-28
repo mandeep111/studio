@@ -11,6 +11,8 @@ import { Button } from "./ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
+import { onSnapshot, query, collection, where } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
 
 export default function DealsWidget() {
     const { user, userProfile } = useAuth();
@@ -21,12 +23,14 @@ export default function DealsWidget() {
     useEffect(() => {
         if (user) {
             setLoading(true);
-            const fetchDeals = async () => {
-                const userDeals = await getDealsForUser(user.uid);
+            const dealsQuery = query(collection(db, "deals"), where("participantIds", "array-contains", user.uid));
+            const unsubscribe = onSnapshot(dealsQuery, (snapshot) => {
+                const userDeals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Deal))
+                    .sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
                 setDeals(userDeals);
                 setLoading(false);
-            };
-            fetchDeals();
+            });
+            return () => unsubscribe();
         } else {
             setDeals([]);
             setLoading(false);

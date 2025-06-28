@@ -12,9 +12,10 @@ import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { startDealAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface IdeaClientPageProps {
   initialIdea: Idea;
@@ -23,6 +24,7 @@ interface IdeaClientPageProps {
 export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [idea, setIdea] = useState<Idea>(initialIdea);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [isDealLoading, setIsDealLoading] = useState(false);
@@ -50,6 +52,20 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
     }
   };
+
+  const handleStartDealClick = async () => {
+    if (!userProfile || !idea) return;
+    setIsDealLoading(true);
+
+    const existingDeal = await findExistingDealAction(idea.id, userProfile.uid);
+    if (existingDeal.dealId) {
+      router.push(`/deals/${existingDeal.dealId}`);
+    } else {
+      setCoffeePopupOpen(true);
+    }
+
+    setIsDealLoading(false);
+  }
 
    const handleStartDeal = async (amount: number) => {
     if (!userProfile || userProfile.role !== "Investor" || !idea) return;
@@ -153,7 +169,7 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
                 </div>
             </div>
            {userProfile?.role === "Investor" && !isCreator && (
-            <Button onClick={() => setCoffeePopupOpen(true)} disabled={isDealLoading}>
+            <Button onClick={handleStartDealClick} disabled={isDealLoading}>
               {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
               Start a Deal
             </Button>
