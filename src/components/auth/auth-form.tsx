@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { UserRole } from "@/lib/types";
+import { getRandomAvatar } from "@/lib/avatars";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" {...props}>
@@ -71,7 +72,9 @@ export function AuthForm() {
         const q = query(usersCollectionRef, limit(1));
         const existingUsersSnapshot = await getDocs(q);
         const isFirstUser = existingUsersSnapshot.empty;
-        const userRole = isFirstUser ? "Admin" : "User";
+        const userRole: UserRole = isFirstUser ? "Admin" : "User";
+        
+        const avatarUrl = user.photoURL || getRandomAvatar(userRole);
 
         await setDoc(userDocRef, {
           uid: user.uid,
@@ -79,7 +82,7 @@ export function AuthForm() {
           name: user.displayName || "New User",
           role: userRole,
           expertise: "Not specified",
-          avatarUrl: user.photoURL || `https://placehold.co/100x100.png`,
+          avatarUrl: avatarUrl,
           points: 0,
           isPremium: isFirstUser, // First user is Admin and Premium
         });
@@ -110,7 +113,7 @@ export function AuthForm() {
       const q = query(usersCollectionRef, limit(1));
       const existingUsersSnapshot = await getDocs(q);
       const isFirstUser = existingUsersSnapshot.empty;
-      const userRole = isFirstUser ? "Admin" : role;
+      const userRole: UserRole = isFirstUser ? "Admin" : role;
 
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -125,7 +128,7 @@ export function AuthForm() {
         name,
         role: userRole,
         expertise,
-        avatarUrl: `https://placehold.co/100x100.png`,
+        avatarUrl: getRandomAvatar(userRole),
         points: 0,
         isPremium: isFirstUser, // First user is Admin and Premium
       });

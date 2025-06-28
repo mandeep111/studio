@@ -12,13 +12,14 @@ import {
 } from 'firebase/firestore';
 import { db } from '../src/lib/firebase/config';
 import type { UserProfile, CreatorReference } from '../src/lib/types';
+import { ADMIN_AVATARS, INVESTOR_AVATARS, USER_AVATARS } from '../src/lib/avatars';
 
 const USERS: Omit<UserProfile, 'uid'>[] = [
   {
     email: 'admin@trisolve.com',
     name: 'Admin User',
     role: 'Admin',
-    avatarUrl: `https://i.pravatar.cc/150?u=admin@trisolve.com`,
+    avatarUrl: ADMIN_AVATARS[0],
     expertise: 'Platform Management',
     points: 100,
     isPremium: true,
@@ -27,7 +28,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     email: 'problem.creator@trisolve.com',
     name: 'Pat Problem',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=problem.creator@trisolve.com`,
+    avatarUrl: USER_AVATARS[0],
     expertise: 'Product Management',
     points: 50,
     isPremium: false,
@@ -36,7 +37,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     email: 'solution.creator@trisolve.com',
     name: 'Sam Solution',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=solution.creator@trisolve.com`,
+    avatarUrl: USER_AVATARS[1],
     expertise: 'Software Engineering',
     points: 20,
     isPremium: false,
@@ -45,7 +46,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     email: 'investor@trisolve.com',
     name: 'Ivy Investor',
     role: 'Investor',
-    avatarUrl: `https://i.pravatar.cc/150?u=investor@trisolve.com`,
+    avatarUrl: INVESTOR_AVATARS[0],
     expertise: 'Venture Capital',
     points: 0,
     isPremium: true,
@@ -54,7 +55,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     email: 'idea.creator@trisolve.com',
     name: 'Iggy Idea',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=idea.creator@trisolve.com`,
+    avatarUrl: USER_AVATARS[2],
     expertise: 'Creative Thinking',
     points: 10,
     isPremium: false,
@@ -63,7 +64,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     email: 'problem.creator2@trisolve.com',
     name: 'Penny Prospect',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=problem.creator2@trisolve.com`,
+    avatarUrl: USER_AVATARS[3],
     expertise: 'Urban Planning',
     points: 15,
     isPremium: false,
@@ -72,7 +73,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     email: 'business.owner@trisolve.com',
     name: 'Brenda Business',
     role: 'User',
-    avatarUrl: `https://i.pravatar.cc/150?u=business.owner@trisolve.com`,
+    avatarUrl: USER_AVATARS[4],
     expertise: 'E-commerce',
     points: 40,
     isPremium: false,
@@ -127,6 +128,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: 500,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Solution for Problem 1
@@ -141,6 +144,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: 75000,
         priceApproved: false, 
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Problem 2
@@ -156,6 +161,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: null,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Problem 3 (from new user)
@@ -171,6 +178,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: 250,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Solution for Problem 3 (from original solution creator)
@@ -185,6 +194,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: 25000,
         priceApproved: false, 
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Problem 4 (no solution)
@@ -200,6 +211,8 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         createdAt: Timestamp.now(),
         price: null,
         priceApproved: true,
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
 
@@ -224,6 +237,8 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         upvotes: 12,
         upvotedBy: [],
         createdAt: Timestamp.now(),
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
     
     // Idea 2
@@ -236,6 +251,8 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         upvotes: 5,
         upvotedBy: [],
         createdAt: Timestamp.now(),
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     // Idea 3
@@ -248,6 +265,8 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         upvotes: 9,
         upvotedBy: [],
         createdAt: Timestamp.now(),
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     await batch.commit();
@@ -272,6 +291,8 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         price: 150000, // funding sought
         priceApproved: false,
         stage: 'Early Revenue',
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
 
     batch.set(doc(businessesCollection), {
@@ -285,6 +306,8 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         price: 250000,
         priceApproved: false,
         stage: 'Scaling',
+        attachmentUrl: null,
+        attachmentFileName: null,
     });
     
     await batch.commit();
