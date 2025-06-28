@@ -3,11 +3,11 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business, Deal } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness, getDealsForUser, getContentByCreators } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness, getDealsForUser, getContentByCreators, upvoteInvestor } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users, ThumbsUp, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
@@ -72,9 +72,10 @@ export default function UserProfileClient({
     initialUpvotedItems,
     initialDeals,
 }: UserProfileClientProps) {
-    const { user } = useAuth();
+    const { user, userProfile: currentUserProfile } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
+    const [profile, setProfile] = useState<UserProfile>(userProfile);
     const [problems, setProblems] = useState<Problem[]>(initialProblems);
     const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
     const [ideas, setIdeas] = useState<Idea[]>(initialIdeas);
@@ -82,18 +83,19 @@ export default function UserProfileClient({
     const [upvotedItems, setUpvotedItems] = useState<UpvotedItem[]>(initialUpvotedItems);
     const [deals, setDeals] = useState<Deal[]>(initialDeals);
     const [workedWithContent, setWorkedWithContent] = useState<(Problem | Solution)[]>([]);
+    const [isUpvoting, setIsUpvoting] = useState(false);
 
     
-    const isOwnProfile = user?.uid === userProfile.uid;
+    const isOwnProfile = user?.uid === profile.uid;
 
     const fetchData = useCallback(async () => {
         const [problemsData, solutionsData, ideasData, businessesData, upvotedData, dealsData] = await Promise.all([
-            getProblemsByUser(userProfile.uid),
-            getSolutionsByUser(userProfile.uid),
-            getIdeasByUser(userProfile.uid),
-            getBusinessesByUser(userProfile.uid),
-            isOwnProfile ? getUpvotedItems(userProfile.uid) : Promise.resolve([]),
-            getDealsForUser(userProfile.uid),
+            getProblemsByUser(profile.uid),
+            getSolutionsByUser(profile.uid),
+            getIdeasByUser(profile.uid),
+            getBusinessesByUser(profile.uid),
+            isOwnProfile ? getUpvotedItems(profile.uid) : Promise.resolve([]),
+            getDealsForUser(profile.uid),
         ]);
         setProblems(problemsData);
         setSolutions(solutionsData);
@@ -102,7 +104,7 @@ export default function UserProfileClient({
         setUpvotedItems(upvotedData as UpvotedItem[]);
         setDeals(dealsData);
 
-        if (userProfile.role === 'Investor') {
+        if (profile.role === 'Investor') {
             const creatorIds = new Set<string>();
             dealsData.forEach(deal => {
                 creatorIds.add(deal.primaryCreator.userId);
@@ -110,7 +112,7 @@ export default function UserProfileClient({
                     creatorIds.add(deal.solutionCreator.userId);
                 }
             });
-            creatorIds.delete(userProfile.uid); // Don't fetch investor's own content
+            creatorIds.delete(profile.uid);
 
             if (creatorIds.size > 0) {
                 const content = await getContentByCreators(Array.from(creatorIds));
@@ -118,11 +120,37 @@ export default function UserProfileClient({
             }
         }
 
-    }, [userProfile.uid, isOwnProfile, userProfile.role]);
+    }, [profile.uid, isOwnProfile, profile.role]);
     
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+     const handleInvestorUpvote = async () => {
+        if (!user || isOwnProfile || profile.role !== 'Investor' || isUpvoting) return;
+        setIsUpvoting(true);
+
+        const currentUpvotes = profile.upvotes || 0;
+        const isUpvoted = (profile.upvotedBy || []).includes(user.uid);
+        
+        // Optimistic update
+        setProfile(prev => ({
+            ...prev,
+            upvotes: isUpvoted ? currentUpvotes - 1 : currentUpvotes + 1,
+            upvotedBy: isUpvoted 
+                ? (prev.upvotedBy || []).filter(id => id !== user.uid)
+                : [...(prev.upvotedBy || []), user.uid]
+        }));
+
+        try {
+            await upvoteInvestor(profile.uid, user.uid);
+        } catch(e) {
+            setProfile(profile); // Revert on error
+            toast({variant: "destructive", title: "Error", description: (e as Error).message});
+        } finally {
+            setIsUpvoting(false);
+        }
+    }
 
     const handleProblemUpvote = async (problemId: string) => {
         if (!user) return;
@@ -136,7 +164,7 @@ export default function UserProfileClient({
         try {
             await upvoteProblem(problemId, user.uid);
         } catch (e) {
-            fetchData(); // revert
+            fetchData();
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
@@ -153,7 +181,7 @@ export default function UserProfileClient({
         try {
             await upvoteSolution(solutionId, user.uid);
         } catch (e) {
-            fetchData(); // revert
+            fetchData();
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
@@ -170,7 +198,7 @@ export default function UserProfileClient({
         try {
             await upvoteIdea(ideaId, user.uid);
         } catch (e) {
-            fetchData(); // revert
+            fetchData();
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
@@ -187,7 +215,7 @@ export default function UserProfileClient({
         try {
             await upvoteBusiness(businessId, user.uid);
         } catch (e) {
-            fetchData(); // revert
+            fetchData();
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
@@ -206,43 +234,54 @@ export default function UserProfileClient({
                 <Card>
                     <CardHeader className="items-center text-center">
                         <Avatar className="h-24 w-24 mb-4">
-                            <AvatarImage src={userProfile.avatarUrl} alt={userProfile.name} />
-                            <AvatarFallback className="text-3xl">{userProfile.name.charAt(0)}</AvatarFallback>
+                            <AvatarImage src={profile.avatarUrl} alt={profile.name} />
+                            <AvatarFallback className="text-3xl">{profile.name.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <CardTitle className="text-2xl">{userProfile.name}</CardTitle>
-                        <CardDescription>{userProfile.expertise}</CardDescription>
+                        <CardTitle className="text-2xl">{profile.name}</CardTitle>
+                        <CardDescription>{profile.expertise}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-2 text-muted-foreground">
-                            <Mail className="h-5 w-5" /> <span>{userProfile.email}</span>
+                            <Mail className="h-5 w-5" /> <span>{profile.email}</span>
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground">
-                            <Trophy className="h-5 w-5 text-primary" /> <span>Role: {userProfile.role}</span>
+                            <Trophy className="h-5 w-5 text-primary" /> <span>Role: {profile.role}</span>
                         </div>
-                         {userProfile.role === 'Investor' ? (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                                <Handshake className="h-5 w-5 text-primary" /> <span>{userProfile.dealsCount || 0} Deals Completed</span>
-                            </div>
+                         {profile.role === 'Investor' ? (
+                            <>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Handshake className="h-5 w-5 text-primary" /> <span>{profile.dealsCount || 0} Deals</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <ThumbsUp className="h-5 w-5 text-primary" /> <span>{(profile.upvotes || 0).toLocaleString()} Upvotes</span>
+                                </div>
+                            </>
                          ) : (
                             <div className="flex items-center gap-2 text-muted-foreground">
-                                <Gem className="h-5 w-5 text-yellow-500" /> <span>{userProfile.points.toLocaleString()} Points</span>
+                                <Gem className="h-5 w-5 text-yellow-500" /> <span>{profile.points.toLocaleString()} Points</span>
                             </div>
                          )}
                     </CardContent>
-                    {isOwnProfile && (
-                        <CardFooter>
+                    
+                    <CardFooter>
+                        {isOwnProfile ? (
                             <Button variant="outline" className="w-full" onClick={handleLogout}>
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Log Out
                             </Button>
-                        </CardFooter>
-                    )}
+                        ) : profile.role === 'Investor' && user ? (
+                             <Button variant="outline" className="w-full" onClick={handleInvestorUpvote} disabled={isUpvoting}>
+                                {isUpvoting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-2 h-4 w-4" />}
+                                {(profile.upvotedBy || []).includes(user.uid) ? 'Upvoted' : 'Upvote Investor'}
+                            </Button>
+                        ) : null}
+                    </CardFooter>
                 </Card>
             </div>
 
             <div className="lg:col-span-2">
                 <Tabs defaultValue="problems">
-                    <TabsList className={cn("grid w-full", (isOwnProfile || userProfile.role === 'Investor') ? "grid-cols-3 md:grid-cols-7" : "grid-cols-2 md:grid-cols-4")}>
+                    <TabsList className={cn("grid w-full", (isOwnProfile || profile.role === 'Investor') ? "grid-cols-3 md:grid-cols-7" : "grid-cols-2 md:grid-cols-4")}>
                         <TabsTrigger value="problems">
                             <BrainCircuit className="h-4 w-4 md:mr-2" />
                             <span className="hidden md:inline">Problems</span>
@@ -263,14 +302,14 @@ export default function UserProfileClient({
                              <span className="hidden md:inline">Ideas</span>
                              <span className="md:hidden">({ideas.length})</span>
                         </TabsTrigger>
-                         {userProfile.role === 'Investor' && (
+                         {profile.role === 'Investor' && (
                              <TabsTrigger value="worked-with">
                                 <Users className="h-4 w-4 md:mr-2" />
                                 <span className="hidden md:inline">Network</span>
                                 <span className="md:hidden">({workedWithContent.length})</span>
                             </TabsTrigger>
                         )}
-                        {(isOwnProfile || userProfile.role === 'Investor') && (
+                        {(isOwnProfile || profile.role === 'Investor') && (
                              <TabsTrigger value="deals">
                                 <Handshake className="h-4 w-4 md:mr-2" />
                                 <span className="hidden md:inline">Deals</span>
@@ -289,7 +328,7 @@ export default function UserProfileClient({
                         <Card>
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Problems Submitted</CardTitle>
-                                {isOwnProfile && (userProfile?.role === 'User' || userProfile.role === 'Admin') && (
+                                {isOwnProfile && (currentUserProfile?.role === 'User' || currentUserProfile?.role === 'Admin') && (
                                     <SubmitProblemDialog onProblemCreated={fetchData} />
                                 )}
                             </CardHeader>
@@ -328,7 +367,7 @@ export default function UserProfileClient({
                         <Card>
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Businesses Submitted</CardTitle>
-                                {isOwnProfile && (userProfile?.role === 'User' || userProfile.role === 'Admin') && (
+                                {isOwnProfile && (currentUserProfile?.role === 'User' || currentUserProfile?.role === 'Admin') && (
                                     <SubmitBusinessDialog onBusinessCreated={fetchData} />
                                 )}
                             </CardHeader>
@@ -349,7 +388,7 @@ export default function UserProfileClient({
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Ideas Submitted</CardTitle>
-                                {isOwnProfile && (userProfile?.role === 'User' || userProfile.role === 'Admin') && (
+                                {isOwnProfile && (currentUserProfile?.role === 'User' || currentUserProfile?.role === 'Admin') && (
                                     <SubmitIdeaDialog onIdeaCreated={fetchData} />
                                 )}
                             </CardHeader>
@@ -366,7 +405,7 @@ export default function UserProfileClient({
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    {userProfile.role === 'Investor' && (
+                    {profile.role === 'Investor' && (
                         <TabsContent value="worked-with" className="mt-4">
                             <Card>
                                 <CardHeader>
@@ -393,7 +432,7 @@ export default function UserProfileClient({
                             </Card>
                         </TabsContent>
                     )}
-                    {(isOwnProfile || userProfile.role === 'Investor') && (
+                    {(isOwnProfile || profile.role === 'Investor') && (
                         <TabsContent value="deals" className="mt-4">
                             <Card>
                                 <CardHeader>

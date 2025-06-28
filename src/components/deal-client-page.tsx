@@ -51,6 +51,10 @@ export default function DealClientPage({
     });
     return () => unsub();
   }, [initialDeal.id]);
+  
+  useEffect(() => {
+    setDeal(initialDeal)
+  }, [initialDeal])
 
   const handleUpdateStatus = async (status: 'completed' | 'cancelled') => {
     if (!userProfile) return;
@@ -74,15 +78,7 @@ export default function DealClientPage({
   const isInvestor = userProfile?.uid === deal.investor.userId;
 
   return (
-    <main className="flex-1 flex flex-col bg-muted/40">
-        <div className="container mx-auto py-4 flex-1 flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-                <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Dashboard
-                </Link>
-            </div>
-            
+    <div className="flex-1 flex flex-col bg-muted/40 p-4 gap-4">
             <Card>
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -166,7 +162,6 @@ export default function DealClientPage({
                 initialMessages={initialMessages} 
                 dealStatus={deal.status}
             />
-        </div>
-      </main>
+    </div>
   );
 }

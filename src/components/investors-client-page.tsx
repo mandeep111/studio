@@ -23,7 +23,7 @@ export default function InvestorsClientPage({ initialInvestors, initialLastVisib
     const [investors, setInvestors] = useState<UserProfile[]>(initialInvestors);
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [sortBy, setSortBy] = useState<'dealsCount' | 'points' | 'name'>('dealsCount');
+    const [sortBy, setSortBy] = useState<'dealsCount' | 'upvotes' | 'name'>('dealsCount');
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(initialLastVisible);
     const [hasMore, setHasMore] = useState(true);
     const { toast } = useToast();
@@ -88,13 +88,13 @@ export default function InvestorsClientPage({ initialInvestors, initialLastVisib
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                     <Select value={sortBy} onValueChange={(value: 'dealsCount' | 'points' | 'name') => setSortBy(value)}>
+                     <Select value={sortBy} onValueChange={(value: 'dealsCount' | 'upvotes' | 'name') => setSortBy(value)}>
                         <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="dealsCount">Most Deals</SelectItem>
-                            <SelectItem value="points">Reputation</SelectItem>
+                            <SelectItem value="upvotes">Most Upvoted</SelectItem>
                             <SelectItem value="name">Name</SelectItem>
                         </SelectContent>
                     </Select>

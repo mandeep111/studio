@@ -246,7 +246,7 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
 }
 
 const INVESTOR_PAGE_SIZE = 12;
-export async function getPaginatedInvestors(options: { sortBy?: 'points' | 'name' | 'dealsCount', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
+export async function getPaginatedInvestors(options: { sortBy?: 'dealsCount' | 'upvotes' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
     const { sortBy = 'dealsCount', lastVisible } = options;
 
@@ -271,7 +271,6 @@ export async function getPaginatedInvestors(options: { sortBy?: 'points' | 'name
 export async function getContentByCreators(creatorIds: string[]): Promise<Array<Problem | Solution>> {
     if (creatorIds.length === 0) return [];
 
-    // Firestore 'in' query supports up to 30 elements. Chunk if needed.
     const CHUNK_SIZE = 30;
     const chunks = [];
     for (let i = 0; i < creatorIds.length; i += CHUNK_SIZE) {
@@ -295,7 +294,6 @@ export async function getContentByCreators(creatorIds: string[]): Promise<Array<
         allContent.push(...problems, ...solutions);
     }
     
-    // Sort by creation date descending
     allContent.sort((a, b) => {
         const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
         const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
@@ -371,13 +369,12 @@ export async function createProblem(title: string, description: string, tags: st
         
         transaction.set(newProblemRef, problemData);
 
-        // Award points to creator
         const userRef = doc(db, "users", creator.uid);
         transaction.update(userRef, { points: increment(50) });
 
         if (!priceApproved) {
             await createNotification(
-                "admins", // Special ID for admin notifications
+                "admins", 
                 `${creator.name} submitted a problem "${title}" with a price of $${price}, which requires approval.`,
                 `/problems/${newProblemRef.id}`
             );
@@ -418,7 +415,7 @@ export async function createSolution(description: string, problemId: string, pro
         priceApproved,
         attachmentUrl: attachmentData?.url || null,
         attachmentFileName: attachmentData?.name || null,
-        interestedInvestorsCount: 0, // Solutions inherit this, but it's managed on the problem
+        interestedInvestorsCount: 0, 
     };
     
     batch.set(solutionRef, solutionData);
@@ -515,7 +512,7 @@ export async function createBusiness(title: string, description: string, tags: s
             upvotes: 0,
             upvotedBy: [],
             createdAt: serverTimestamp(),
-            price: price || null, // Represents funding sought
+            price: price || null, 
             priceApproved,
             attachmentUrl: attachmentData?.url || null,
             attachmentFileName: attachmentData?.name || null,
@@ -524,7 +521,6 @@ export async function createBusiness(title: string, description: string, tags: s
 
         transaction.set(newBusinessRef, businessData);
 
-        // Award points to creator for listing a business
         const userRef = doc(db, "users", creator.uid);
         transaction.update(userRef, { points: increment(30) });
 
@@ -557,7 +553,7 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
 
         const data = docSnap.data();
         creatorId = data.creator.userId;
-        itemTitle = data.title || data.problemTitle; // For solutions
+        itemTitle = data.title || data.problemTitle;
 
         if (creatorId === userId) {
             throw new Error("You cannot upvote your own content.");
@@ -611,6 +607,28 @@ export async function upvoteBusiness(docId: string, userId: string) {
     await toggleUpvote("businesses", docId, userId);
 }
 
+export async function upvoteInvestor(investorId: string, voterId: string) {
+    await runTransaction(db, async (transaction) => {
+        const investorRef = doc(db, "users", investorId);
+        const investorSnap = await transaction.get(investorRef);
+
+        if (!investorSnap.exists() || investorSnap.data().role !== 'Investor') {
+            throw new Error("Investor profile not found.");
+        }
+        if (investorId === voterId) {
+            throw new Error("You cannot upvote yourself.");
+        }
+
+        const data = investorSnap.data();
+        const isAlreadyUpvoted = (data.upvotedBy || []).includes(voterId);
+
+        transaction.update(investorRef, {
+            upvotes: increment(isAlreadyUpvoted ? -1 : 1),
+            upvotedBy: isAlreadyUpvoted ? arrayRemove(voterId) : arrayUnion(voterId)
+        });
+    });
+}
+
 
 // --- Investor & Deals ---
 
@@ -661,16 +679,13 @@ export async function createDeal(
     await runTransaction(db, async (transaction) => {
         const participantsMap = new Map<string, CreatorReference>();
 
-        // Add investor
         participantsMap.set(investorProfile.uid, { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise });
 
-        // Fetch and add primary creator
         const primaryCreatorSnap = await transaction.get(doc(db, "users", primaryCreatorId));
         if (!primaryCreatorSnap.exists()) throw new Error("Primary creator not found");
         const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
         participantsMap.set(primaryCreator.uid, { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise });
 
-        // Fetch and add solution creator if provided
         let solutionCreator: UserProfile | null = null;
         if (solutionCreatorId) {
             const solutionCreatorSnap = await transaction.get(doc(db, "users", solutionCreatorId));
@@ -700,12 +715,10 @@ export async function createDeal(
         const itemRef = doc(db, `${itemType}s`, itemId);
         transaction.update(itemRef, { interestedInvestorsCount: increment(1) });
         
-        // Increment investor's deal count
         const investorRef = doc(db, "users", investorProfile.uid);
         transaction.update(investorRef, { dealsCount: increment(1) });
     });
     
-    // Notifications and Payment Logging
     const dealLink = `/deals/${newDealRef.id}`;
     
     const dealDoc = await getDoc(newDealRef);

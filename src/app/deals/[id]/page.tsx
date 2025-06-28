@@ -3,6 +3,7 @@ import { getDeal, getMessages, getUserProfile, getProblem, getIdea, getBusiness 
 import { notFound } from "next/navigation";
 import type { UserProfile, Problem, Idea, Business } from "@/lib/types";
 import DealClientPage from "@/components/deal-client-page";
+import DealsListPanel from "@/components/deals-list-panel";
 
 export default async function DealPage({ params }: { params: { id: string } }) {
   const deal = await getDeal(params.id);
@@ -33,12 +34,17 @@ export default async function DealPage({ params }: { params: { id: string } }) {
   return (
     <div className="flex flex-col h-screen">
       <Header />
-       <DealClientPage 
-          initialDeal={serializable(deal)}
-          initialMessages={serializable(initialMessages)}
-          participants={serializable(participants)}
-          relatedItem={serializable(relatedItem)}
-        />
+       <div className="flex-1 flex overflow-hidden">
+        <DealsListPanel activeDealId={params.id} />
+        <main className="flex-1 flex flex-col">
+          <DealClientPage 
+            initialDeal={serializable(deal)}
+            initialMessages={serializable(initialMessages)}
+            participants={serializable(participants)}
+            relatedItem={serializable(relatedItem)}
+          />
+        </main>
+      </div>
     </div>
   );
 }

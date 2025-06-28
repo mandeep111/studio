@@ -2,7 +2,7 @@ import type { UserProfile } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { Handshake, User } from "lucide-react";
+import { Handshake, User, ThumbsUp } from "lucide-react";
 import Link from "next/link";
 
 interface InvestorCardProps {
@@ -28,9 +28,15 @@ export default function InvestorCard({ investor }: InvestorCardProps) {
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Handshake className="h-4 w-4 text-primary" />
-            <span>{(investor.dealsCount || 0).toLocaleString()} Deals</span>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Handshake className="h-4 w-4 text-primary" />
+              <span>{(investor.dealsCount || 0).toLocaleString()} Deals</span>
+            </div>
+             <div className="flex items-center gap-2">
+              <ThumbsUp className="h-4 w-4 text-primary" />
+              <span>{(investor.upvotes || 0).toLocaleString()} Upvotes</span>
+            </div>
         </div>
       </CardContent>
       <CardFooter className="bg-muted/50 p-4">

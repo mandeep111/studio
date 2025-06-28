@@ -16,6 +16,8 @@ export interface UserProfile {
   isPremium: boolean;
   dealsCount?: number;
   unreadDealMessages?: { [dealId: string]: number };
+  upvotes?: number;
+  upvotedBy?: string[];
 }
 
 export type CreatorReference = {

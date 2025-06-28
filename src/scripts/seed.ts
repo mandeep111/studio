@@ -59,6 +59,8 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     isPremium: true,
     unreadDealMessages: {},
     dealsCount: 0,
+    upvotes: 0,
+    upvotedBy: [],
   },
     {
     email: 'idea.creator@problem2profit.com',
@@ -103,6 +105,8 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     isPremium: true,
     unreadDealMessages: {},
     dealsCount: 0,
+    upvotes: 0,
+    upvotedBy: [],
   }
 ];
 
