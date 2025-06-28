@@ -85,6 +85,7 @@ export function AuthForm() {
           avatarUrl: avatarUrl,
           points: 0,
           isPremium: isFirstUser, // First user is Admin and Premium
+          unreadDealMessages: {},
         });
       }
       toast({ title: "Success", description: "Logged in with Google successfully." });
@@ -131,6 +132,7 @@ export function AuthForm() {
         avatarUrl: getRandomAvatar(userRole),
         points: 0,
         isPremium: isFirstUser, // First user is Admin and Premium
+        unreadDealMessages: {},
       });
       
       toast({ title: "Success", description: `Account created successfully. ${isFirstUser ? 'You are the Admin!' : ''}` });

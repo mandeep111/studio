@@ -17,6 +17,7 @@ import {
   writeBatch,
   type DocumentSnapshot,
   startAfter,
+  deleteField,
 } from "firebase/firestore";
 import { db, storage } from "./firebase/config";
 import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business } from "./types";
@@ -632,8 +633,11 @@ export async function getMessages(dealId: string): Promise<Message[]> {
 }
 
 export async function sendMessage(dealId: string, text: string, sender: UserProfile) {
+    const batch = writeBatch(db);
+
+    // 1. Add the new message
     const messagesCol = collection(db, `deals/${dealId}/messages`);
-    await addDoc(messagesCol, {
+    batch.set(doc(messagesCol), {
         dealId,
         text,
         sender: {
@@ -644,6 +648,42 @@ export async function sendMessage(dealId: string, text: string, sender: UserProf
         },
         createdAt: serverTimestamp(),
     });
+
+    // 2. Increment unread count for other participants
+    const dealRef = doc(db, "deals", dealId);
+    const dealSnap = await getDoc(dealRef);
+    if (dealSnap.exists()) {
+        const deal = dealSnap.data() as Deal;
+        const participants = [deal.investor, deal.primaryCreator];
+        if (deal.solutionCreator) {
+            participants.push(deal.solutionCreator);
+        }
+
+        for (const participant of participants) {
+            if (participant.userId !== sender.uid) {
+                const userRef = doc(db, "users", participant.userId);
+                const fieldPath = `unreadDealMessages.${dealId}`;
+                batch.update(userRef, { [fieldPath]: increment(1) });
+            }
+        }
+    }
+    
+    await batch.commit();
+}
+
+
+export async function markDealAsRead(userId: string, dealId: string) {
+    const userRef = doc(db, "users", userId);
+    const fieldPath = `unreadDealMessages.${dealId}`;
+    
+    // Using deleteField to remove the key if the count is > 0
+    // This is more efficient than setting it to 0.
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists() && userSnap.data().unreadDealMessages?.[dealId]) {
+        await updateDoc(userRef, {
+            [fieldPath]: deleteField()
+        });
+    }
 }
 
 

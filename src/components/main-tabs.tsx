@@ -28,19 +28,19 @@ export default function MainTabs({ userProfile }: MainTabsProps) {
         </TabsList>
       </div>
       <TabsContent value="problems" className="mt-6">
-        <ProblemList />
+        {activeTab === 'problems' && <ProblemList />}
       </TabsContent>
       <TabsContent value="solutions" className="mt-6">
-        <SolutionList />
+        {activeTab === 'solutions' && <SolutionList />}
       </TabsContent>
       <TabsContent value="businesses" className="mt-6">
-        <BusinessList />
+        {activeTab === 'businesses' && <BusinessList />}
       </TabsContent>
        <TabsContent value="random-ideas" className="mt-6">
-        <RandomIdeas />
+        {activeTab === 'random-ideas' && <RandomIdeas />}
       </TabsContent>
       <TabsContent value="ai-matchmaking" className="mt-6">
-        <AiMatchmaking />
+        {activeTab === 'ai-matchmaking' && <AiMatchmaking />}
       </TabsContent>
     </Tabs>
   );

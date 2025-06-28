@@ -14,6 +14,7 @@ export interface UserProfile {
   expertise: string;
   points: number;
   isPremium: boolean;
+  unreadDealMessages?: { [dealId: string]: number };
 }
 
 export type CreatorReference = {

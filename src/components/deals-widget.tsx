@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { MessageSquare, MessagesSquare, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 
 export default function DealsWidget() {
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const [deals, setDeals] = useState<Deal[]>([]);
     const [loading, setLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
@@ -33,6 +33,11 @@ export default function DealsWidget() {
         }
     }, [user]);
 
+    const unreadCount = useMemo(() => {
+        if (!userProfile?.unreadDealMessages) return 0;
+        return Object.values(userProfile.unreadDealMessages).reduce((sum, count) => sum + count, 0);
+    }, [userProfile]);
+
     if (loading || deals.length === 0) {
         return null;
     }
@@ -45,9 +50,11 @@ export default function DealsWidget() {
                     className="fixed bottom-6 right-6 h-16 w-16 rounded-full shadow-lg z-50 flex items-center justify-center"
                 >
                     <MessagesSquare className="h-8 w-8" />
-                     <Badge variant="destructive" className="absolute -top-1 -right-1">
-                        {deals.length}
-                    </Badge>
+                    {unreadCount > 0 && (
+                        <Badge variant="destructive" className="absolute -top-1 -right-1">
+                            {unreadCount}
+                        </Badge>
+                    )}
                 </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 mr-4 mb-2" side="top" align="end">
@@ -61,7 +68,7 @@ export default function DealsWidget() {
                     <div className="grid gap-2 max-h-64 overflow-y-auto">
                         {deals.map((deal) => (
                             <Link href={`/deals/${deal.id}`} key={deal.id} className="block group" onClick={() => setIsOpen(false)}>
-                                <div className="flex items-center gap-3 rounded-md p-2 hover:bg-muted transition-colors">
+                                <div className="relative flex items-center gap-3 rounded-md p-2 hover:bg-muted transition-colors">
                                     <Avatar>
                                         <AvatarImage src={deal.investor.avatarUrl} />
                                         <AvatarFallback>{deal.investor.name.charAt(0)}</AvatarFallback>
@@ -74,6 +81,9 @@ export default function DealsWidget() {
                                         </p>
                                     </div>
                                     <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                     {(userProfile?.unreadDealMessages?.[deal.id] ?? 0) > 0 && (
+                                        <div className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary" />
+                                    )}
                                 </div>
                             </Link>
                         ))}

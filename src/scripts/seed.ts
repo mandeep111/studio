@@ -23,6 +23,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'Platform Management',
     points: 100,
     isPremium: true,
+    unreadDealMessages: {},
   },
   {
     email: 'problem.creator@trisolve.com',
@@ -32,6 +33,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'Product Management',
     points: 50,
     isPremium: false,
+    unreadDealMessages: {},
   },
   {
     email: 'solution.creator@trisolve.com',
@@ -41,6 +43,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'Software Engineering',
     points: 20,
     isPremium: false,
+    unreadDealMessages: {},
   },
   {
     email: 'investor@trisolve.com',
@@ -50,6 +53,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'Venture Capital',
     points: 0,
     isPremium: true,
+    unreadDealMessages: {},
   },
     {
     email: 'idea.creator@trisolve.com',
@@ -59,6 +63,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'Creative Thinking',
     points: 10,
     isPremium: false,
+    unreadDealMessages: {},
   },
   {
     email: 'problem.creator2@trisolve.com',
@@ -68,6 +73,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'Urban Planning',
     points: 15,
     isPremium: false,
+    unreadDealMessages: {},
   },
   {
     email: 'business.owner@trisolve.com',
@@ -77,6 +83,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     expertise: 'E-commerce',
     points: 40,
     isPremium: false,
+    unreadDealMessages: {},
   }
 ];
 

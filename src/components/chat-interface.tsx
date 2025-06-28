@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { cn, getDateFromTimestamp } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
 import { format } from 'date-fns';
+import { markDealAsRead } from '@/lib/firestore';
 
 interface ChatInterfaceProps {
     dealId: string;
@@ -24,6 +25,13 @@ export default function ChatInterface({ dealId, initialMessages }: ChatInterface
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [newMessage, setNewMessage] = useState('');
   const viewportRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (userProfile) {
+      markDealAsRead(userProfile.uid, dealId);
+    }
+  }, [userProfile, dealId]);
+
 
   useEffect(() => {
     const q = query(collection(db, `deals/${dealId}/messages`), orderBy('createdAt', 'asc'));
