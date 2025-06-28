@@ -1,17 +1,59 @@
+
+"use client";
+
 import Header from "@/components/header";
 import NotificationsClient from "@/components/notifications-client";
-import { auth } from "@/lib/firebase/config";
-import { getNotifications } from "@/lib/firestore";
-import { redirect } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { markNotificationsAsRead, getNotifications } from "@/lib/firestore";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import type { Notification } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default async function NotificationsPage() {
-    const user = auth.currentUser;
-    if (!user) {
-        redirect('/login');
+export default function NotificationsPage() {
+    const { user, loading } = useAuth();
+    const router = useRouter();
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [pageLoading, setPageLoading] = useState(true);
+
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push('/login');
+        }
+    }, [user, loading, router]);
+
+    useEffect(() => {
+        if (user) {
+            const fetchAndMark = async () => {
+                setPageLoading(true);
+                const userNotifications = await getNotifications(user.uid);
+                // The notifications need to be serialized for the client component
+                setNotifications(JSON.parse(JSON.stringify(userNotifications)));
+                await markNotificationsAsRead(user.uid);
+                setPageLoading(false);
+            };
+            fetchAndMark();
+        }
+    }, [user]);
+
+    if (loading || pageLoading || !user) {
+        return (
+            <div className="flex min-h-screen w-full flex-col">
+                <Header />
+                <main className="flex-1 bg-muted/40 p-4 md:p-8">
+                     <div className="container px-4 md:px-6">
+                        <Skeleton className="h-12 w-1/2 mb-4" />
+                        <Skeleton className="h-8 w-3/4 mb-8" />
+                        <div className="space-y-4">
+                            <Skeleton className="h-20 w-full rounded-lg" />
+                            <Skeleton className="h-20 w-full rounded-lg" />
+                            <Skeleton className="h-20 w-full rounded-lg" />
+                        </div>
+                     </div>
+                </main>
+            </div>
+        )
     }
-
-    const notifications = await getNotifications(user.uid);
-    const serializableNotifications = JSON.parse(JSON.stringify(notifications));
 
     return (
         <div className="flex min-h-screen w-full flex-col">
@@ -29,7 +71,7 @@ export default async function NotificationsPage() {
                 </section>
                 <section className="w-full pb-12 md:pb-24">
                     <div className="container mx-auto px-4 md:px-6">
-                       <NotificationsClient initialNotifications={serializableNotifications} />
+                       <NotificationsClient initialNotifications={notifications} />
                     </div>
                 </section>
             </main>

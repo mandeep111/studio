@@ -1,3 +1,4 @@
+
 import {
   addDoc,
   arrayRemove,
@@ -400,6 +401,12 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
 
         const data = docSnap.data();
         creatorId = data.creator.userId;
+
+        if (creatorId === userId) {
+            // This server-side check prevents self-upvoting even if the client-side check fails.
+            throw new Error("You cannot upvote your own content.");
+        }
+
         isAlreadyUpvoted = (data.upvotedBy as string[]).includes(userId);
 
         const creatorRef = doc(db, "users", creatorId!);
@@ -413,7 +420,7 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
             upvotedBy: isAlreadyUpvoted ? arrayRemove(userId) : arrayUnion(userId)
         });
 
-        if (pointChange !== 0 && creatorId !== userId) {
+        if (pointChange !== 0) {
             transaction.update(creatorRef, { points: increment(pointChange) });
         }
     });
@@ -536,6 +543,22 @@ export async function getNotifications(userId: string): Promise<Notification[]> 
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
 }
 
+export async function markNotificationsAsRead(userId: string) {
+    const notificationsRef = collection(db, "notifications");
+    const q = query(notificationsRef, where("userId", "==", userId), where("read", "==", false));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        return;
+    }
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.update(doc.ref, { read: true });
+    });
+
+    await batch.commit();
+}
 
 // --- Leaderboard & Admin ---
 export async function getLeaderboardData(): Promise<UserProfile[]> {

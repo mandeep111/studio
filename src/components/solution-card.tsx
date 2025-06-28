@@ -1,3 +1,4 @@
+
 import type { Solution } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
@@ -14,6 +15,7 @@ interface SolutionCardProps {
 export default function SolutionCard({ solution, onUpvote }: SolutionCardProps) {
   const { user } = useAuth();
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
+  const isCreator = user ? user.uid === solution.creator.userId : false;
   
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
@@ -35,7 +37,7 @@ export default function SolutionCard({ solution, onUpvote }: SolutionCardProps) 
             variant={isUpvoted ? "default" : "outline"} 
             size="sm"
             onClick={() => onUpvote(solution.id)}
-            disabled={!user}
+            disabled={!user || isCreator}
             className="flex items-center gap-1 px-2 h-8"
         >
             <ThumbsUp className="h-4 w-4" />

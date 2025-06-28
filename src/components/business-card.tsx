@@ -1,3 +1,4 @@
+
 import type { Business } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
@@ -15,6 +16,7 @@ interface BusinessCardProps {
 export default function BusinessCard({ business, onUpvote }: BusinessCardProps) {
   const { user } = useAuth();
   const isUpvoted = user ? business.upvotedBy.includes(user.uid) : false;
+  const isCreator = user ? user.uid === business.creator.userId : false;
 
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
@@ -53,7 +55,7 @@ export default function BusinessCard({ business, onUpvote }: BusinessCardProps) 
                 variant={isUpvoted ? "default" : "outline"} 
                 size="sm"
                 onClick={() => onUpvote(business.id)}
-                disabled={!user}
+                disabled={!user || isCreator}
                 className="flex items-center gap-1 px-2 h-8"
             >
                 <ThumbsUp className="h-4 w-4" />

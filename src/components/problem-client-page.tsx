@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -87,9 +88,10 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
     }
   };
 
+  const isProblemCreator = user?.uid === problem.creator.userId;
   const isProblemUpvoted = user ? problem.upvotedBy.includes(user.uid) : false;
   const hasUserSubmittedSolution = solutions.some(s => s.creator.userId === user?.uid);
-  const isProblemCreator = user?.uid === problem.creator.userId;
+  const canSubmitSolution = userProfile && (userProfile.role === 'User' || userProfile.role === 'Admin') && !isProblemCreator && !hasUserSubmittedSolution;
 
   return (
     <>
@@ -141,9 +143,10 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
         <CardFooter className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-6 text-muted-foreground">
             <button
-              className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+              className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none data-[upvoted=true]:bg-primary data-[upvoted=true]:text-primary-foreground data-[upvoted=true]:border-primary"
               onClick={handleProblemUpvote}
-              disabled={!user || isProblemUpvoted}
+              disabled={!user || isProblemCreator}
+              data-upvoted={isProblemUpvoted}
             >
               <ThumbsUp className="h-5 w-5" />
               <span>{problem.upvotes.toLocaleString()} Upvotes</span>
@@ -177,7 +180,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
 
       <Separator className="my-8" />
       
-      {(userProfile?.role === 'User' || userProfile?.role === "Admin") && !isProblemCreator && !hasUserSubmittedSolution && (
+      {canSubmitSolution && (
         <section className="mt-8">
             <h2 className="text-2xl font-bold mb-4">Propose Your Solution</h2>
             <CreateSolutionForm problemId={problem.id} problemTitle={problem.title} onSolutionCreated={fetchProblemAndSolutions} />

@@ -1,3 +1,4 @@
+
 import type { Problem } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
@@ -15,6 +16,7 @@ interface ProblemCardProps {
 export default function ProblemCard({ problem, onUpvote }: ProblemCardProps) {
   const { user } = useAuth();
   const isUpvoted = user ? problem.upvotedBy.includes(user.uid) : false;
+  const isCreator = user ? user.uid === problem.creator.userId : false;
 
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
@@ -46,7 +48,7 @@ export default function ProblemCard({ problem, onUpvote }: ProblemCardProps) {
                 variant={isUpvoted ? "default" : "outline"} 
                 size="sm"
                 onClick={() => onUpvote(problem.id)}
-                disabled={!user}
+                disabled={!user || isCreator}
                 className="flex items-center gap-1 px-2 h-8"
             >
                 <ThumbsUp className="h-4 w-4" />

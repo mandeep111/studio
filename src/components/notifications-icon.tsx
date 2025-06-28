@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Bell } from "lucide-react";
@@ -20,7 +21,7 @@ export default function NotificationsIcon({ userId }: { userId: string }) {
     }, [userId]);
 
     return (
-        <Button variant="ghost" size="icon" onClick={() => router.push('/notifications')}>
+        <Button variant="ghost" size="icon" onClick={() => router.push('/notifications')} className="relative">
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">

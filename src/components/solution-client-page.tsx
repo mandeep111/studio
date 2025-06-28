@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -27,18 +28,6 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
   const handleUpvote = async () => {
     if (!user || !solution) return;
     
-    const originalSolution = { ...solution };
-    const isCurrentlyUpvoted = originalSolution.upvotedBy.includes(user.uid);
-    
-    setSolution(prev => {
-        if (!prev) return prev;
-        return {
-            ...prev,
-            upvotes: isCurrentlyUpvoted ? prev.upvotes - 1 : prev.upvotes + 1,
-            upvotedBy: isCurrentlyUpvoted ? prev.upvotedBy.filter(id => id !== user.uid) : [...prev.upvotedBy, user.uid]
-        }
-    });
-
     try {
         await upvoteSolution(solution.id, user.uid);
         const updatedSolution = await getSolution(solution.id);
@@ -46,7 +35,6 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
           setSolution(updatedSolution);
         }
     } catch(e) {
-        setSolution(originalSolution);
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
     }
   };
@@ -54,6 +42,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
   if (!solution) return null;
 
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
+  const isCreator = user ? user.uid === solution.creator.userId : false;
 
   return (
     <>
@@ -81,7 +70,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
           <p className="text-lg leading-relaxed">{solution.description}</p>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant={isUpvoted ? "default" : "outline"} size="sm" onClick={handleUpvote} disabled={!user}>
+          <Button variant={isUpvoted ? "default" : "outline"} size="sm" onClick={handleUpvote} disabled={!user || isCreator}>
             <ThumbsUp className="h-5 w-5 mr-2" />
             <span>{solution.upvotes.toLocaleString()} Upvotes</span>
           </Button>

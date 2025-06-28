@@ -1,3 +1,4 @@
+
 import type { Idea } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
@@ -14,6 +15,7 @@ interface IdeaCardProps {
 export default function IdeaCard({ idea, onUpvote }: IdeaCardProps) {
   const { user } = useAuth();
   const isUpvoted = user ? idea.upvotedBy.includes(user.uid) : false;
+  const isCreator = user ? user.uid === idea.creator.userId : false;
   
   return (
     <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
@@ -38,7 +40,7 @@ export default function IdeaCard({ idea, onUpvote }: IdeaCardProps) {
         </div>
       </CardContent>
       <CardFooter className="flex justify-between bg-muted/50 p-4">
-        <Button variant={isUpvoted ? 'default' : 'outline'} size="sm" onClick={() => onUpvote(idea.id)} disabled={!user}>
+        <Button variant={isUpvoted ? 'default' : 'outline'} size="sm" onClick={() => onUpvote(idea.id)} disabled={!user || isCreator}>
           <ThumbsUp className="h-4 w-4 mr-2" />
           <span>{idea.upvotes.toLocaleString()}</span>
         </Button>
