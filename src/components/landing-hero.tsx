@@ -1,5 +1,4 @@
-
-import { BrainCircuit, Lightbulb, Sparkles, Users } from "lucide-react";
+import { BrainCircuit, Lightbulb, Sparkles, Users, Briefcase } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 
@@ -10,9 +9,14 @@ const features = [
     description: "Submit real-world problems and propose innovative solutions, creating a public library of challenges and innovations.",
   },
   {
+    icon: <Briefcase className="h-8 w-8 text-primary" />,
+    title: "Running Businesses",
+    description: "List your established business to find strategic investors and secure funding for your next stage of growth.",
+  },
+  {
     icon: <Users className="h-8 w-8 text-primary" />,
     title: "Investor Hub",
-    description: "Investors gain access to a curated list of problems and solutions, with tools to identify promising new ventures.",
+    description: "Investors gain access to a curated list of problems, solutions, and running businesses, with tools to identify promising new ventures.",
   },
   {
     icon: <Sparkles className="h-8 w-8 text-primary" />,
@@ -64,7 +68,7 @@ export default function LandingHero() {
               </p>
             </div>
           </div>
-          <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:max-w-none mt-12">
+          <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-4 lg:max-w-none mt-12">
             {features.map((feature) => (
               <div key={feature.title} className="grid gap-4 text-center">
                 <div className="flex justify-center items-center">{feature.icon}</div>
