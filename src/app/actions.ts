@@ -1,13 +1,14 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getAds, getPaymentSettings, updatePaymentSettings } from "@/lib/firestore";
-import type { UserProfile, Ad, PaymentSettings } from "@/lib/types";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage } from "@/lib/firestore";
+import type { UserProfile, Ad, PaymentSettings, Deal } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import type Stripe from "stripe";
-import { auth } from "./lib/firebase/config";
+import { db } from "@/lib/firebase/config";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 const SuggestPairingsSchema = z.object({
   investorProfile: z.string().min(10, { message: "Investor profile must be at least 10 characters long." }),
@@ -284,6 +285,52 @@ export async function postMessageAction(formData: FormData) {
         console.error("Failed to send message:", error);
     }
 }
+
+export async function markDealAsCompleteAction(formData: FormData) {
+    const dealId = formData.get('dealId') as string;
+    const userId = formData.get('userId') as string;
+    const userName = formData.get('userName') as string;
+
+    try {
+        const dealRef = doc(db, 'deals', dealId);
+        const dealSnap = await getDoc(dealRef);
+        if (!dealSnap.exists()) {
+            return { success: false, message: 'Deal not found.' };
+        }
+
+        const deal = dealSnap.data() as Deal;
+        if (deal.completionVotes.includes(userId)) {
+             return { success: true, message: 'You have already voted.' };
+        }
+
+        const updatedVotes = [...deal.completionVotes, userId];
+        const allVoted = updatedVotes.length === deal.participantIds.length;
+
+        const updates: Partial<Deal> = {
+            completionVotes: updatedVotes,
+        };
+
+        if (allVoted) {
+            updates.status = 'completed';
+        }
+
+        await updateDoc(dealRef, updates);
+        
+        const message = allVoted
+            ? `${userName} cast the final vote. This deal is now complete!`
+            : `${userName} has voted to mark this deal as complete.`;
+        
+        await addSystemMessage(dealId, message);
+
+        revalidatePath(`/deals/${dealId}`);
+        return { success: true, message: 'Your vote has been recorded.' };
+
+    } catch (error) {
+        console.error("Failed to mark deal as complete:", error);
+        return { success: false, message: 'Failed to record your vote.' };
+    }
+}
+
 
 export async function approveItemAction(formData: FormData) {
     const type = formData.get('type') as 'problem' | 'solution' | 'business' | 'idea';

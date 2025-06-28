@@ -14,6 +14,7 @@ export interface UserProfile {
   expertise: string;
   points: number;
   isPremium: boolean;
+  dealsCount?: number;
   unreadDealMessages?: { [dealId: string]: number };
 }
 
@@ -73,6 +74,8 @@ export interface Deal {
     type: 'problem' | 'idea' | 'business';
     createdAt: SerializableTimestamp;
     participantIds: string[];
+    status: 'active' | 'completed';
+    completionVotes: string[];
 }
 
 export interface Message {

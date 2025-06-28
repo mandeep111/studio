@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business, Deal } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness, getDealsForUser } from "@/lib/firestore";
@@ -63,7 +63,7 @@ export default function UserProfileClient({
             getIdeasByUser(userProfile.uid),
             getBusinessesByUser(userProfile.uid),
             isOwnProfile ? getUpvotedItems(userProfile.uid) : Promise.resolve([]),
-            isOwnProfile ? getDealsForUser(userProfile.uid) : Promise.resolve([])
+            getDealsForUser(userProfile.uid), // Fetch deals for any profile being viewed
         ]);
         setProblems(problemsData);
         setSolutions(solutionsData);
@@ -150,6 +150,8 @@ export default function UserProfileClient({
         router.push('/login');
     };
     
+    const activeDeals = useMemo(() => deals.filter(d => d.status === 'active'), [deals]);
+
     return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-1">
@@ -169,9 +171,15 @@ export default function UserProfileClient({
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Trophy className="h-5 w-5 text-primary" /> <span>Role: {userProfile.role}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <Gem className="h-5 w-5 text-yellow-500" /> <span>{userProfile.points.toLocaleString()} Points</span>
-                        </div>
+                         {userProfile.role === 'Investor' ? (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Handshake className="h-5 w-5 text-primary" /> <span>{userProfile.dealsCount || 0} Deals Completed</span>
+                            </div>
+                         ) : (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <Gem className="h-5 w-5 text-yellow-500" /> <span>{userProfile.points.toLocaleString()} Points</span>
+                            </div>
+                         )}
                     </CardContent>
                     {isOwnProfile && (
                         <CardFooter>
@@ -186,7 +194,7 @@ export default function UserProfileClient({
 
             <div className="lg:col-span-2">
                 <Tabs defaultValue="problems">
-                    <TabsList className={cn("grid w-full", isOwnProfile ? "grid-cols-3 md:grid-cols-6" : "grid-cols-2 md:grid-cols-4")}>
+                    <TabsList className={cn("grid w-full", (isOwnProfile || userProfile.role === 'Investor') ? "grid-cols-3 md:grid-cols-6" : "grid-cols-2 md:grid-cols-4")}>
                         <TabsTrigger value="problems">
                             <BrainCircuit className="h-4 w-4 md:mr-2" />
                             <span className="hidden md:inline">Problems</span>
@@ -207,11 +215,11 @@ export default function UserProfileClient({
                              <span className="hidden md:inline">Ideas</span>
                              <span className="md:hidden">({ideas.length})</span>
                         </TabsTrigger>
-                        {isOwnProfile && (
+                        {(isOwnProfile || userProfile.role === 'Investor') && (
                              <TabsTrigger value="deals">
                                 <Handshake className="h-4 w-4 md:mr-2" />
-                                <span className="hidden md:inline">My Deals</span>
-                                <span className="md:hidden">({deals.length})</span>
+                                <span className="hidden md:inline">Deals</span>
+                                <span className="md:hidden">({activeDeals.length})</span>
                             </TabsTrigger>
                         )}
                         {isOwnProfile && (
@@ -234,7 +242,7 @@ export default function UserProfileClient({
                                 {problems.length > 0 ? (
                                     <div className="space-y-4">
                                         {problems.map(problem => (
-                                            <ProblemCard key={problem.id} problem={problem} onUpvote={handleProblemUpvote} />
+                                            <ProblemCard key={problem.id} problem={problem} onUpvote={handleProblemUpvote} isUpvoting={false} />
                                         ))}
                                     </div>
                                 ) : (
@@ -252,7 +260,7 @@ export default function UserProfileClient({
                                 {solutions.length > 0 ? (
                                     <div className="space-y-4">
                                         {solutions.map(solution => (
-                                            <SolutionCard key={solution.id} solution={solution} onUpvote={handleSolutionUpvote} />
+                                            <SolutionCard key={solution.id} solution={solution} onUpvote={handleSolutionUpvote} isUpvoting={false} />
                                         ))}
                                     </div>
                                 ) : (
@@ -273,7 +281,7 @@ export default function UserProfileClient({
                                 {businesses.length > 0 ? (
                                     <div className="space-y-4">
                                         {businesses.map(business => (
-                                            <BusinessCard key={business.id} business={business} onUpvote={handleBusinessUpvote} />
+                                            <BusinessCard key={business.id} business={business} onUpvote={handleBusinessUpvote} isUpvoting={false} />
                                         ))}
                                     </div>
                                 ) : (
@@ -294,7 +302,7 @@ export default function UserProfileClient({
                                 {ideas.length > 0 ? (
                                     <div className="space-y-4">
                                         {ideas.map(idea => (
-                                            <IdeaCard key={idea.id} idea={idea} onUpvote={handleIdeaUpvote} />
+                                            <IdeaCard key={idea.id} idea={idea} onUpvote={handleIdeaUpvote} isUpvoting={false} />
                                         ))}
                                     </div>
                                 ) : (
@@ -303,17 +311,17 @@ export default function UserProfileClient({
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    {isOwnProfile && (
+                    {(isOwnProfile || userProfile.role === 'Investor') && (
                         <TabsContent value="deals" className="mt-4">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>My Deals</CardTitle>
-                                    <CardDescription>All deals you are participating in.</CardDescription>
+                                    <CardTitle>Active Deals</CardTitle>
+                                    <CardDescription>All deals this user is participating in.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {deals.length > 0 ? (
+                                    {activeDeals.length > 0 ? (
                                         <div className="space-y-4">
-                                            {deals.map(deal => (
+                                            {activeDeals.map(deal => (
                                                 <Link href={`/deals/${deal.id}`} key={deal.id} className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors">
                                                     <div className="flex justify-between items-center">
                                                         <div>
@@ -331,7 +339,7 @@ export default function UserProfileClient({
                                             ))}
                                         </div>
                                     ) : (
-                                        <p className="text-muted-foreground text-center py-8">You are not part of any deals yet.</p>
+                                        <p className="text-muted-foreground text-center py-8">This user has no active deals.</p>
                                     )}
                                 </CardContent>
                             </Card>

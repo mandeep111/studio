@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import type { Message } from '@/lib/types';
+import type { Message, UserProfile } from '@/lib/types';
 import { postMessageAction } from '@/app/actions';
 import { db } from '@/lib/firebase/config';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { Send } from 'lucide-react';
+import { Send, CheckCircle, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { cn, getDateFromTimestamp } from '@/lib/utils';
 import { ScrollArea } from './ui/scroll-area';
@@ -18,9 +18,10 @@ import { markDealAsRead } from '@/lib/firestore';
 interface ChatInterfaceProps {
     dealId: string;
     initialMessages: Message[];
+    isCompleted: boolean;
 }
 
-export default function ChatInterface({ dealId, initialMessages }: ChatInterfaceProps) {
+export default function ChatInterface({ dealId, initialMessages, isCompleted }: ChatInterfaceProps) {
   const { userProfile } = useAuth();
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [newMessage, setNewMessage] = useState('');
@@ -67,12 +68,27 @@ export default function ChatInterface({ dealId, initialMessages }: ChatInterface
     setNewMessage('');
     await postMessageAction(formData);
   };
+  
+  const isChatDisabled = isCompleted || !userProfile;
 
   return (
     <div className="flex-1 flex flex-col bg-muted/20 rounded-lg border">
         <ScrollArea className="flex-grow p-4 space-y-4" viewportRef={viewportRef}>
             {messages.map((msg, index) => {
                 const isSender = msg.sender.userId === userProfile?.uid;
+                const isSystem = msg.sender.userId === 'system';
+
+                if (isSystem) {
+                    return (
+                        <div key={msg.id} className="flex justify-center items-center my-4">
+                            <div className="text-xs text-muted-foreground bg-background border rounded-full px-3 py-1 flex items-center gap-2">
+                                <Info className="h-3 w-3" />
+                                {msg.text}
+                            </div>
+                        </div>
+                    )
+                }
+
                 const showAvatar = !isSender && (index === messages.length - 1 || messages[index+1].sender.userId !== msg.sender.userId);
                 
                 return (
@@ -110,19 +126,26 @@ export default function ChatInterface({ dealId, initialMessages }: ChatInterface
             })}
         </ScrollArea>
         <div className="p-2 border-t bg-background rounded-b-lg">
-            <form onSubmit={handleSendMessage} className="flex gap-2">
-                <Input 
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    autoComplete="off"
-                    disabled={!userProfile}
-                />
-                <Button type="submit" size="icon" disabled={!newMessage.trim() || !userProfile}>
-                    <Send className="h-4 w-4" />
-                    <span className="sr-only">Send</span>
-                </Button>
-            </form>
+            {isCompleted ? (
+                <div className="text-center text-sm text-muted-foreground p-2 flex items-center justify-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-primary" />
+                    This deal has been marked as complete.
+                </div>
+            ) : (
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <Input 
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Type a message..."
+                        autoComplete="off"
+                        disabled={isChatDisabled}
+                    />
+                    <Button type="submit" size="icon" disabled={!newMessage.trim() || isChatDisabled}>
+                        <Send className="h-4 w-4" />
+                        <span className="sr-only">Send</span>
+                    </Button>
+                </form>
+            )}
         </div>
     </div>
   );

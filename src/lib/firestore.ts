@@ -246,13 +246,13 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
 }
 
 const INVESTOR_PAGE_SIZE = 12;
-export async function getPaginatedInvestors(options: { sortBy?: 'points' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
+export async function getPaginatedInvestors(options: { sortBy?: 'points' | 'name' | 'dealsCount', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
     const { sortBy = 'points', lastVisible } = options;
 
     const qConstraints = [
         where("role", "==", "Investor"),
-        orderBy(sortBy, sortBy === 'points' ? "desc" : "asc"),
+        orderBy(sortBy, sortBy === 'name' ? "asc" : "desc"),
         limit(INVESTOR_PAGE_SIZE)
     ];
 
@@ -651,6 +651,8 @@ export async function createDeal(
             type: itemType,
             createdAt: serverTimestamp(),
             participantIds: Array.from(participantsMap.keys()),
+            status: 'active',
+            completionVotes: [],
         };
 
         if (solutionCreator) {
@@ -661,12 +663,15 @@ export async function createDeal(
 
         const itemRef = doc(db, `${itemType}s`, itemId);
         transaction.update(itemRef, { interestedInvestorsCount: increment(1) });
+        
+        // Increment investor's deal count
+        const investorRef = doc(db, "users", investorProfile.uid);
+        transaction.update(investorRef, { dealsCount: increment(1) });
     });
     
     // Notifications and Payment Logging
     const dealLink = `/deals/${newDealRef.id}`;
     
-    // Send one notification to each creator involved (but not the investor)
     const dealDoc = await getDoc(newDealRef);
     if (!dealDoc.exists()) throw new Error("Could not create deal.");
     const dealData = dealDoc.data() as Deal;
@@ -723,7 +728,6 @@ export async function getMessages(dealId: string): Promise<Message[]> {
 export async function sendMessage(dealId: string, text: string, sender: UserProfile) {
     const batch = writeBatch(db);
 
-    // 1. Add the new message
     const messagesCol = collection(db, `deals/${dealId}/messages`);
     batch.set(doc(messagesCol), {
         dealId,
@@ -737,7 +741,6 @@ export async function sendMessage(dealId: string, text: string, sender: UserProf
         createdAt: serverTimestamp(),
     });
 
-    // 2. Increment unread count for other participants
     const dealRef = doc(db, "deals", dealId);
     const dealSnap = await getDoc(dealRef);
     if (dealSnap.exists()) {
@@ -756,13 +759,26 @@ export async function sendMessage(dealId: string, text: string, sender: UserProf
     await batch.commit();
 }
 
+export async function addSystemMessage(dealId: string, text: string) {
+    const messagesCol = collection(db, `deals/${dealId}/messages`);
+    await addDoc(messagesCol, {
+        dealId,
+        text,
+        sender: {
+            userId: 'system',
+            name: 'System',
+            avatarUrl: '',
+            expertise: 'System Message'
+        },
+        createdAt: serverTimestamp(),
+    });
+}
+
 
 export async function markDealAsRead(userId: string, dealId: string) {
     const userRef = doc(db, "users", userId);
     const fieldPath = `unreadDealMessages.${dealId}`;
     
-    // Using deleteField to remove the key if the count is > 0
-    // This is more efficient than setting it to 0.
     const userSnap = await getDoc(userRef);
     if (userSnap.exists() && userSnap.data().unreadDealMessages?.[dealId]) {
         await updateDoc(userRef, {
