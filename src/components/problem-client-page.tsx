@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users, Info } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users, Info, Loader2 } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
@@ -18,7 +18,6 @@ import { SubmitProblemDialog } from "@/components/submit-problem-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { startDealAction, findExistingDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
-import { Loader2 } from "lucide-react";
 import AdDisplay from "./ad-display";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -41,6 +40,17 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [dealConfig, setDealConfig] = useState<{ solution?: Solution } | null>(null);
   const [isDealLoading, setIsDealLoading] = useState(false);
+  const [existingDealId, setExistingDealId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (userProfile && (userProfile.role === 'Investor' || userProfile.role === 'Admin')) {
+        findExistingDealAction(initialProblem.id, userProfile.uid).then(result => {
+            if (result.dealId) {
+                setExistingDealId(result.dealId);
+            }
+        });
+    }
+  }, [userProfile, initialProblem.id]);
 
   useEffect(() => {
     const dealStatus = searchParams.get('deal');
@@ -297,7 +307,14 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
             </div>
           </div>
           {canStartDeal && !isProblemCreator && (
-            solutions.length > 0 ? (
+            existingDealId ? (
+                <Button asChild>
+                    <Link href={`/deals/${existingDealId}`}>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        View Deal
+                    </Link>
+                </Button>
+            ) : solutions.length > 0 ? (
                  <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
@@ -337,6 +354,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
                 onStartDeal={handleStartDealClick} 
                 isPaymentEnabled={isPaymentEnabled}
                 isUpvoting={false}
+                existingDealId={existingDealId}
               />
             ))
           ) : (

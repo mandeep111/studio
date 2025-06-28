@@ -3,7 +3,7 @@ import type { Solution } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { ThumbsUp, Coffee, Loader2 } from "lucide-react";
+import { ThumbsUp, Coffee, Loader2, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -13,9 +13,10 @@ interface SolutionCardProps {
   onStartDeal?: (solution: Solution) => void;
   isPaymentEnabled?: boolean;
   isUpvoting: boolean;
+  existingDealId?: string | null;
 }
 
-export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled, isUpvoting }: SolutionCardProps) {
+export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled, isUpvoting, existingDealId }: SolutionCardProps) {
   const { user, userProfile } = useAuth();
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
@@ -52,10 +53,19 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymen
                 <Button size="sm" variant="outline" disabled={isUpvoting}>View Details</Button>
             </Link>
             {isInvestor && !isCreator && onStartDeal && (
-                 <Button size="sm" onClick={() => onStartDeal(solution)} disabled={isUpvoting}>
-                    <Coffee className="mr-2 h-4 w-4" />
-                    {isPaymentEnabled ? "Start Deal" : "Start (Free)"}
-                </Button>
+                existingDealId ? (
+                    <Button asChild size="sm">
+                        <Link href={`/deals/${existingDealId}`}>
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            View Deal
+                        </Link>
+                    </Button>
+                ) : (
+                    <Button size="sm" onClick={() => onStartDeal(solution)} disabled={isUpvoting}>
+                        <Coffee className="mr-2 h-4 w-4" />
+                        {isPaymentEnabled ? "Start Deal" : "Start (Free)"}
+                    </Button>
+                )
             )}
         </div>
       </CardFooter>

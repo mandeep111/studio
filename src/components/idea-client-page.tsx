@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle } from "lucide-react";
+import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
@@ -31,6 +31,17 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
   const [idea, setIdea] = useState<Idea>(initialIdea);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [isDealLoading, setIsDealLoading] = useState(false);
+  const [existingDealId, setExistingDealId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (userProfile && (userProfile.role === 'Investor' || userProfile.role === 'Admin')) {
+        findExistingDealAction(initialIdea.id, userProfile.uid).then(result => {
+            if (result.dealId) {
+                setExistingDealId(result.dealId);
+            }
+        });
+    }
+  }, [userProfile, initialIdea.id]);
 
   useEffect(() => {
     const dealStatus = searchParams.get('deal');
@@ -246,10 +257,19 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
                 </div>
             </div>
            {(userProfile?.role === "Investor" || userProfile?.role === "Admin") && !isCreator && (
-            <Button onClick={handleStartDealClick} disabled={isDealLoading}>
-              {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
-              {isPaymentEnabled ? "Start a Deal" : "Start Deal (Free)"}
-            </Button>
+            existingDealId ? (
+                 <Button asChild>
+                    <Link href={`/deals/${existingDealId}`}>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        View Deal
+                    </Link>
+                </Button>
+            ) : (
+                <Button onClick={handleStartDealClick} disabled={isDealLoading}>
+                    {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
+                    {isPaymentEnabled ? "Start a Deal" : "Start Deal (Free)"}
+                </Button>
+            )
           )}
         </CardFooter>
       </Card>

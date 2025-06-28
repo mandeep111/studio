@@ -248,7 +248,7 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
 const INVESTOR_PAGE_SIZE = 12;
 export async function getPaginatedInvestors(options: { sortBy?: 'points' | 'name' | 'dealsCount', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
-    const { sortBy = 'points', lastVisible } = options;
+    const { sortBy = 'dealsCount', lastVisible } = options;
 
     const qConstraints = [
         where("role", "==", "Investor"),
@@ -266,6 +266,43 @@ export async function getPaginatedInvestors(options: { sortBy?: 'points' | 'name
     const newLastVisible = snapshot.docs.length === INVESTOR_PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
     
     return { users, lastVisible: newLastVisible };
+}
+
+export async function getContentByCreators(creatorIds: string[]): Promise<Array<Problem | Solution>> {
+    if (creatorIds.length === 0) return [];
+
+    // Firestore 'in' query supports up to 30 elements. Chunk if needed.
+    const CHUNK_SIZE = 30;
+    const chunks = [];
+    for (let i = 0; i < creatorIds.length; i += CHUNK_SIZE) {
+        chunks.push(creatorIds.slice(i, i + CHUNK_SIZE));
+    }
+    
+    const allContent: Array<(Problem & {type: 'problem'}) | (Solution & {type: 'solution'})> = [];
+
+    for (const chunk of chunks) {
+        const problemsQuery = query(collection(db, "problems"), where("creator.userId", "in", chunk));
+        const solutionsQuery = query(collection(db, "solutions"), where("creator.userId", "in", chunk));
+
+        const [problemsSnap, solutionsSnap] = await Promise.all([
+            getDocs(problemsQuery),
+            getDocs(solutionsQuery)
+        ]);
+
+        const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, ...doc.data() as Problem, id: doc.id }));
+        const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, ...doc.data() as Solution, id: doc.id }));
+
+        allContent.push(...problems, ...solutions);
+    }
+    
+    // Sort by creation date descending
+    allContent.sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+    });
+
+    return allContent;
 }
 
 

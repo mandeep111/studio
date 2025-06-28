@@ -3,11 +3,11 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business, Deal } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness, getDealsForUser } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness, getDealsForUser, getContentByCreators } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
@@ -24,6 +24,7 @@ import { SubmitBusinessDialog } from "./submit-business-dialog";
 import Link from "next/link";
 import { format } from "date-fns";
 import { Badge } from "./ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
 
 interface UserProfileClientProps {
     userProfile: UserProfile;
@@ -34,6 +35,30 @@ interface UserProfileClientProps {
     initialUpvotedItems: UpvotedItem[];
     initialDeals: Deal[];
 }
+
+const DealListItem = ({ deal }: { deal: Deal }) => (
+    <Link href={`/deals/${deal.id}`} key={deal.id} className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+        <div className="flex justify-between items-center">
+            <div>
+                <p className="font-semibold">{deal.title}</p>
+                <p className="text-sm text-muted-foreground">
+                    Created on {format(getDateFromTimestamp(deal.createdAt), 'PPP')}
+                </p>
+            </div>
+            {deal.status === 'active' && (
+                <Button variant="outline" size="sm" asChild>
+                    <span>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Open Chat
+                    </span>
+                </Button>
+            )}
+            {deal.status === 'completed' && (
+                <Badge variant="secondary">Completed</Badge>
+            )}
+        </div>
+    </Link>
+);
 
 export default function UserProfileClient({ 
     userProfile, 
@@ -53,6 +78,8 @@ export default function UserProfileClient({
     const [businesses, setBusinesses] = useState<Business[]>(initialBusinesses);
     const [upvotedItems, setUpvotedItems] = useState<UpvotedItem[]>(initialUpvotedItems);
     const [deals, setDeals] = useState<Deal[]>(initialDeals);
+    const [workedWithContent, setWorkedWithContent] = useState<(Problem | Solution)[]>([]);
+
     
     const isOwnProfile = user?.uid === userProfile.uid;
 
@@ -63,7 +90,7 @@ export default function UserProfileClient({
             getIdeasByUser(userProfile.uid),
             getBusinessesByUser(userProfile.uid),
             isOwnProfile ? getUpvotedItems(userProfile.uid) : Promise.resolve([]),
-            getDealsForUser(userProfile.uid), // Fetch deals for any profile being viewed
+            getDealsForUser(userProfile.uid),
         ]);
         setProblems(problemsData);
         setSolutions(solutionsData);
@@ -71,7 +98,24 @@ export default function UserProfileClient({
         setBusinesses(businessesData);
         setUpvotedItems(upvotedData as UpvotedItem[]);
         setDeals(dealsData);
-    }, [userProfile.uid, isOwnProfile]);
+
+        if (userProfile.role === 'Investor') {
+            const creatorIds = new Set<string>();
+            dealsData.forEach(deal => {
+                creatorIds.add(deal.primaryCreator.userId);
+                if (deal.solutionCreator) {
+                    creatorIds.add(deal.solutionCreator.userId);
+                }
+            });
+            creatorIds.delete(userProfile.uid); // Don't fetch investor's own content
+
+            if (creatorIds.size > 0) {
+                const content = await getContentByCreators(Array.from(creatorIds));
+                setWorkedWithContent(content);
+            }
+        }
+
+    }, [userProfile.uid, isOwnProfile, userProfile.role]);
     
     useEffect(() => {
         fetchData();
@@ -124,7 +168,7 @@ export default function UserProfileClient({
             await upvoteIdea(ideaId, user.uid);
         } catch (e) {
             fetchData(); // revert
-            toast({ variant: "destructive", title: "Error", description: "Could not record upvote." });
+            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
 
@@ -151,6 +195,7 @@ export default function UserProfileClient({
     };
     
     const activeDeals = useMemo(() => deals.filter(d => d.status === 'active'), [deals]);
+    const completedDeals = useMemo(() => deals.filter(d => d.status === 'completed'), [deals]);
 
     return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -194,7 +239,7 @@ export default function UserProfileClient({
 
             <div className="lg:col-span-2">
                 <Tabs defaultValue="problems">
-                    <TabsList className={cn("grid w-full", (isOwnProfile || userProfile.role === 'Investor') ? "grid-cols-3 md:grid-cols-6" : "grid-cols-2 md:grid-cols-4")}>
+                    <TabsList className={cn("grid w-full", (isOwnProfile || userProfile.role === 'Investor') ? "grid-cols-3 md:grid-cols-7" : "grid-cols-2 md:grid-cols-4")}>
                         <TabsTrigger value="problems">
                             <BrainCircuit className="h-4 w-4 md:mr-2" />
                             <span className="hidden md:inline">Problems</span>
@@ -215,11 +260,18 @@ export default function UserProfileClient({
                              <span className="hidden md:inline">Ideas</span>
                              <span className="md:hidden">({ideas.length})</span>
                         </TabsTrigger>
+                         {userProfile.role === 'Investor' && (
+                             <TabsTrigger value="worked-with">
+                                <Users className="h-4 w-4 md:mr-2" />
+                                <span className="hidden md:inline">Network</span>
+                                <span className="md:hidden">({workedWithContent.length})</span>
+                            </TabsTrigger>
+                        )}
                         {(isOwnProfile || userProfile.role === 'Investor') && (
                              <TabsTrigger value="deals">
                                 <Handshake className="h-4 w-4 md:mr-2" />
                                 <span className="hidden md:inline">Deals</span>
-                                <span className="md:hidden">({activeDeals.length})</span>
+                                 <span className="md:hidden">({deals.length})</span>
                             </TabsTrigger>
                         )}
                         {isOwnProfile && (
@@ -311,36 +363,67 @@ export default function UserProfileClient({
                             </CardContent>
                         </Card>
                     </TabsContent>
+                    {userProfile.role === 'Investor' && (
+                        <TabsContent value="worked-with" className="mt-4">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Network Content</CardTitle>
+                                    <CardDescription>Content from creators this investor has worked with.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {workedWithContent.length > 0 ? (
+                                        <div className="space-y-4">
+                                            {workedWithContent.map(item => {
+                                                if (item.type === 'problem') {
+                                                    return <ProblemCard key={item.id} problem={item} onUpvote={() => {}} isUpvoting={false} />;
+                                                }
+                                                if (item.type === 'solution') {
+                                                    return <SolutionCard key={item.id} solution={item} onUpvote={() => {}} isUpvoting={false} />;
+                                                }
+                                                return null;
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted-foreground text-center py-8">No content from this investor's network yet.</p>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    )}
                     {(isOwnProfile || userProfile.role === 'Investor') && (
                         <TabsContent value="deals" className="mt-4">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Active Deals</CardTitle>
+                                    <CardTitle>Deals</CardTitle>
                                     <CardDescription>All deals this user is participating in.</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    {activeDeals.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {activeDeals.map(deal => (
-                                                <Link href={`/deals/${deal.id}`} key={deal.id} className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                                                    <div className="flex justify-between items-center">
-                                                        <div>
-                                                            <p className="font-semibold">{deal.title}</p>
-                                                            <p className="text-sm text-muted-foreground">
-                                                                Created on {format(getDateFromTimestamp(deal.createdAt), 'PPP')}
-                                                            </p>
-                                                        </div>
-                                                        <Button variant="outline" size="sm">
-                                                            <MessageSquare className="mr-2 h-4 w-4" />
-                                                            Open Chat
-                                                        </Button>
+                                    <Accordion type="single" collapsible className="w-full" defaultValue="ongoing">
+                                        <AccordionItem value="ongoing">
+                                            <AccordionTrigger>Ongoing Deals ({activeDeals.length})</AccordionTrigger>
+                                            <AccordionContent className="pt-2">
+                                                {activeDeals.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {activeDeals.map(deal => <DealListItem key={deal.id} deal={deal} />)}
                                                     </div>
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <p className="text-muted-foreground text-center py-8">This user has no active deals.</p>
-                                    )}
+                                                ) : (
+                                                    <p className="text-muted-foreground text-center py-4">No ongoing deals.</p>
+                                                )}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                        <AccordionItem value="completed">
+                                            <AccordionTrigger>Completed Deals ({completedDeals.length})</AccordionTrigger>
+                                            <AccordionContent className="pt-2">
+                                                 {completedDeals.length > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {completedDeals.map(deal => <DealListItem key={deal.id} deal={deal} />)}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-muted-foreground text-center py-4">No completed deals.</p>
+                                                )}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Accordion>
                                 </CardContent>
                             </Card>
                         </TabsContent>

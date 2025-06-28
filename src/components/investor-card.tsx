@@ -30,7 +30,7 @@ export default function InvestorCard({ investor }: InvestorCardProps) {
       <CardContent className="flex-grow">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Handshake className="h-4 w-4 text-primary" />
-            <span>{(investor.dealsCount || 0).toLocaleString()} Deals Completed</span>
+            <span>{(investor.dealsCount || 0).toLocaleString()} Deals</span>
         </div>
       </CardContent>
       <CardFooter className="bg-muted/50 p-4">
