@@ -5,6 +5,8 @@ import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, ge
 import type { UserProfile } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { stripe } from "@/lib/stripe";
+import type Stripe from "stripe";
 
 const SuggestPairingsSchema = z.object({
   investorProfile: z.string().min(10, { message: "Investor profile must be at least 10 characters long." }),
@@ -48,7 +50,6 @@ export async function getAiPairings(
     
     const businessCreatorIds = new Set(businesses.map(b => b.creator.userId));
 
-    // Problem creators are users, including those who created businesses
     const problemCreators = allUsers
         .filter(u => u.role === 'User' || u.role === 'Admin' || businessCreatorIds.has(u.uid))
         .map(u => ({
@@ -96,62 +97,129 @@ export async function getAiPairings(
   }
 }
 
-export async function upgradeMembershipAction(formData: FormData) {
-    const userId = formData.get('userId') as string;
-    const plan = formData.get('plan') as 'creator' | 'investor';
-    const price = parseFloat(formData.get('price') as string);
-    const paymentFrequency = formData.get('paymentFrequency') as 'monthly' | 'lifetime';
-    const user = JSON.parse(formData.get('userProfile') as string) as UserProfile;
+export async function upgradeMembershipAction(
+    plan: 'creator' | 'investor',
+    paymentFrequency: 'monthly' | 'lifetime',
+    price: number,
+    userProfile: UserProfile
+) {
+    if (!userProfile) {
+        return { success: false, message: 'User not authenticated.' };
+    }
 
-    if (!userId || !plan || isNaN(price) || !paymentFrequency || !user) {
-        return { success: false, message: 'Invalid data provided.' };
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+        throw new Error('NEXT_PUBLIC_BASE_URL is not set.');
     }
 
     try {
-        await updateUserMembership(userId, plan);
+        const mode = paymentFrequency === 'monthly' ? 'subscription' : 'payment';
         
-        await logPayment({
-            userId,
-            userName: user.name,
-            userAvatarUrl: user.avatarUrl,
-            type: 'membership',
-            amount: price,
-            plan,
-            paymentFrequency,
+        const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{
+            price_data: {
+                currency: 'usd',
+                product_data: {
+                    name: `${plan} Membership (${paymentFrequency})`,
+                },
+                unit_amount: price * 100, // Amount in cents
+                recurring: mode === 'subscription' ? { interval: 'month' } : undefined,
+            },
+            quantity: 1,
+        }];
+
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items,
+            mode,
+            success_url: `${baseUrl}/membership?payment=success`,
+            cancel_url: `${baseUrl}/membership?payment=cancelled`,
+            metadata: {
+                type: 'membership',
+                userId: userProfile.uid,
+                userName: userProfile.name,
+                userAvatarUrl: userProfile.avatarUrl,
+                plan,
+                paymentFrequency,
+                amount: price,
+            },
         });
 
-        revalidatePath('/membership');
-        revalidatePath('/'); // Revalidate home to update header/user state
-        revalidatePath(`/users/${userId}`); // Revalidate profile page
-        return { success: true, message: `Successfully upgraded to ${plan}!`};
+        if (!session.url) {
+            return { success: false, message: "Could not create Stripe session." };
+        }
+
+        return { success: true, url: session.url };
     } catch (error) {
-        console.error("Failed to upgrade membership:", error);
-        return { success: false, message: "Could not upgrade your membership. Please try again."};
+        console.error("Failed to create Stripe session:", error);
+        return { success: false, message: "Could not connect to payment provider. Please try again."};
     }
 }
 
-export async function startDealAction(formData: FormData) {
-    const investorProfile = JSON.parse(formData.get('investorProfile') as string) as UserProfile;
-    const primaryCreatorId = formData.get('primaryCreatorId') as string;
-    const itemId = formData.get('itemId') as string;
-    const itemTitle = formData.get('itemTitle') as string;
-    const itemType = formData.get('itemType') as 'problem' | 'idea' | 'business';
-    const amount = parseFloat(formData.get('amount') as string);
-    const solutionCreatorId = formData.get('solutionCreatorId') as string | undefined;
 
+export async function startDealAction(
+    investorProfile: UserProfile,
+    primaryCreatorId: string,
+    itemId: string,
+    itemTitle: string,
+    itemType: 'problem' | 'idea' | 'business',
+    amount: number,
+    solutionCreatorId?: string
+) {
     if (isNaN(amount) || amount < 5) {
         return { success: false, message: "Invalid contribution amount." };
     }
 
+     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    if (!baseUrl) {
+        throw new Error('NEXT_PUBLIC_BASE_URL is not set.');
+    }
+
     try {
-        const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, amount, solutionCreatorId);
-        revalidatePath(`/deals/${dealId}`);
-        return { success: true, dealId };
+        const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{
+            price_data: {
+                currency: 'usd',
+                product_data: {
+                    name: `Facilitate Deal: ${itemTitle}`,
+                    description: 'A small contribution to start the conversation with the creator(s).'
+                },
+                unit_amount: amount * 100, // Amount in cents
+            },
+            quantity: 1,
+        }];
+
+        const metadata: Stripe.Metadata = {
+            type: 'deal_creation',
+            investorProfile: JSON.stringify(investorProfile),
+            primaryCreatorId,
+            itemId,
+            itemTitle,
+            itemType,
+            amount: String(amount),
+        };
+        if (solutionCreatorId) {
+            metadata.solutionCreatorId = solutionCreatorId;
+        }
+
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items,
+            mode: 'payment',
+            success_url: `${baseUrl}/${itemType}s/${itemId}?deal=success`,
+            cancel_url: `${baseUrl}/${itemType}s/${itemId}`,
+            metadata,
+        });
+
+        if (!session.url) {
+            return { success: false, message: "Could not create Stripe session." };
+        }
+
+        return { success: true, url: session.url };
     } catch (error) {
         console.error("Failed to start deal:", error);
         return { success: false, message: "Could not start the deal. Please try again."};
     }
 }
+
 
 export async function postMessageAction(formData: FormData) {
     const dealId = formData.get('dealId') as string;

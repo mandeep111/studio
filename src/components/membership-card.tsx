@@ -8,7 +8,7 @@ import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { upgradeMembershipAction } from "@/app/actions";
 import { Loader2 } from "lucide-react";
-import { SubmitButton } from "./submit-button";
+import { useState } from "react";
 
 
 interface MembershipCardProps {
@@ -34,22 +34,33 @@ export default function MembershipCard({
 }: MembershipCardProps) {
     const { userProfile, loading } = useAuth();
     const { toast } = useToast();
+    const [monthlyLoading, setMonthlyLoading] = useState(false);
+    const [lifetimeLoading, setLifetimeLoading] = useState(false);
     
-    const handleUpgrade = async (formData: FormData) => {
+    const handleUpgrade = async (paymentFrequency: 'monthly' | 'lifetime', price: number) => {
         if (!userProfile) {
             toast({ variant: "destructive", title: "Not Logged In", description: "You must be logged in to upgrade your membership."});
             return;
         }
-        formData.append('userId', userProfile.uid);
-        formData.append('plan', planType);
-        formData.append('userProfile', JSON.stringify(userProfile));
 
-        const result = await upgradeMembershipAction(formData);
+        if (paymentFrequency === 'monthly') {
+            setMonthlyLoading(true);
+        } else {
+            setLifetimeLoading(true);
+        }
 
-        if (result.success) {
-            toast({ title: "Success!", description: result.message });
+        const result = await upgradeMembershipAction(planType, paymentFrequency, price, userProfile);
+
+        if (result.success && result.url) {
+            window.location.href = result.url;
         } else {
             toast({ variant: "destructive", title: "Error", description: result.message });
+        }
+
+        if (paymentFrequency === 'monthly') {
+            setMonthlyLoading(false);
+        } else {
+            setLifetimeLoading(false);
         }
     }
     
@@ -87,20 +98,14 @@ export default function MembershipCard({
                         <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</Button>
                     ) : (
                         <>
-                            <form action={handleUpgrade}>
-                                <input type="hidden" name="price" value={monthlyPrice} />
-                                <input type="hidden" name="paymentFrequency" value="monthly" />
-                                <SubmitButton className="w-full" pendingText="Processing...">
-                                    Subscribe - ${monthlyPrice}/mo
-                                </SubmitButton>
-                            </form>
-                            <form action={handleUpgrade}>
-                                <input type="hidden" name="price" value={lifetimePrice} />
-                                <input type="hidden" name="paymentFrequency" value="lifetime" />
-                                <SubmitButton variant="outline" className="w-full" pendingText="Processing...">
-                                    Get Lifetime - ${lifetimePrice}
-                                </SubmitButton>
-                            </form>
+                            <Button onClick={() => handleUpgrade('monthly', monthlyPrice)} disabled={monthlyLoading || lifetimeLoading}>
+                                {monthlyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Subscribe - ${monthlyPrice}/mo
+                            </Button>
+                           <Button variant="outline" onClick={() => handleUpgrade('lifetime', lifetimePrice)} disabled={monthlyLoading || lifetimeLoading}>
+                                {lifetimeLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Get Lifetime - ${lifetimePrice}
+                            </Button>
                         </>
                     )
                 )}

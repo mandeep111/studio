@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Wand2, Link as LinkIcon, Sparkles, Coffee } from "lucide-react";
+import { Wand2, Link as LinkIcon, Sparkles, Coffee, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { useActionState, useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,6 @@ import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import MembershipPopup from "./membership-popup";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { useRouter } from "next/navigation";
 
 const initialState: AiPairingsFormState = {
   message: "",
@@ -25,7 +24,6 @@ const initialState: AiPairingsFormState = {
 
 export default function AiMatchmaking() {
   const { userProfile } = useAuth();
-  const router = useRouter();
   const [state, formAction] = useActionState(getAiPairings, initialState);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const { toast } = useToast();
@@ -33,6 +31,7 @@ export default function AiMatchmaking() {
   const [isMembershipPopupOpen, setMembershipPopupOpen] = useState(false);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [selectedPairing, setSelectedPairing] = useState<any>(null);
+  const [isDealLoading, setIsDealLoading] = useState(false);
 
   useEffect(() => {
     getAllUsers().then(setAllUsers);
@@ -58,22 +57,23 @@ export default function AiMatchmaking() {
   const confirmStartDeal = async (amount: number) => {
     if (!selectedPairing || !userProfile) return;
 
-    const formData = new FormData();
-    formData.append('investorProfile', JSON.stringify(userProfile));
-    formData.append('primaryCreatorId', selectedPairing.problemCreatorId);
-    formData.append('solutionCreatorId', selectedPairing.solutionCreatorId);
-    formData.append('itemId', selectedPairing.problemId); 
-    formData.append('itemTitle', selectedPairing.problemTitle);
-    formData.append('itemType', 'problem');
-    formData.append('amount', String(amount));
+    setIsDealLoading(true);
 
-    const result = await startDealAction(formData);
+    const result = await startDealAction(
+      userProfile,
+      selectedPairing.problemCreatorId,
+      selectedPairing.problemId,
+      selectedPairing.problemTitle,
+      'problem',
+      amount,
+      selectedPairing.solutionCreatorId
+    );
 
-    if (result.success && result.dealId) {
-        toast({ title: "Deal Started!", description: "You can now chat with the creators." });
-        router.push(`/deals/${result.dealId}`);
+    if (result.success && result.url) {
+        window.location.href = result.url;
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
+        setIsDealLoading(false);
     }
   }
 
@@ -167,8 +167,17 @@ export default function AiMatchmaking() {
                       </Alert>
                     </CardContent>
                     <CardFooter>
-                      <Button size="sm" className="ml-auto" onClick={() => handleStartDealClick(pairing)}>
-                        <Coffee className="mr-2 h-4 w-4" />
+                      <Button 
+                        size="sm" 
+                        className="ml-auto" 
+                        onClick={() => handleStartDealClick(pairing)}
+                        disabled={isDealLoading && selectedPairing?.problemId === pairing.problemId}
+                       >
+                        {isDealLoading && selectedPairing?.problemId === pairing.problemId ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            <Coffee className="mr-2 h-4 w-4" />
+                        )}
                         Start Deal
                       </Button>
                     </CardFooter>

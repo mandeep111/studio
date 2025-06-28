@@ -14,7 +14,7 @@ import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { startDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
-import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 interface IdeaClientPageProps {
   initialIdea: Idea;
@@ -23,9 +23,9 @@ interface IdeaClientPageProps {
 export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
-  const router = useRouter();
   const [idea, setIdea] = useState<Idea>(initialIdea);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
+  const [isDealLoading, setIsDealLoading] = useState(false);
 
   const fetchIdea = useCallback(async () => {
     if (!idea?.id) return;
@@ -53,22 +53,23 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
 
    const handleStartDeal = async (amount: number) => {
     if (!userProfile || userProfile.role !== "Investor" || !idea) return;
+    
+    setIsDealLoading(true);
   
-    const formData = new FormData();
-    formData.append('investorProfile', JSON.stringify(userProfile));
-    formData.append('primaryCreatorId', idea.creator.userId);
-    formData.append('itemId', idea.id);
-    formData.append('itemTitle', idea.title);
-    formData.append('itemType', 'idea');
-    formData.append('amount', String(amount));
+    const result = await startDealAction(
+        userProfile,
+        idea.creator.userId,
+        idea.id,
+        idea.title,
+        'idea',
+        amount
+    );
 
-    const result = await startDealAction(formData);
-
-    if (result.success && result.dealId) {
-        toast({ title: "Deal Started!", description: "You can now chat with the creator." });
-        router.push(`/deals/${result.dealId}`);
+    if (result.success && result.url) {
+        window.location.href = result.url;
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
+        setIsDealLoading(false);
     }
   };
 
@@ -152,8 +153,8 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
                 </div>
             </div>
            {userProfile?.role === "Investor" && !isCreator && (
-            <Button onClick={() => setCoffeePopupOpen(true)}>
-              <Coffee className="mr-2 h-4 w-4" />
+            <Button onClick={() => setCoffeePopupOpen(true)} disabled={isDealLoading}>
+              {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
               Start a Deal
             </Button>
           )}

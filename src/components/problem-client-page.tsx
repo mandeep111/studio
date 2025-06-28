@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { getProblem, getSolutionsForProblem, upvoteProblem, upvoteSolution } from "@/lib/firestore";
 import type { Problem, Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,6 +17,7 @@ import { SubmitProblemDialog } from "@/components/submit-problem-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { startDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
+import { Loader2 } from "lucide-react";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
@@ -27,11 +27,11 @@ interface ProblemClientPageProps {
 export default function ProblemClientPage({ initialProblem, initialSolutions }: ProblemClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
-  const router = useRouter();
   const [problem, setProblem] = useState<Problem>(initialProblem);
   const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [dealConfig, setDealConfig] = useState<{ solution?: Solution } | null>(null);
+  const [isDealLoading, setIsDealLoading] = useState(false);
 
   useEffect(() => {
     setProblem(initialProblem);
@@ -80,25 +80,23 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
   const confirmAndStartDeal = async (amount: number) => {
     if (!userProfile || !problem || !dealConfig) return;
   
-    const formData = new FormData();
-    formData.append('investorProfile', JSON.stringify(userProfile));
-    formData.append('primaryCreatorId', problem.creator.userId);
-    formData.append('itemId', problem.id);
-    formData.append('itemTitle', problem.title);
-    formData.append('itemType', 'problem');
-    formData.append('amount', String(amount));
+    setIsDealLoading(true);
 
-    if (dealConfig.solution) {
-        formData.append('solutionCreatorId', dealConfig.solution.creator.userId);
-    }
+    const result = await startDealAction(
+        userProfile,
+        problem.creator.userId,
+        problem.id,
+        problem.title,
+        'problem',
+        amount,
+        dealConfig.solution?.creator.userId
+    );
 
-    const result = await startDealAction(formData);
-
-    if (result.success && result.dealId) {
-        toast({ title: "Deal Started!", description: "You can now chat with the creators." });
-        router.push(`/deals/${result.dealId}`);
+    if (result.success && result.url) {
+        window.location.href = result.url;
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
+        setIsDealLoading(false);
     }
   };
 
@@ -197,8 +195,8 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
             </div>
           </div>
           {canStartDeal && !isProblemCreator && (
-            <Button onClick={() => handleStartDealClick()}>
-              <Coffee className="mr-2 h-4 w-4" />
+            <Button onClick={() => handleStartDealClick()} disabled={isDealLoading}>
+              {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
               Start a Deal with Creator
             </Button>
           )}

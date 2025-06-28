@@ -15,6 +15,7 @@ import { Button } from "./ui/button";
 import { useRouter } from "next/navigation";
 import { startDealAction } from "@/app/actions";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
+import { Loader2 } from "lucide-react";
 
 interface BusinessClientPageProps {
   initialBusiness: Business;
@@ -26,6 +27,7 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
   const router = useRouter();
   const [business, setBusiness] = useState<Business>(initialBusiness);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
+  const [isDealLoading, setIsDealLoading] = useState(false);
 
   const fetchBusiness = useCallback(async () => {
     if (!business?.id) return;
@@ -53,22 +55,23 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
 
   const handleStartDeal = async (amount: number) => {
     if (!userProfile || userProfile.role !== "Investor" || !business) return;
-  
-    const formData = new FormData();
-    formData.append('investorProfile', JSON.stringify(userProfile));
-    formData.append('primaryCreatorId', business.creator.userId);
-    formData.append('itemId', business.id);
-    formData.append('itemTitle', business.title);
-    formData.append('itemType', 'business');
-    formData.append('amount', String(amount));
+    
+    setIsDealLoading(true);
 
-    const result = await startDealAction(formData);
+    const result = await startDealAction(
+      userProfile,
+      business.creator.userId,
+      business.id,
+      business.title,
+      'business',
+      amount
+    );
 
-    if (result.success && result.dealId) {
-        toast({ title: "Deal Started!", description: "You can now chat with the creator." });
-        router.push(`/deals/${result.dealId}`);
+    if (result.success && result.url) {
+        window.location.href = result.url;
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
+        setIsDealLoading(false);
     }
   };
 
@@ -160,8 +163,8 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
                 </div>
             </div>
            {userProfile?.role === "Investor" && !isCreator && (
-            <Button onClick={() => setCoffeePopupOpen(true)}>
-              <Coffee className="mr-2 h-4 w-4" />
+            <Button onClick={() => setCoffeePopupOpen(true)} disabled={isDealLoading}>
+              {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
               Start a Deal
             </Button>
           )}
