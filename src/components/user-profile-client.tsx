@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import type { Problem, Solution, UserProfile, Idea, UpvotedItem } from "@/lib/types";
+import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness } from "@/lib/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
@@ -19,6 +19,8 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import BusinessCard from "./business-card";
+import { SubmitBusinessDialog } from "./submit-business-dialog";
 
 interface UserProfileClientProps {
     userProfile: UserProfile;
@@ -35,30 +37,29 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
     const [problems, setProblems] = useState<Problem[]>(initialProblems);
     const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
     const [ideas, setIdeas] = useState<Idea[]>(initialIdeas);
+    const [businesses, setBusinesses] = useState<Business[]>([]);
     const [upvotedItems, setUpvotedItems] = useState<UpvotedItem[]>(initialUpvotedItems);
     
     const isOwnProfile = user?.uid === userProfile.uid;
 
     const fetchData = useCallback(async () => {
-        const [problemsData, solutionsData, ideasData, upvotedData] = await Promise.all([
+        const [problemsData, solutionsData, ideasData, businessesData, upvotedData] = await Promise.all([
             getProblemsByUser(userProfile.uid),
             getSolutionsByUser(userProfile.uid),
             getIdeasByUser(userProfile.uid),
+            getBusinessesByUser(userProfile.uid),
             isOwnProfile ? getUpvotedItems(userProfile.uid) : Promise.resolve([]),
         ]);
         setProblems(problemsData);
         setSolutions(solutionsData);
         setIdeas(ideasData);
+        setBusinesses(businessesData);
         setUpvotedItems(upvotedData as UpvotedItem[]);
     }, [userProfile.uid, isOwnProfile]);
-
+    
     useEffect(() => {
-        // This is to ensure state is in sync if initial props change for any reason
-        setProblems(initialProblems);
-        setSolutions(initialSolutions);
-        setIdeas(initialIdeas);
-        setUpvotedItems(initialUpvotedItems);
-    }, [initialProblems, initialSolutions, initialIdeas, initialUpvotedItems]);
+        fetchData();
+    }, [fetchData]);
 
     const handleProblemUpvote = async (problemId: string) => {
         if (!user) return;
@@ -86,6 +87,17 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
         if (!user) return;
         try {
             await upvoteIdea(ideaId, user.uid);
+            fetchData();
+            toast({ title: "Success", description: "Your upvote has been recorded." });
+        } catch (e) {
+            toast({ variant: "destructive", title: "Error", description: "Could not record upvote." });
+        }
+    };
+
+    const handleBusinessUpvote = async (businessId: string) => {
+        if (!user) return;
+        try {
+            await upvoteBusiness(businessId, user.uid);
             fetchData();
             toast({ title: "Success", description: "Your upvote has been recorded." });
         } catch (e) {
@@ -134,7 +146,7 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
 
             <div className="lg:col-span-2">
                 <Tabs defaultValue="problems">
-                    <TabsList className={cn("grid w-full", isOwnProfile ? "grid-cols-4" : "grid-cols-3")}>
+                    <TabsList className={cn("grid w-full", isOwnProfile ? "grid-cols-5" : "grid-cols-4")}>
                         <TabsTrigger value="problems">
                             <BrainCircuit className="mr-2 h-4 w-4" />
                             Problems ({problems.length})
@@ -143,6 +155,10 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                             <Lightbulb className="mr-2 h-4 w-4" />
                             Solutions ({solutions.length})
                         </TabsTrigger>
+                        <TabsTrigger value="businesses">
+                            <Briefcase className="mr-2 h-4 w-4" />
+                            Businesses ({businesses.length})
+                        </TabsTrigger>
                         <TabsTrigger value="ideas">
                             <Sparkles className="mr-2 h-4 w-4" />
                             Ideas ({ideas.length})
@@ -150,7 +166,7 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                         {isOwnProfile && (
                             <TabsTrigger value="history">
                                 <History className="mr-2 h-4 w-4" />
-                                Upvote History
+                                Upvotes
                             </TabsTrigger>
                         )}
                     </TabsList>
@@ -193,6 +209,27 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                             </CardContent>
                         </Card>
                     </TabsContent>
+                     <TabsContent value="businesses" className="mt-4">
+                        <Card>
+                             <CardHeader className="flex flex-row items-center justify-between">
+                                <CardTitle>Businesses Submitted</CardTitle>
+                                {isOwnProfile && (userProfile?.role === 'User' || userProfile.role === 'Admin') && (
+                                    <SubmitBusinessDialog onBusinessCreated={fetchData} />
+                                )}
+                            </CardHeader>
+                            <CardContent>
+                                {businesses.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {businesses.map(business => (
+                                            <BusinessCard key={business.id} business={business} onUpvote={handleBusinessUpvote} />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-muted-foreground text-center py-8">This user hasn't submitted any businesses yet.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
                     <TabsContent value="ideas" className="mt-4">
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
@@ -228,6 +265,7 @@ export default function UserProfileClient({ userProfile, initialProblems, initia
                                                 if (item.type === 'problem') return <ProblemCard key={item.id} problem={item} onUpvote={() => handleProblemUpvote(item.id)} />;
                                                 if (item.type === 'solution') return <SolutionCard key={item.id} solution={item} onUpvote={() => handleSolutionUpvote(item.id)} />;
                                                 if (item.type === 'idea') return <IdeaCard key={item.id} idea={item} onUpvote={() => handleIdeaUpvote(item.id)} />;
+                                                if (item.type === 'business') return <BusinessCard key={item.id} business={item} onUpvote={() => handleBusinessUpvote(item.id)} />;
                                                 return null;
                                             })}
                                         </div>

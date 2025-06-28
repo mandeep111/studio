@@ -45,18 +45,30 @@ export interface Solution extends BaseItem {
   problemTitle: string;
 }
 
-export interface Idea extends BaseItem {
-  title: string;
-  tags: string[];
+export interface Idea extends Omit<BaseItem, 'price' | 'priceApproved'> {
+    id: string;
+    title: string;
+    description: string;
+    creator: CreatorReference;
+    upvotes: number;
+    upvotedBy: string[];
+    createdAt: SerializableTimestamp;
+    tags: string[];
 }
 
-export type UpvotedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' }) | (Idea & { type: 'idea' });
+export interface Business extends BaseItem {
+  title: string;
+  tags: string[];
+  stage: string;
+}
+
+export type UpvotedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' }) | (Idea & { type: 'idea' }) | (Business & { type: 'business' });
 
 export interface Deal {
     id: string;
     investor: CreatorReference;
     problemCreator: CreatorReference;
-    solutionCreator: CreatorReference;
+    solutionCreator?: CreatorReference;
     problemId: string;
     problemTitle: string;
     createdAt: SerializableTimestamp;

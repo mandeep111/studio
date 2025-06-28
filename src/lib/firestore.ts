@@ -19,7 +19,7 @@ import {
   startAfter,
 } from "firebase/firestore";
 import { db } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification } from "./types";
+import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business } from "./types";
 
 // --- Data Fetching ---
 
@@ -44,6 +44,13 @@ export async function getIdeas(): Promise<Idea[]> {
   return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
 }
 
+export async function getBusinesses(): Promise<Business[]> {
+    const col = collection(db, "businesses");
+    const q = query(col, orderBy("createdAt", "desc"), limit(20));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Business));
+}
+
 export async function getAllUsers(): Promise<UserProfile[]> {
   const col = collection(db, "users");
   const snapshot = await getDocs(col);
@@ -66,6 +73,12 @@ export async function getSolution(id: string): Promise<Solution | null> {
     const docRef = doc(db, "solutions", id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Solution : null;
+}
+
+export async function getBusiness(id: string): Promise<Business | null> {
+    const docRef = doc(db, "businesses", id);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? {id: docSnap.id, ...docSnap.data()} as Business : null;
 }
 
 export async function getSolutionsForProblem(problemId: string): Promise<Solution[]> {
@@ -102,24 +115,37 @@ export async function getIdeasByUser(userId: string): Promise<Idea[]> {
     return ideas.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
+export async function getBusinessesByUser(userId: string): Promise<Business[]> {
+    const col = collection(db, "businesses");
+    const q = query(col, where("creator.userId", "==", userId));
+    const snapshot = await getDocs(q);
+    const businesses = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Business));
+    // Sort in-memory to avoid needing a composite index
+    return businesses.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+}
+
 export async function getUpvotedItems(userId: string) {
     // Queries are changed to fetch all matching documents without ordering,
     // to avoid needing composite indexes. Sorting is handled in-memory.
     const problemsQuery = query(collection(db, "problems"), where("upvotedBy", "array-contains", userId));
     const solutionsQuery = query(collection(db, "solutions"), where("upvotedBy", "array-contains", userId));
     const ideasQuery = query(collection(db, "ideas"), where("upvotedBy", "array-contains", userId));
+    const businessesQuery = query(collection(db, "businesses"), where("upvotedBy", "array-contains", userId));
 
-    const [problemsSnap, solutionsSnap, ideasSnap] = await Promise.all([
+    const [problemsSnap, solutionsSnap, ideasSnap, businessesSnap] = await Promise.all([
         getDocs(problemsQuery),
         getDocs(solutionsQuery),
-        getDocs(ideasQuery)
+        getDocs(ideasQuery),
+        getDocs(businessesQuery)
     ]);
 
-    const problems = problemsSnap.docs.map(doc => ({ type: 'problem', ...doc.data() as Problem, id: doc.id }));
-    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution', ...doc.data() as Solution, id: doc.id }));
-    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea', ...doc.data() as Idea, id: doc.id }));
+    const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, ...doc.data() as Problem, id: doc.id }));
+    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, ...doc.data() as Solution, id: doc.id }));
+    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, ...doc.data() as Idea, id: doc.id }));
+    const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, ...doc.data() as Business, id: doc.id }));
 
-    const allItems = [...problems, ...solutions, ...ideas];
+
+    const allItems = [...problems, ...solutions, ...ideas, ...businesses];
     
     // Sort by creation date descending
     allItems.sort((a, b) => {
@@ -179,6 +205,22 @@ export async function getPaginatedIdeas(options: { sortBy: 'createdAt' | 'upvote
   const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
   const newLastVisible = snapshot.docs.length === PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
   return { data, lastVisible: newLastVisible };
+}
+
+export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'upvotes', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Business[], lastVisible: DocumentSnapshot | null }> {
+    const col = collection(db, "businesses");
+    const { sortBy, lastVisible } = options;
+  
+    const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+    if(lastVisible) {
+      qConstraints.push(startAfter(lastVisible));
+    }
+    
+    const q = query(col, ...qConstraints);
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Business));
+    const newLastVisible = snapshot.docs.length === PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
+    return { data, lastVisible: newLastVisible };
 }
 
 
@@ -301,9 +343,49 @@ export async function createIdea(title: string, description: string, tags: strin
   });
 }
 
+export async function createBusiness(title: string, description: string, tags: string, stage: string, price: number | null, creator: UserProfile) {
+    await runTransaction(db, async (transaction) => {
+        const businessesCol = collection(db, "businesses");
+        const newBusinessRef = doc(businessesCol);
+
+        const priceApproved = price ? price <= 1000 : true;
+        
+        transaction.set(newBusinessRef, {
+            title,
+            description,
+            tags: tags.split(',').map(t => t.trim()),
+            stage,
+            creator: {
+                userId: creator.uid,
+                name: creator.name,
+                avatarUrl: creator.avatarUrl,
+                expertise: creator.expertise,
+            },
+            upvotes: 0,
+            upvotedBy: [],
+            createdAt: serverTimestamp(),
+            price: price || null, // Represents funding sought
+            priceApproved
+        });
+
+        // Award points to creator for listing a business
+        const userRef = doc(db, "users", creator.uid);
+        transaction.update(userRef, { points: increment(30) });
+
+        if (!priceApproved) {
+            await createNotification(
+                "admins",
+                `${creator.name} submitted a business "${title}" with funding of $${price}, which requires approval.`,
+                `/businesses/${newBusinessRef.id}`
+            );
+        }
+    });
+}
+
+
 // --- Upvote & Points ---
 
-async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas", docId: string, userId: string) {
+async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" | "businesses", docId: string, userId: string) {
     const docRef = doc(db, collectionName, docId);
     
     // Data needed for notification, fetched outside transaction
@@ -322,8 +404,9 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas", 
 
         const creatorRef = doc(db, "users", creatorId!);
         
-        // Award/remove 20 points for upvotes on problems and solutions. Ideas don't give points.
-        const pointChange = (collectionName === 'problems' || collectionName === 'solutions') ? (isAlreadyUpvoted ? -20 : 20) : 0;
+        // Award/remove points.
+        const pointValues = { problems: 20, solutions: 20, businesses: 10, ideas: 0 };
+        const pointChange = pointValues[collectionName] * (isAlreadyUpvoted ? -1 : 1);
         
         transaction.update(docRef, {
             upvotes: increment(isAlreadyUpvoted ? -1 : 1),
@@ -357,6 +440,9 @@ export async function upvoteSolution(docId: string, userId: string) {
 export async function upvoteIdea(docId: string, userId: string) {
     await toggleUpvote("ideas", docId, userId);
 }
+export async function upvoteBusiness(docId: string, userId: string) {
+    await toggleUpvote("businesses", docId, userId);
+}
 
 
 // --- Investor & Deals ---
@@ -369,32 +455,45 @@ export async function becomeInvestor(userId: string) {
     });
 }
 
-export async function createDeal(investorProfile: UserProfile, problemCreatorId: string, solutionCreatorId: string, problemId: string): Promise<string> {
+export async function createDeal(investorProfile: UserProfile, problemCreatorId: string, problemId: string, solutionCreatorId?: string): Promise<string> {
     const problem = await getProblem(problemId);
     if (!problem) throw new Error("Problem not found");
 
     const problemCreatorSnap = await getDoc(doc(db, "users", problemCreatorId));
-    const solutionCreatorSnap = await getDoc(doc(db, "users", solutionCreatorId));
-    if (!problemCreatorSnap.exists() || !solutionCreatorSnap.exists()) {
-        throw new Error("Creator not found");
+    if (!problemCreatorSnap.exists()) {
+        throw new Error("Problem creator not found");
     }
     const problemCreator = {uid: problemCreatorSnap.id, ...problemCreatorSnap.data()} as UserProfile;
-    const solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
 
-    const dealsCol = collection(db, "deals");
-    const newDealRef = await addDoc(dealsCol, {
+    const dealData: any = {
         investor: { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise },
         problemCreator: { userId: problemCreator.uid, name: problemCreator.name, avatarUrl: problemCreator.avatarUrl, expertise: problemCreator.expertise },
-        solutionCreator: { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise },
         problemId: problem.id,
         problemTitle: problem.title,
         createdAt: serverTimestamp(),
-    });
+    };
+
+    let solutionCreator: UserProfile | null = null;
+    if (solutionCreatorId) {
+        const solutionCreatorSnap = await getDoc(doc(db, "users", solutionCreatorId));
+        if (!solutionCreatorSnap.exists()) {
+            throw new Error("Solution creator not found");
+        }
+        solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
+        dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
+    }
+    
+    const dealsCol = collection(db, "deals");
+    const newDealRef = await addDoc(dealsCol, dealData);
 
     // Notify creators
     const dealLink = `/deals/${newDealRef.id}`;
-    await createNotification(problemCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name}!`, dealLink);
-    await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${problemCreator.name}!`, dealLink);
+    if (solutionCreator) {
+        await createNotification(problemCreatorId, `An investor wants to start a deal with you and ${solutionCreator.name}!`, dealLink);
+        await createNotification(solutionCreatorId, `An investor wants to start a deal with you and ${problemCreator.name}!`, dealLink);
+    } else {
+        await createNotification(problemCreatorId, `An investor wants to start a deal about your problem: "${problem.title}"!`, dealLink);
+    }
 
     return newDealRef.id;
 }
@@ -449,59 +548,47 @@ export async function getLeaderboardData(): Promise<UserProfile[]> {
 export async function getUnapprovedItems() {
     const problemsQuery = query(collection(db, "problems"), where("priceApproved", "==", false));
     const solutionsQuery = query(collection(db, "solutions"), where("priceApproved", "==", false));
+    const businessesQuery = query(collection(db, "businesses"), where("priceApproved", "==", false));
 
-    const [problemsSnap, solutionsSnap] = await Promise.all([
+    const [problemsSnap, solutionsSnap, businessesSnap] = await Promise.all([
         getDocs(problemsQuery),
-        getDocs(solutionsQuery)
+        getDocs(solutionsQuery),
+        getDocs(businessesQuery),
     ]);
 
-    const problems = problemsSnap.docs.map(doc => ({ type: 'problem', id: doc.id, ...doc.data() as Problem }));
-    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution', id: doc.id, ...doc.data() as Solution }));
+    const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, id: doc.id, ...doc.data() as Problem }));
+    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, id: doc.id, ...doc.data() as Solution }));
+    const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, id: doc.id, ...doc.data() as Business }));
     
-    return [...problems, ...solutions];
+    return [...problems, ...solutions, ...businesses];
 }
 
-export async function approveItem(type: 'problem' | 'solution', id: string) {
-    const collectionName = type === 'problem' ? 'problems' : 'solutions';
+export async function approveItem(type: 'problem' | 'solution' | 'business', id: string) {
+    const collectionName = type === 'problem' ? 'problems' : (type === 'solution' ? 'solutions' : 'businesses');
     const docRef = doc(db, collectionName, id);
     await updateDoc(docRef, { priceApproved: true });
 }
 
-export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user', id: string) {
+export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user' | 'business', id: string) {
     const batch = writeBatch(db);
+    const collectionName = type === 'user' ? 'users' : `${type}s`;
+    const itemRef = doc(db, collectionName, id);
 
-    if (type === 'user') {
-        const userRef = doc(db, 'users', id);
-        batch.delete(userRef);
-        // Note: this leaves the user's content (problems, solutions, etc.) in the database.
-        // A more robust implementation might reassign content or perform a soft delete.
-    } else if (type === 'idea') {
-        const ideaRef = doc(db, 'ideas', id);
-        batch.delete(ideaRef);
-    } else if (type === 'solution') {
-        const solutionRef = doc(db, 'solutions', id);
-        const solutionDoc = await getDoc(solutionRef);
+    if (type === 'solution') {
+        const solutionDoc = await getDoc(itemRef);
         if (solutionDoc.exists()) {
             const problemId = solutionDoc.data().problemId;
             const problemRef = doc(db, 'problems', problemId);
-            // Decrement the solutionsCount on the parent problem.
             batch.update(problemRef, { solutionsCount: increment(-1) });
-            batch.delete(solutionRef);
         }
     } else if (type === 'problem') {
-        const problemRef = doc(db, 'problems', id);
-        
-        // Also delete all solutions associated with this problem to prevent orphaned data.
         const solutionsQuery = query(collection(db, 'solutions'), where('problemId', '==', id));
         const solutionsSnapshot = await getDocs(solutionsQuery);
         solutionsSnapshot.forEach(doc => {
             batch.delete(doc.ref);
         });
-
-        batch.delete(problemRef);
-    } else {
-        throw new Error("Invalid item type for deletion.");
     }
 
+    batch.delete(itemRef);
     await batch.commit();
 }

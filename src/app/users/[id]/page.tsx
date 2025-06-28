@@ -1,5 +1,5 @@
 import Header from "@/components/header";
-import { getProblemsByUser, getSolutionsByUser, getUserProfile, getIdeasByUser, getUpvotedItems } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getUserProfile, getIdeasByUser, getUpvotedItems, getBusinessesByUser } from "@/lib/firestore";
 import { notFound } from "next/navigation";
 import UserProfileClient from "@/components/user-profile-client";
 import { auth } from "@/lib/firebase/config";
@@ -12,11 +12,11 @@ export default async function UserProfilePage({ params }: { params: { id: string
     notFound();
   }
 
-  const [problems, solutions, ideas, upvotedItems] = await Promise.all([
+  const [problems, solutions, ideas, businesses, upvotedItems] = await Promise.all([
     getProblemsByUser(params.id),
     getSolutionsByUser(params.id),
     getIdeasByUser(params.id),
-    // Only fetch upvoted items if the logged-in user is viewing their own profile
+    getBusinessesByUser(params.id),
     currentUser?.uid === params.id ? getUpvotedItems(params.id) : Promise.resolve([]),
   ]);
 

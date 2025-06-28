@@ -17,7 +17,10 @@ export default async function DealPage({ params }: { params: { id: string } }) {
   const initialMessages = await getMessages(params.id);
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
-  const participants = [deal.investor, deal.problemCreator, deal.solutionCreator];
+  const participants = [deal.investor, deal.problemCreator];
+  if (deal.solutionCreator) {
+    participants.push(deal.solutionCreator);
+  }
 
   return (
     <div className="flex flex-col h-screen">

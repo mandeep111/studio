@@ -2,18 +2,22 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getProblem, getSolutionsForProblem, upvoteProblem, upvoteSolution } from "@/lib/firestore";
 import type { Problem, Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitProblemDialog } from "@/components/submit-problem-dialog";
+import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
+import { startDealAction } from "@/app/actions";
+import { Button } from "./ui/button";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
@@ -23,8 +27,10 @@ interface ProblemClientPageProps {
 export default function ProblemClientPage({ initialProblem, initialSolutions }: ProblemClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [problem, setProblem] = useState<Problem>(initialProblem);
   const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
+  const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
 
   useEffect(() => {
     setProblem(initialProblem);
@@ -63,10 +69,35 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
     }
   };
 
+  const handleStartDeal = async () => {
+    if (!userProfile || userProfile.role !== "Investor" || !problem) return;
+  
+    const formData = new FormData();
+    formData.append('investorProfile', JSON.stringify(userProfile));
+    formData.append('problemCreatorId', problem.creator.userId);
+    formData.append('problemId', problem.id);
+
+    const result = await startDealAction(formData);
+
+    if (result.success && result.dealId) {
+        toast({ title: "Deal Started!", description: "You can now chat with the creators." });
+        router.push(`/deals/${result.dealId}`);
+    } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
+    }
+  };
+
   const isProblemUpvoted = user ? problem.upvotedBy.includes(user.uid) : false;
+  const hasUserSubmittedSolution = solutions.some(s => s.creator.userId === user?.uid);
+  const isProblemCreator = user?.uid === problem.creator.userId;
 
   return (
     <>
+      <BuyMeACoffeePopup 
+        isOpen={isCoffeePopupOpen} 
+        onOpenChange={setCoffeePopupOpen} 
+        onConfirm={handleStartDeal} 
+      />
       <div className="flex justify-between items-center mb-4">
         <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
@@ -107,19 +138,27 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
             )}
           </div>
         </CardContent>
-        <CardFooter className="flex items-center gap-6 text-muted-foreground">
-          <button
-            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
-            onClick={handleProblemUpvote}
-            disabled={!user || isProblemUpvoted}
-          >
-            <ThumbsUp className="h-5 w-5" />
-            <span>{problem.upvotes.toLocaleString()} Upvotes</span>
-          </button>
-          <div className="flex items-center gap-1">
-            <MessageSquare className="h-5 w-5" />
-            <span>{solutions.length} Solutions</span>
+        <CardFooter className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-6 text-muted-foreground">
+            <button
+              className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+              onClick={handleProblemUpvote}
+              disabled={!user || isProblemUpvoted}
+            >
+              <ThumbsUp className="h-5 w-5" />
+              <span>{problem.upvotes.toLocaleString()} Upvotes</span>
+            </button>
+            <div className="flex items-center gap-1">
+              <MessageSquare className="h-5 w-5" />
+              <span>{solutions.length} Solutions</span>
+            </div>
           </div>
+          {userProfile?.role === "Investor" && (
+            <Button onClick={() => setCoffeePopupOpen(true)}>
+              <Coffee className="mr-2 h-4 w-4" />
+              Start a Deal
+            </Button>
+          )}
         </CardFooter>
       </Card>
 
@@ -138,7 +177,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
 
       <Separator className="my-8" />
       
-      {userProfile?.role === 'User' && (
+      {(userProfile?.role === 'User' || userProfile?.role === "Admin") && !isProblemCreator && !hasUserSubmittedSolution && (
         <section className="mt-8">
             <h2 className="text-2xl font-bold mb-4">Propose Your Solution</h2>
             <CreateSolutionForm problemId={problem.id} problemTitle={problem.title} onSolutionCreated={fetchProblemAndSolutions} />
