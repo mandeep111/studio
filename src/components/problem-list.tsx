@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -86,7 +87,7 @@ export default function ProblemList() {
         }
     };
 
-    const canCreateProblem = userProfile?.isPremium || userProfile?.role === 'Admin';
+    const canCreateProblem = userProfile?.role === 'User' || userProfile?.role === 'Admin';
 
     return (
         <Card>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -85,7 +86,7 @@ export default function BusinessList() {
         }
     };
     
-    const canCreateBusiness = userProfile?.isPremium || userProfile?.role === 'Admin';
+    const canCreateBusiness = userProfile?.role === 'User' || userProfile?.role === 'Admin';
 
     return (
         <Card>

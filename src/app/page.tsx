@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -5,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Header from "@/components/header";
 import MainTabs from "@/components/main-tabs";
+import LandingHero from "@/components/landing-hero";
 
 export default function Home() {
   const { user, userProfile, loading } = useAuth();
@@ -25,7 +27,8 @@ export default function Home() {
     <div className="flex min-h-screen w-full flex-col">
       <Header />
       <main className="flex-1 bg-background">
-        <div className="container mx-auto px-4 py-8 md:px-6 lg:px-8">
+        <LandingHero />
+        <div id="main-content" className="container mx-auto px-4 py-8 md:px-6 lg:px-8">
           <MainTabs userProfile={userProfile} />
         </div>
       </main>

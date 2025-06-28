@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,7 +90,7 @@ export default function RandomIdeas() {
     fetchIdeas(true);
   };
   
-  const canCreateIdea = userProfile?.isPremium || userProfile?.role === 'Admin';
+  const canCreateIdea = userProfile?.role === 'User' || userProfile?.role === 'Admin';
 
   return (
     <Card>
