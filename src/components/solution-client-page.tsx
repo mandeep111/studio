@@ -3,7 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getSolution, upvoteSolution, findExistingDealAction } from "@/lib/firestore";
+import { getSolution, upvoteSolution } from "@/lib/firestore";
+import { findExistingDealAction } from "@/app/actions";
 import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
