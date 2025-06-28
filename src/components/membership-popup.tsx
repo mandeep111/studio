@@ -52,7 +52,7 @@ export default function MembershipPopup({ isOpen, onOpenChange }: MembershipPopu
             Unlock Investor Tools
           </DialogTitle>
           <DialogDescription>
-            To use AI-powered matchmaking and start deals, you need an Investor membership. This gives you exclusive access to find and fund the best new ideas on VentureForge.
+            To use AI-powered matchmaking and start deals, you need an Investor membership. This gives you exclusive access to find and fund the best new ideas on OppChain.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="sm:justify-between">

@@ -317,7 +317,7 @@ export default function AdminClient({
                 <Card>
                     <CardHeader>
                         <CardTitle>Platform Settings</CardTitle>
-                        <CardDescription>Manage global settings for the VentureForge platform.</CardDescription>
+                        <CardDescription>Manage global settings for the OppChain platform.</CardDescription>
                     </CardHeader>
                     <CardContent>
                        <div className="flex items-center justify-between rounded-lg border p-4">

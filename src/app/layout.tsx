@@ -10,8 +10,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const metadata: Metadata = {
-  title: "VentureForge",
-  description: "Where great ideas meet smart investment.",
+  title: "OppChain",
+  description: "Where every problem is a link to an opportunity.",
 };
 
 export default function RootLayout({
