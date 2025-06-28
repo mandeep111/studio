@@ -6,15 +6,15 @@ import ChatInterface from "@/components/chat-interface";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, CheckCircle, DollarSign, Handshake, Info, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase/config";
 import { doc, onSnapshot } from "firebase/firestore";
 import { markDealAsCompleteAction } from "@/app/actions";
-import { useToast } from "./ui/use-toast";
-import { Button } from "./ui/button";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DealClientPageProps {
   initialDeal: Deal;
