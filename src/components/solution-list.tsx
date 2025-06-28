@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -8,10 +9,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "./ui/button";
-import { Lightbulb, Loader2 } from "lucide-react";
+import { Lightbulb, Loader2, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import type { DocumentSnapshot } from "firebase/firestore";
 import SolutionCard from "./solution-card";
+import { Input } from "./ui/input";
 
 export default function SolutionList() {
     const [solutions, setSolutions] = useState<Solution[]>([]);
@@ -22,6 +24,8 @@ export default function SolutionList() {
     const [hasMore, setHasMore] = useState(true);
     const { user } = useAuth();
     const { toast } = useToast();
+    const [searchTerm, setSearchTerm] = useState("");
+    const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
     const fetchSolutions = useCallback(async (reset: boolean = false) => {
         if (reset) {
@@ -54,7 +58,9 @@ export default function SolutionList() {
     }, [sortBy]);
 
     const handleUpvote = async (solutionId: string) => {
-        if (!user) return;
+        if (!user || upvotingId) return;
+
+        setUpvotingId(solutionId);
 
         setSolutions(prevSolutions =>
             prevSolutions.map(s => {
@@ -82,8 +88,15 @@ export default function SolutionList() {
                 description: e.message || "Could not record upvote. Reverting.",
             });
             fetchSolutions(true);
+        } finally {
+            setUpvotingId(null);
         }
     };
+    
+    const filteredSolutions = solutions.filter(solution => 
+        solution.problemTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        solution.description.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <Card>
@@ -92,9 +105,18 @@ export default function SolutionList() {
                     <CardTitle>Solutions</CardTitle>
                     <CardDescription>Browse the latest and most popular solutions.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                     <div className="relative w-full sm:w-auto">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search solutions..." 
+                            className="pl-8 w-full sm:w-auto"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                      <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                        <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -126,14 +148,14 @@ export default function SolutionList() {
                             </div>
                         ))}
                     </div>
-                ) : solutions.length > 0 ? (
+                ) : filteredSolutions.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {solutions.map((solution) => (
-                                <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} />
+                            {filteredSolutions.map((solution) => (
+                                <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} />
                             ))}
                         </div>
-                        {hasMore && (
+                        {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">
                                 <Button onClick={() => fetchSolutions(false)} disabled={loadingMore}>
                                     {loadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -145,8 +167,10 @@ export default function SolutionList() {
                 ) : (
                     <div className="text-center py-16">
                          <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="text-xl font-semibold mt-4">No Solutions Yet</h3>
-                        <p className="text-muted-foreground mt-2 mb-6">No solutions have been submitted yet. Find a problem and be the first to solve it!</p>
+                        <h3 className="text-xl font-semibold mt-4">No Solutions Found</h3>
+                        <p className="text-muted-foreground mt-2 mb-6">
+                            {searchTerm ? "Try a different search term." : "No solutions have been submitted yet. Find a problem and be the first to solve it!"}
+                        </p>
                     </div>
                 )}
             </CardContent>

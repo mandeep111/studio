@@ -3,7 +3,7 @@ import type { Solution } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { ThumbsUp, Coffee } from "lucide-react";
+import { ThumbsUp, Coffee, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -12,9 +12,10 @@ interface SolutionCardProps {
   onUpvote: (solutionId: string) => void;
   onStartDeal?: (solution: Solution) => void;
   isPaymentEnabled?: boolean;
+  isUpvoting: boolean;
 }
 
-export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled }: SolutionCardProps) {
+export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled, isUpvoting }: SolutionCardProps) {
   const { user, userProfile } = useAuth();
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
@@ -40,18 +41,18 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymen
             variant={isUpvoted ? "default" : "outline"} 
             size="sm"
             onClick={() => onUpvote(solution.id)}
-            disabled={!user || isCreator}
+            disabled={!user || isCreator || isUpvoting}
             className="flex items-center gap-1 px-2 h-8"
         >
-            <ThumbsUp className="h-4 w-4" />
+            {isUpvoting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
             <span>{solution.upvotes.toLocaleString()}</span>
         </Button>
         <div className="flex items-center gap-2">
             <Link href={`/solutions/${solution.id}`} passHref>
-                <Button size="sm" variant="outline">View Details</Button>
+                <Button size="sm" variant="outline" disabled={isUpvoting}>View Details</Button>
             </Link>
             {isInvestor && !isCreator && onStartDeal && (
-                 <Button size="sm" onClick={() => onStartDeal(solution)}>
+                 <Button size="sm" onClick={() => onStartDeal(solution)} disabled={isUpvoting}>
                     <Coffee className="mr-2 h-4 w-4" />
                     {isPaymentEnabled ? "Start Deal" : "Start (Free)"}
                 </Button>

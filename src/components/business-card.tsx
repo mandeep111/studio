@@ -4,16 +4,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { ThumbsUp, Briefcase, DollarSign, Users } from "lucide-react";
+import { ThumbsUp, Briefcase, DollarSign, Users, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 
 interface BusinessCardProps {
   business: Business;
   onUpvote: (businessId: string) => void;
+  isUpvoting: boolean;
 }
 
-export default function BusinessCard({ business, onUpvote }: BusinessCardProps) {
+export default function BusinessCard({ business, onUpvote, isUpvoting }: BusinessCardProps) {
   const { user } = useAuth();
   const isUpvoted = user ? business.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === business.creator.userId : false;
@@ -55,10 +56,10 @@ export default function BusinessCard({ business, onUpvote }: BusinessCardProps) 
                 variant={isUpvoted ? "default" : "outline"} 
                 size="sm"
                 onClick={() => onUpvote(business.id)}
-                disabled={!user || isCreator}
+                disabled={!user || isCreator || isUpvoting}
                 className="flex items-center gap-1 px-2 h-8"
             >
-                <ThumbsUp className="h-4 w-4" />
+                {isUpvoting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
                 <span>{business.upvotes.toLocaleString()}</span>
             </Button>
              <div className="flex items-center gap-1">
@@ -67,7 +68,7 @@ export default function BusinessCard({ business, onUpvote }: BusinessCardProps) 
             </div>
         </div>
         <Link href={`/businesses/${business.id}`} passHref>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" disabled={isUpvoting}>
             <Briefcase className="mr-2 h-4 w-4" />
             View Business
           </Button>

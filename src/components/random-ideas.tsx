@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedIdeas, upvoteIdea } from "@/lib/firestore";
 import type { Idea } from "@/lib/types";
 import { useState, useEffect, useCallback } from "react";
@@ -10,10 +10,11 @@ import IdeaCard from "./idea-card";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitIdeaDialog } from "./submit-idea-dialog";
-import { Lightbulb, Loader2, PlusCircle } from "lucide-react";
+import { Lightbulb, Loader2, PlusCircle, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import type { DocumentSnapshot } from "firebase/firestore";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 
 export default function RandomIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -24,6 +25,8 @@ export default function RandomIdeas() {
   const [hasMore, setHasMore] = useState(true);
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
   const fetchIdeas = useCallback(async (reset: boolean = false) => {
     if (reset) {
@@ -55,7 +58,9 @@ export default function RandomIdeas() {
   }, [sortBy]);
 
   const handleUpvote = async (ideaId: string) => {
-    if (!user) return;
+    if (!user || upvotingId) return;
+
+    setUpvotingId(ideaId);
 
     setIdeas(prevIdeas =>
         prevIdeas.map(i => {
@@ -83,6 +88,8 @@ export default function RandomIdeas() {
             description: e.message || "Could not record upvote. Reverting.",
         });
         fetchIdeas(true);
+    } finally {
+        setUpvotingId(null);
     }
   };
 
@@ -90,7 +97,14 @@ export default function RandomIdeas() {
     fetchIdeas(true);
   };
   
-  const canCreateIdea = userProfile?.role === 'User' || userProfile?.role === 'Admin';
+  const canCreateIdea = userProfile?.isPremium;
+
+  const filteredIdeas = ideas.filter(idea =>
+    idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    idea.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    idea.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
 
   return (
     <Card>
@@ -101,9 +115,18 @@ export default function RandomIdeas() {
             A space for brilliant thoughts not tied to a specific problem.
           </CardDescription>
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+            <div className="relative w-full sm:w-auto">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Search ideas..." 
+                    className="pl-8 w-full sm:w-auto"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
             <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                <SelectTrigger className="w-full md:w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -119,14 +142,14 @@ export default function RandomIdeas() {
            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
              {[...Array(3)].map((_, i) => <IdeaCardSkeleton key={i} />)}
            </div>
-        ) : ideas.length > 0 ? (
+        ) : filteredIdeas.length > 0 ? (
           <>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {ideas.map((idea) => (
-                <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} />
+              {filteredIdeas.map((idea) => (
+                <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} isUpvoting={upvotingId === idea.id} />
               ))}
             </div>
-            {hasMore && (
+            {hasMore && !searchTerm && (
                 <div className="mt-8 text-center">
                     <Button onClick={() => fetchIdeas(false)} disabled={loadingMore}>
                         {loadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -138,9 +161,11 @@ export default function RandomIdeas() {
         ) : (
           <div className="text-center py-16">
             <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-xl font-semibold">No Ideas Yet</h3>
-            <p className="text-muted-foreground mt-2 mb-6">Be the first to share a random spark of genius.</p>
-            {canCreateIdea && (
+            <h3 className="mt-4 text-xl font-semibold">No Ideas Found</h3>
+            <p className="text-muted-foreground mt-2 mb-6">
+                {searchTerm ? "Try a different search term." : "Be the first to share a random spark of genius."}
+            </p>
+            {canCreateIdea && !searchTerm && (
                 <SubmitIdeaDialog onIdeaCreated={onIdeaCreated}>
                      <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />

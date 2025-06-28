@@ -1,9 +1,9 @@
 import Header from "@/components/header";
 import LeaderboardClient from "@/components/leaderboard-client";
-import { getLeaderboardData } from "@/lib/firestore";
+import { getPaginatedLeaderboardData } from "@/lib/firestore";
 
 export default async function LeaderboardPage() {
-    const leaderboardData = await getLeaderboardData();
+    const { users, lastVisible } = await getPaginatedLeaderboardData({});
 
     return (
         <div className="flex min-h-screen w-full flex-col">
@@ -23,7 +23,7 @@ export default async function LeaderboardPage() {
                 </section>
                 <section className="w-full pb-12 md:pb-24 lg:pb-32">
                     <div className="container mx-auto px-4 md:px-6">
-                        <LeaderboardClient initialData={leaderboardData} />
+                        <LeaderboardClient initialUsers={JSON.parse(JSON.stringify(users))} initialLastVisible={JSON.parse(JSON.stringify(lastVisible))} />
                     </div>
                 </section>
             </main>

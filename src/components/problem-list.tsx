@@ -10,10 +10,11 @@ import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitProblemDialog } from "./submit-problem-dialog";
 import { Button } from "./ui/button";
-import { BrainCircuit, Loader2, PlusCircle } from "lucide-react";
+import { BrainCircuit, Loader2, PlusCircle, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import type { DocumentSnapshot } from "firebase/firestore";
 import ProblemCard from "./problem-card";
+import { Input } from "./ui/input";
 
 export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
@@ -24,6 +25,8 @@ export default function ProblemList() {
     const [hasMore, setHasMore] = useState(true);
     const { user, userProfile } = useAuth();
     const { toast } = useToast();
+    const [searchTerm, setSearchTerm] = useState("");
+    const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
     const fetchProblems = useCallback(async (reset: boolean = false) => {
         if (reset) {
@@ -56,7 +59,9 @@ export default function ProblemList() {
     }, [sortBy]);
 
     const handleUpvote = async (problemId: string) => {
-        if (!user) return;
+        if (!user || upvotingId) return;
+
+        setUpvotingId(problemId);
         
         setProblems(prevProblems =>
             prevProblems.map(p => {
@@ -84,10 +89,18 @@ export default function ProblemList() {
                 description: e.message || "Could not record upvote. Reverting.",
             });
             fetchProblems(true);
+        } finally {
+            setUpvotingId(null);
         }
     };
 
-    const canCreateProblem = userProfile?.role === 'User' || userProfile?.role === 'Admin';
+    const canCreateProblem = userProfile?.isPremium;
+
+    const filteredProblems = problems.filter(problem => 
+        problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        problem.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        problem.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
     return (
         <Card>
@@ -96,9 +109,18 @@ export default function ProblemList() {
                     <CardTitle>Problems</CardTitle>
                     <CardDescription>Browse problems that need solving.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                    <div className="relative w-full sm:w-auto">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search problems..." 
+                            className="pl-8 w-full sm:w-auto"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                      <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                        <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -132,14 +154,14 @@ export default function ProblemList() {
                             </div>
                         ))}
                     </div>
-                ) : problems.length > 0 ? (
+                ) : filteredProblems.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {problems.map((problem) => (
-                                <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} />
+                            {filteredProblems.map((problem) => (
+                                <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} isUpvoting={upvotingId === problem.id} />
                             ))}
                         </div>
-                        {hasMore && (
+                        {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">
                                 <Button onClick={() => fetchProblems(false)} disabled={loadingMore}>
                                     {loadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -151,9 +173,11 @@ export default function ProblemList() {
                 ) : (
                     <div className="text-center py-16">
                          <BrainCircuit className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="text-xl font-semibold mt-4">No Problems Yet</h3>
-                        <p className="text-muted-foreground mt-2 mb-6">Be the first to post a problem and challenge the community.</p>
-                        {canCreateProblem && (
+                        <h3 className="text-xl font-semibold mt-4">No Problems Found</h3>
+                        <p className="text-muted-foreground mt-2 mb-6">
+                            {searchTerm ? "Try a different search term." : "Be the first to post a problem and challenge the community."}
+                        </p>
+                        {canCreateProblem && !searchTerm && (
                             <SubmitProblemDialog onProblemCreated={() => fetchProblems(true)}>
                                 <Button>
                                 <PlusCircle className="mr-2 h-4 w-4" />

@@ -3,7 +3,7 @@ import type { Idea } from "@/lib/types";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { ThumbsUp, Users } from "lucide-react";
+import { ThumbsUp, Users, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
@@ -11,9 +11,10 @@ import Link from "next/link";
 interface IdeaCardProps {
   idea: Idea;
   onUpvote: (ideaId: string) => void;
+  isUpvoting: boolean;
 }
 
-export default function IdeaCard({ idea, onUpvote }: IdeaCardProps) {
+export default function IdeaCard({ idea, onUpvote, isUpvoting }: IdeaCardProps) {
   const { user } = useAuth();
   const isUpvoted = user ? idea.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === idea.creator.userId : false;
@@ -46,8 +47,8 @@ export default function IdeaCard({ idea, onUpvote }: IdeaCardProps) {
       </CardContent>
       <CardFooter className="flex justify-between bg-muted/50 p-4">
         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <Button variant={isUpvoted ? 'default' : 'outline'} size="sm" onClick={() => onUpvote(idea.id)} disabled={!user || isCreator} className="flex items-center gap-1 px-2 h-8">
-              <ThumbsUp className="h-4 w-4" />
+            <Button variant={isUpvoted ? 'default' : 'outline'} size="sm" onClick={() => onUpvote(idea.id)} disabled={!user || isCreator || isUpvoting} className="flex items-center gap-1 px-2 h-8">
+              {isUpvoting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
               <span>{idea.upvotes.toLocaleString()}</span>
             </Button>
             <div className="flex items-center gap-1">
@@ -56,7 +57,7 @@ export default function IdeaCard({ idea, onUpvote }: IdeaCardProps) {
             </div>
         </div>
          <Link href={`/ideas/${idea.id}`} passHref>
-          <Button size="sm">View Details</Button>
+          <Button size="sm" disabled={isUpvoting}>View Details</Button>
         </Link>
       </CardFooter>
     </Card>

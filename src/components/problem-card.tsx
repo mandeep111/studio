@@ -4,16 +4,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
-import { MessageSquare, ThumbsUp, Lightbulb, Users } from "lucide-react";
+import { MessageSquare, ThumbsUp, Lightbulb, Users, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 
 interface ProblemCardProps {
   problem: Problem;
   onUpvote: (problemId: string) => void;
+  isUpvoting: boolean;
 }
 
-export default function ProblemCard({ problem, onUpvote }: ProblemCardProps) {
+export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCardProps) {
   const { user } = useAuth();
   const isUpvoted = user ? problem.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === problem.creator.userId : false;
@@ -48,10 +49,10 @@ export default function ProblemCard({ problem, onUpvote }: ProblemCardProps) {
                 variant={isUpvoted ? "default" : "outline"} 
                 size="sm"
                 onClick={() => onUpvote(problem.id)}
-                disabled={!user || isCreator}
+                disabled={!user || isCreator || isUpvoting}
                 className="flex items-center gap-1 px-2 h-8"
             >
-                <ThumbsUp className="h-4 w-4" />
+                {isUpvoting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4" />}
                 <span>{problem.upvotes.toLocaleString()}</span>
             </Button>
             <div className="flex items-center gap-1">
@@ -64,7 +65,7 @@ export default function ProblemCard({ problem, onUpvote }: ProblemCardProps) {
             </div>
         </div>
         <Link href={`/problems/${problem.id}`} passHref>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="outline" disabled={isUpvoting}>
             <Lightbulb className="mr-2 h-4 w-4" />
             View & Discuss
           </Button>

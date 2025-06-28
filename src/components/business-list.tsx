@@ -10,10 +10,11 @@ import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitBusinessDialog } from "./submit-business-dialog";
 import { Button } from "./ui/button";
-import { Briefcase, Loader2, PlusCircle } from "lucide-react";
+import { Briefcase, Loader2, PlusCircle, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import type { DocumentSnapshot } from "firebase/firestore";
 import BusinessCard from "./business-card";
+import { Input } from "./ui/input";
 
 export default function BusinessList() {
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -24,6 +25,8 @@ export default function BusinessList() {
     const [hasMore, setHasMore] = useState(true);
     const { user, userProfile } = useAuth();
     const { toast } = useToast();
+    const [searchTerm, setSearchTerm] = useState("");
+    const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
     const fetchBusinesses = useCallback(async (reset: boolean = false) => {
         if (reset) {
@@ -55,7 +58,9 @@ export default function BusinessList() {
     }, [sortBy]);
 
     const handleUpvote = async (businessId: string) => {
-        if (!user) return;
+        if (!user || upvotingId) return;
+        
+        setUpvotingId(businessId);
 
         setBusinesses(prevBusinesses =>
             prevBusinesses.map(b => {
@@ -83,21 +88,38 @@ export default function BusinessList() {
                 description: e.message || "Could not record upvote. Reverting.",
             });
             fetchBusinesses(true);
+        } finally {
+            setUpvotingId(null);
         }
     };
     
-    const canCreateBusiness = userProfile?.role === 'User' || userProfile?.role === 'Admin';
+    const canCreateBusiness = userProfile?.isPremium;
+
+    const filteredBusinesses = businesses.filter(business =>
+        business.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        business.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        business.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
 
     return (
         <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
+                 <div>
                     <CardTitle>Running Businesses</CardTitle>
                     <CardDescription>Browse established businesses seeking investment.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2 w-full md:w-auto">
+                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+                    <div className="relative w-full sm:w-auto">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search businesses..." 
+                            className="pl-8 w-full sm:w-auto"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                      <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                        <SelectTrigger className="w-full md:w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -129,14 +151,14 @@ export default function BusinessList() {
                             </div>
                         ))}
                     </div>
-                ) : businesses.length > 0 ? (
+                ) : filteredBusinesses.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {businesses.map((business) => (
-                                <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} />
+                            {filteredBusinesses.map((business) => (
+                                <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
                             ))}
                         </div>
-                        {hasMore && (
+                        {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">
                                 <Button onClick={() => fetchBusinesses(false)} disabled={loadingMore}>
                                     {loadingMore && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -148,9 +170,11 @@ export default function BusinessList() {
                 ) : (
                     <div className="text-center py-16">
                          <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
-                        <h3 className="text-xl font-semibold mt-4">No Businesses Listed</h3>
-                        <p className="text-muted-foreground mt-2 mb-6">Be the first to list your business and attract investors.</p>
-                        {canCreateBusiness && (
+                        <h3 className="text-xl font-semibold mt-4">No Businesses Found</h3>
+                        <p className="text-muted-foreground mt-2 mb-6">
+                            {searchTerm ? "Try a different search term." : "Be the first to list your business and attract investors."}
+                        </p>
+                        {canCreateBusiness && !searchTerm && (
                             <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)}>
                                 <Button>
                                     <PlusCircle className="mr-2 h-4 w-4" />

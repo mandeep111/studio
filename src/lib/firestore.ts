@@ -449,6 +449,7 @@ export async function createBusiness(title: string, description: string, tags: s
 async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" | "businesses", docId: string, userId: string) {
     let creatorId: string | null = null;
     let isAlreadyUpvoted = false;
+    let itemTitle = "";
 
     await runTransaction(db, async (transaction) => {
         const docRef = doc(db, collectionName, docId);
@@ -459,6 +460,7 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
 
         const data = docSnap.data();
         creatorId = data.creator.userId;
+        itemTitle = data.title || data.problemTitle; // For solutions
 
         if (creatorId === userId) {
             throw new Error("You cannot upvote your own content.");
@@ -484,9 +486,15 @@ async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" |
     if (!isAlreadyUpvoted && creatorId && creatorId !== userId) {
         const upvoterSnap = await getDoc(doc(db, "users", userId));
         const upvoterName = upvoterSnap.exists() ? upvoterSnap.data().name : "Someone";
+        
+        let message = `${upvoterName} upvoted your ${collectionName.slice(0, -1)}`;
+        if (itemTitle) {
+            message += `: "${itemTitle}"`;
+        }
+        
         await createNotification(
             creatorId,
-            `${upvoterName} upvoted your ${collectionName.slice(0, -1)}!`,
+            message,
             `/${collectionName}/${docId}`
         );
     }
@@ -732,11 +740,26 @@ export async function markNotificationsAsRead(userId: string) {
 }
 
 // --- Leaderboard & Admin ---
-export async function getLeaderboardData(): Promise<UserProfile[]> {
+const LEADERBOARD_PAGE_SIZE = 20;
+
+export async function getPaginatedLeaderboardData(options: { lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
-    const q = query(usersCol, where("points", ">", 0), orderBy("points", "desc"), limit(20));
+    const { lastVisible } = options;
+  
+    const qConstraints = [
+        where("points", ">", 0), 
+        orderBy("points", "desc"), 
+        limit(LEADERBOARD_PAGE_SIZE)
+    ];
+    if(lastVisible) {
+      qConstraints.push(startAfter(lastVisible));
+    }
+    
+    const q = query(usersCol, ...qConstraints);
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+    const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+    const newLastVisible = snapshot.docs.length === LEADERBOARD_PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
+    return { users, lastVisible: newLastVisible };
 }
 
 export async function getPayments(): Promise<Payment[]> {
