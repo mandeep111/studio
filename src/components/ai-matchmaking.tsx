@@ -126,7 +126,7 @@ export default function AiMatchmaking() {
     }
   }
 
-  const isInvestor = userProfile?.role === 'Investor' || userProfile?.role === 'Admin';
+  const isInvestor = userProfile?.role === 'Investor';
 
   return (
     <>

@@ -55,7 +55,7 @@ export default function MembershipClientCard({
         setIsSubmitting(false);
     }
     
-    const isCurrentPlan = userProfile?.role === 'Investor';
+    const isCurrentPlan = userProfile?.role === 'Investor' || userProfile?.role === 'Admin';
 
     return (
         <Card className="flex flex-col max-w-md border-primary ring-2 ring-primary">
@@ -82,7 +82,7 @@ export default function MembershipClientCard({
             </CardContent>
             <CardFooter className="flex-col items-stretch gap-4">
                 {isCurrentPlan ? (
-                    <Button disabled variant="outline">Current Plan</Button>
+                    <Button disabled variant="outline">{userProfile?.role === 'Admin' ? 'Admin Access' : 'Current Plan'}</Button>
                 ) : (
                     loading ? (
                         <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</Button>

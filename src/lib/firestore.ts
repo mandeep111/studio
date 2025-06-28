@@ -836,6 +836,50 @@ export async function markDealAsRead(userId: string, dealId: string) {
     }
 }
 
+export async function updateDealStatus(
+    dealId: string,
+    investorId: string,
+    status: 'completed' | 'cancelled'
+): Promise<{ success: boolean; message: string }> {
+    return await runTransaction(db, async (transaction) => {
+        const dealRef = doc(db, "deals", dealId);
+        const dealSnap = await transaction.get(dealRef);
+
+        if (!dealSnap.exists()) {
+            return { success: false, message: "Deal not found." };
+        }
+
+        const deal = dealSnap.data() as Deal;
+
+        if (deal.investor.userId !== investorId) {
+            return { success: false, message: "Only the investor can update the deal status." };
+        }
+
+        if (deal.status !== 'active') {
+            return { success: false, message: "This deal is already closed." };
+        }
+
+        transaction.update(dealRef, { status: status });
+
+        // Add a system message to the chat
+        const messagesCol = collection(db, `deals/${dealId}/messages`);
+        const systemMessage = {
+            dealId,
+            text: `The deal has been marked as ${status} by the investor.`,
+            sender: {
+                userId: 'system',
+                name: 'System',
+                avatarUrl: '',
+                expertise: 'System Message'
+            },
+            createdAt: serverTimestamp(),
+        };
+        transaction.set(doc(messagesCol), systemMessage);
+
+        return { success: true, message: `Deal successfully marked as ${status}.` };
+    });
+}
+
 
 // --- Notifications ---
 export async function getNotifications(userId: string): Promise<Notification[]> {

@@ -34,7 +34,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (userProfile && (userProfile.role === 'Investor' || userProfile.role === 'Admin')) {
+    if (userProfile && userProfile.role === 'Investor') {
         findExistingDealAction(initialIdea.id, userProfile.uid).then(result => {
             if (result.dealId) {
                 setExistingDealId(result.dealId);
@@ -136,7 +136,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
   }
 
    const handleStartDeal = async (amount: number) => {
-    if (!userProfile || (userProfile.role !== "Investor" && userProfile.role !== "Admin") || !idea) return;
+    if (!userProfile || userProfile.role !== "Investor" || !idea) return;
     
     setIsDealLoading(true);
   
@@ -256,7 +256,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
                     <span>{idea.interestedInvestorsCount || 0} Investors</span>
                 </div>
             </div>
-           {(userProfile?.role === "Investor" || userProfile?.role === "Admin") && !isCreator && (
+           {userProfile?.role === "Investor" && !isCreator && (
             existingDealId ? (
                  <Button asChild>
                     <Link href={`/deals/${existingDealId}`}>

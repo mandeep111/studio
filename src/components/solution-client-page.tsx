@@ -1,13 +1,14 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getSolution, upvoteSolution } from "@/lib/firestore";
+import { getSolution, upvoteSolution, findExistingDealAction } from "@/lib/firestore";
 import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, ExternalLink, ThumbsUp, File, Gem } from "lucide-react";
+import { ArrowLeft, ExternalLink, ThumbsUp, File, Coffee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,10 +20,18 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const [solution, setSolution] = useState<Solution>(initialSolution);
+  const [existingDealId, setExistingDealId] = useState<string | null>(null);
   
   useEffect(() => {
     setSolution(initialSolution);
-  }, [initialSolution]);
+    if (userProfile && userProfile.role === 'Investor') {
+        findExistingDealAction(initialSolution.problemId, userProfile.uid).then(result => {
+            if (result.dealId) {
+                setExistingDealId(result.dealId);
+            }
+        });
+    }
+  }, [initialSolution, userProfile]);
 
   const handleUpvote = async () => {
     if (!user || !solution || user.uid === solution.creator.userId) return;
@@ -52,6 +61,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
 
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
+  const canViewAttachment = existingDealId !== null;
 
   return (
     <>
@@ -80,7 +90,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
            {solution.attachmentUrl && (
                 <div className="mt-6 border-t pt-4">
                     <h4 className="font-semibold mb-2">Attachment</h4>
-                    {userProfile?.isPremium ? (
+                    {canViewAttachment ? (
                         <Button asChild variant="outline">
                             <a href={solution.attachmentUrl} target="_blank" rel="noopener noreferrer">
                                 <File className="mr-2 h-4 w-4" />
@@ -89,8 +99,8 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
                         </Button>
                     ) : (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
-                            <Gem className="h-4 w-4 text-primary" />
-                            <span>A file is attached. <Link href="/membership" className="underline text-primary">Upgrade to Premium</Link> to view.</span>
+                            <Coffee className="h-4 w-4 text-primary" />
+                            <span>An attachment is available. Start a deal for the problem to view.</span>
                         </div>
                     )}
                 </div>

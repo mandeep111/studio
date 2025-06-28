@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage } from "@/lib/firestore";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus } from "@/lib/firestore";
 import type { UserProfile, Ad, PaymentSettings, Deal } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -189,6 +189,10 @@ export async function startDealAction(
     amount: number, // Can be 0 if payments are disabled
     solutionCreatorId?: string
 ) {
+    if (investorProfile.role !== 'Investor') {
+        return { success: false, message: "Only investors can start deals." };
+    }
+    
     const { isEnabled } = await getPaymentSettings();
     
     if (!isEnabled) {
@@ -290,35 +294,24 @@ export async function updateDealStatusAction(formData: FormData) {
     const dealId = formData.get('dealId') as string;
     const status = formData.get('status') as 'completed' | 'cancelled';
     const investorId = formData.get('investorId') as string;
+    
+    if (!dealId || !status || !investorId) {
+        return { success: false, message: 'Missing required fields.' };
+    }
 
+    if (status !== 'completed' && status !== 'cancelled') {
+        return { success: false, message: 'Invalid status provided.' };
+    }
+  
     try {
-        const dealRef = doc(db, 'deals', dealId);
-        const dealSnap = await getDoc(dealRef);
-        if (!dealSnap.exists()) {
-            return { success: false, message: 'Deal not found.' };
+        const result = await updateDealStatus(dealId, investorId, status);
+        if (result.success) {
+            revalidatePath(`/deals/${dealId}`);
         }
-
-        const deal = dealSnap.data() as Deal;
-
-        if (deal.investor.userId !== investorId) {
-             return { success: false, message: 'Only the investor can update the deal status.' };
-        }
-
-        await updateDoc(dealRef, { status });
-        
-        const investorName = deal.investor.name;
-        const message = status === 'completed' 
-            ? `${investorName} has marked this deal as finalized.`
-            : `${investorName} has cancelled this deal.`;
-        
-        await addSystemMessage(dealId, message);
-
-        revalidatePath(`/deals/${dealId}`);
-        return { success: true, message: `Deal has been ${status}.` };
-
+        return result;
     } catch (error) {
-        console.error(`Failed to update deal to ${status}:`, error);
-        return { success: false, message: 'Failed to update deal status.' };
+        console.error("Failed to update deal status:", error);
+        return { success: false, message: 'An unexpected error occurred while updating the deal.' };
     }
 }
 

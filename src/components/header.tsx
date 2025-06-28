@@ -38,7 +38,7 @@ export default function Header() {
         <nav className="hidden items-center gap-4 text-sm font-medium md:flex">
             <Link href="/leaderboard" className="text-muted-foreground transition-colors hover:text-foreground">Leaderboard</Link>
             <Link href="/investors" className="text-muted-foreground transition-colors hover:text-foreground">Investors</Link>
-            <Link href="/membership" className="text-muted-foreground transition-colors hover:text-foreground">Membership</Link>
+            {userProfile?.role !== 'Admin' && <Link href="/membership" className="text-muted-foreground transition-colors hover:text-foreground">Membership</Link>}
             {userProfile?.role === 'Admin' && (
                  <Link href="/admin" className="text-muted-foreground transition-colors hover:text-foreground">Admin</Link>
             )}
@@ -67,10 +67,12 @@ export default function Header() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                   <DropdownMenuItem disabled>
-                      <Gem className="mr-2 h-4 w-4 text-yellow-500" />
-                      <span>{userProfile.points.toLocaleString()} Points</span>
-                   </DropdownMenuItem>
+                   {userProfile.role !== 'Admin' && (
+                    <DropdownMenuItem disabled>
+                        <Gem className="mr-2 h-4 w-4 text-yellow-500" />
+                        <span>{userProfile.points.toLocaleString()} Points</span>
+                    </DropdownMenuItem>
+                   )}
                    <DropdownMenuItem disabled>
                       <Trophy className="mr-2 h-4 w-4 text-primary" />
                       <span>Role: {userProfile.role}</span>

@@ -256,11 +256,11 @@ export default function UserProfileClient({
                                     <ThumbsUp className="h-5 w-5 text-primary" /> <span>{(profile.upvotes || 0).toLocaleString()} Upvotes</span>
                                 </div>
                             </>
-                         ) : (
+                         ) : profile.role === 'User' ? (
                             <div className="flex items-center gap-2 text-muted-foreground">
                                 <Gem className="h-5 w-5 text-yellow-500" /> <span>{profile.points.toLocaleString()} Points</span>
                             </div>
-                         )}
+                         ) : null}
                     </CardContent>
                     
                     <CardFooter>

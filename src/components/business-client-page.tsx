@@ -34,7 +34,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (userProfile && (userProfile.role === 'Investor' || userProfile.role === 'Admin')) {
+    if (userProfile && userProfile.role === 'Investor') {
         findExistingDealAction(initialBusiness.id, userProfile.uid).then(result => {
             if (result.dealId) {
                 setExistingDealId(result.dealId);
@@ -139,7 +139,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
   };
 
   const handleStartDeal = async (amount: number) => {
-    if (!userProfile || (userProfile.role !== "Investor" && userProfile.role !== "Admin") || !business) return;
+    if (!userProfile || userProfile.role !== "Investor" || !business) return;
     
     setIsDealLoading(true);
 
@@ -259,7 +259,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
                     <span>{business.interestedInvestorsCount || 0} Investors</span>
                 </div>
             </div>
-           {(userProfile?.role === "Investor" || userProfile?.role === "Admin") && !isCreator && (
+           {userProfile?.role === "Investor" && !isCreator && (
             existingDealId ? (
                 <Button asChild>
                     <Link href={`/deals/${existingDealId}`}>

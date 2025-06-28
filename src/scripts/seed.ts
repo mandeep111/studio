@@ -22,7 +22,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     role: 'Admin',
     avatarUrl: ADMIN_AVATARS[0],
     expertise: 'Platform Management',
-    points: 100,
+    points: 0,
     isPremium: true,
     unreadDealMessages: {},
     dealsCount: 0,
