@@ -259,7 +259,24 @@ async function createNotification(userId: string | "admins", message: string, li
     });
 }
 
-export async function createProblem(title: string, description: string, tags: string, price: number | null, creator: UserProfile, attachment?: File) {
+export async function addTags(tags: string[]) {
+    if (!tags || tags.length === 0) return;
+    const batch = writeBatch(db);
+    const tagsCol = collection(db, "tags");
+    tags.forEach(tag => {
+        const tagRef = doc(tagsCol, tag.toLowerCase().trim());
+        batch.set(tagRef, { name: tag.trim(), count: increment(1) }, { merge: true });
+    });
+    await batch.commit();
+}
+
+export async function getTags(): Promise<string[]> {
+    const tagsCol = collection(db, "tags");
+    const snapshot = await getDocs(tagsCol);
+    return snapshot.docs.map(doc => doc.data().name as string);
+}
+
+export async function createProblem(title: string, description: string, tags: string[], price: number | null, creator: UserProfile, attachment?: File) {
     await runTransaction(db, async (transaction) => {
         let attachmentData: { url: string; name: string } | null = null;
         if (attachment) {
@@ -274,7 +291,7 @@ export async function createProblem(title: string, description: string, tags: st
         const problemData: Omit<Problem, 'id'> = {
             title,
             description,
-            tags: tags.split(',').map(t => t.trim()),
+            tags,
             creator: {
                 userId: creator.uid,
                 name: creator.name,
@@ -306,6 +323,8 @@ export async function createProblem(title: string, description: string, tags: st
             );
         }
     });
+
+    await addTags(tags);
 }
 
 
@@ -367,7 +386,7 @@ export async function createSolution(description: string, problemId: string, pro
     await batch.commit();
 }
 
-export async function createIdea(title: string, description: string, tags: string, creator: UserProfile, attachment?: File) {
+export async function createIdea(title: string, description: string, tags: string[], creator: UserProfile, attachment?: File) {
   const ideasCol = collection(db, "ideas");
   
   let attachmentData: { url: string; name: string } | null = null;
@@ -378,7 +397,7 @@ export async function createIdea(title: string, description: string, tags: strin
   await addDoc(ideasCol, {
     title,
     description,
-    tags: tags.split(',').map(t => t.trim()),
+    tags,
     creator: {
         userId: creator.uid,
         name: creator.name,
@@ -392,9 +411,11 @@ export async function createIdea(title: string, description: string, tags: strin
     attachmentFileName: attachmentData?.name || null,
     interestedInvestorsCount: 0,
   });
+
+  await addTags(tags);
 }
 
-export async function createBusiness(title: string, description: string, tags: string, stage: string, price: number | null, creator: UserProfile, attachment?: File) {
+export async function createBusiness(title: string, description: string, tags: string[], stage: string, price: number | null, creator: UserProfile, attachment?: File) {
     await runTransaction(db, async (transaction) => {
         let attachmentData: { url: string; name: string } | null = null;
         if (attachment) {
@@ -409,7 +430,7 @@ export async function createBusiness(title: string, description: string, tags: s
         const businessData: Omit<Business, 'id'> = {
             title,
             description,
-            tags: tags.split(',').map(t => t.trim()),
+            tags,
             stage,
             creator: {
                 userId: creator.uid,
@@ -441,6 +462,8 @@ export async function createBusiness(title: string, description: string, tags: s
             );
         }
     });
+    
+    await addTags(tags);
 }
 
 

@@ -19,6 +19,7 @@ import { SubmitButton } from "./submit-button";
 import { Lightbulb, PlusCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { createIdea } from "@/lib/firestore";
+import { TagInput } from "./ui/tag-input";
 
 interface SubmitIdeaDialogProps {
   onIdeaCreated: () => void;
@@ -32,6 +33,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
   const [open, setOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
@@ -49,9 +51,8 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
     const formData = new FormData(event.currentTarget);
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
-    const tags = formData.get('tags') as string;
 
-    if (!title || !description || !tags) {
+    if (!title || !description || tags.length === 0) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setFormLoading(false);
         return;
@@ -61,6 +62,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
         await createIdea(title, description, tags, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Idea submitted successfully." });
         formRef.current?.reset();
+        setTags([]);
         setAttachment(null);
         onIdeaCreated();
         setOpen(false);
@@ -107,7 +109,12 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
             <Label htmlFor="tags">
               Tags
             </Label>
-            <Input id="tags" name="tags" placeholder="e.g. AI, Health (comma-separated)" required disabled={isFieldsDisabled} />
+            <TagInput
+              value={tags}
+              onChange={setTags}
+              placeholder="e.g. AI, Health..."
+              disabled={isFieldsDisabled}
+            />
           </div>
            <div className="space-y-2">
             <Label htmlFor="attachment-idea">Attachment (Optional)</Label>

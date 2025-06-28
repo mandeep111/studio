@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from './submit-button';
 import { DollarSign, Gem } from 'lucide-react';
 import Link from 'next/link';
+import { TagInput } from './ui/tag-input';
 
 interface CreateProblemFormProps {
     onProblemCreated?: () => void;
@@ -21,6 +22,7 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
   const [formLoading, setFormLoading] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
 
 
   const isFieldsDisabled = authLoading || formLoading;
@@ -41,11 +43,10 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
     const formData = new FormData(event.currentTarget);
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
-    const tags = formData.get('tags') as string;
     const priceStr = formData.get('price') as string;
     const price = canSetPrice && priceStr ? parseFloat(priceStr) : null;
     
-    if (!title || !description || !tags) {
+    if (!title || !description || tags.length === 0) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setFormLoading(false);
         return;
@@ -60,6 +61,7 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         await createProblem(title, description, tags, price, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Problem submitted successfully. You've earned 50 points!" });
         formRef.current?.reset();
+        setTags([]);
         setAttachment(null);
         if (onProblemCreated) {
             onProblemCreated();
@@ -91,9 +93,14 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
       </div>
       <div className="space-y-2">
         <Label htmlFor="tags">Tags</Label>
-        <Input id="tags" name="tags" placeholder="e.g. Sustainability, Environment, Technology (comma-separated)" required disabled={isFieldsDisabled}/>
+        <TagInput
+            value={tags}
+            onChange={setTags}
+            placeholder="Add relevant tags..."
+            disabled={isFieldsDisabled}
+        />
         <p className="text-xs text-muted-foreground">
-          Comma-separated list of tags.
+          Press Enter or comma to add a tag.
         </p>
       </div>
        <div className="space-y-2">

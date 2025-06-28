@@ -11,6 +11,7 @@ import { SubmitButton } from './submit-button';
 import { DollarSign, Gem } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import Link from 'next/link';
+import { TagInput } from './ui/tag-input';
 
 interface CreateBusinessFormProps {
     onBusinessCreated?: () => void;
@@ -23,6 +24,7 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
   const [stage, setStage] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
@@ -41,11 +43,10 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
     const formData = new FormData(event.currentTarget);
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
-    const tags = formData.get('tags') as string;
     const priceStr = formData.get('price') as string;
     const price = canSetPrice && priceStr ? parseFloat(priceStr) : null;
     
-    if (!title || !description || !tags || !stage) {
+    if (!title || !description || tags.length === 0 || !stage) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setFormLoading(false);
         return;
@@ -61,6 +62,7 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
         toast({ title: "Success!", description: "Business submitted successfully. You've earned 30 points!" });
         formRef.current?.reset();
         setAttachment(null);
+        setTags([]);
         if (onBusinessCreated) {
             onBusinessCreated();
         }
@@ -124,9 +126,14 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
       </div>
        <div className="space-y-2">
         <Label htmlFor="tags">Tags</Label>
-        <Input id="tags" name="tags" placeholder="e.g. E-commerce, B2C, SaaS (comma-separated)" required disabled={isFieldsDisabled}/>
+        <TagInput
+            value={tags}
+            onChange={setTags}
+            placeholder="e.g. E-commerce, B2C..."
+            disabled={isFieldsDisabled}
+        />
         <p className="text-xs text-muted-foreground">
-          Comma-separated list of relevant tags.
+          Press Enter or comma to add a tag.
         </p>
       </div>
       <div className="space-y-2">
