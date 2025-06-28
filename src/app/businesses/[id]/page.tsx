@@ -1,10 +1,13 @@
-import { getBusiness } from "@/lib/firestore";
+import { getBusiness, getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
 import { notFound } from "next/navigation";
 import BusinessClientPage from "@/components/business-client-page";
 
 export default async function BusinessPage({ params }: { params: { id: string } }) {
-  const business = await getBusiness(params.id);
+  const [business, paymentSettings] = await Promise.all([
+    getBusiness(params.id),
+    getPaymentSettings()
+  ]);
 
   if (!business) {
     notFound();
@@ -17,7 +20,10 @@ export default async function BusinessPage({ params }: { params: { id: string } 
       <Header />
       <main className="flex-1 bg-background">
         <div className="container mx-auto px-4 py-8 md:px-6 lg:px-8">
-            <BusinessClientPage initialBusiness={serializable(business)} />
+            <BusinessClientPage 
+              initialBusiness={serializable(business)} 
+              isPaymentEnabled={paymentSettings.isEnabled}
+            />
         </div>
       </main>
     </div>

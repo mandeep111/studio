@@ -9,6 +9,7 @@ import {
   doc,
   writeBatch,
   Timestamp,
+  setDoc,
 } from 'firebase/firestore';
 import { db } from '../src/lib/firebase/config';
 import type { UserProfile, CreatorReference } from '../src/lib/types';
@@ -332,6 +333,13 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
     console.log('Businesses seeded successfully!');
 }
 
+async function seedSettings() {
+    console.log('Seeding settings...');
+    const settingsRef = doc(db, 'settings', 'payment');
+    await setDoc(settingsRef, { isEnabled: true });
+    console.log('Settings seeded successfully!');
+}
+
 
 async function main() {
     console.log('Starting database seeding process...');
@@ -341,6 +349,7 @@ async function main() {
     await seedProblemsAndSolutions(seededUsers);
     await seedIdeas(seededUsers);
     await seedBusinesses(seededUsers);
+    await seedSettings();
 
     console.log('Database seeding complete! Your collections have been created.');
     process.exit(0);

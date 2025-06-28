@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Star, Users, BrainCircuit } from 'lucide-react';
 import MembershipCard from '@/components/membership-card';
+import { getPaymentSettings } from '@/lib/firestore';
 
-export default function MembershipPage() {
+export default async function MembershipPage() {
   
+  const { isEnabled: isPaymentEnabled } = await getPaymentSettings();
+
   const creatorFeatures = [
     "Submit unlimited problems & ideas",
     "Submit unlimited solutions",
@@ -36,6 +39,7 @@ export default function MembershipPage() {
                 <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">Choose Your Path</h1>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                   Whether you're an innovator with the next big idea or an investor looking to fund it, VentureForge has a plan for you.
+                  { !isPaymentEnabled && <span className="block mt-2 font-semibold text-primary">Payments are currently disabled. All upgrades are free!</span> }
                 </p>
               </div>
             </div>
@@ -53,6 +57,7 @@ export default function MembershipPage() {
               monthlyPrice={5}
               lifetimePrice={50}
               planType="creator"
+              isPaymentEnabled={isPaymentEnabled}
             />
             
             <MembershipCard
@@ -64,6 +69,7 @@ export default function MembershipPage() {
               lifetimePrice={100}
               planType="investor"
               isPopular
+              isPaymentEnabled={isPaymentEnabled}
             />
 
           </div>

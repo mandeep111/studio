@@ -19,9 +19,10 @@ import {
   startAfter,
   deleteField,
   deleteDoc,
+  setDoc,
 } from "firebase/firestore";
 import { db, storage } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad } from "./types";
+import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad, PaymentSettings } from "./types";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 
@@ -618,6 +619,7 @@ export async function createDeal(
         amount,
         relatedDealId: newDealRef.id,
         relatedDealTitle: itemTitle,
+        details: amount === 0 ? 'Free deal (payments disabled)' : undefined,
     });
 
     return newDealRef.id;
@@ -830,4 +832,21 @@ export async function createAd(data: Omit<Ad, 'id' | 'createdAt' | 'isActive'>) 
 export async function toggleAdStatus(id: string, isActive: boolean) {
     const docRef = doc(db, "ads", id);
     await updateDoc(docRef, { isActive });
+}
+
+// --- Platform Settings ---
+
+export async function getPaymentSettings(): Promise<PaymentSettings> {
+    const docRef = doc(db, 'settings', 'payment');
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        return docSnap.data() as PaymentSettings;
+    }
+    // Default to enabled if not set
+    return { isEnabled: true };
+}
+
+export async function updatePaymentSettings(isEnabled: boolean) {
+    const docRef = doc(db, 'settings', 'payment');
+    await setDoc(docRef, { isEnabled });
 }

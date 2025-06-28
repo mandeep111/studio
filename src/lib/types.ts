@@ -113,6 +113,7 @@ export interface Payment {
     paymentFrequency?: 'monthly' | 'lifetime';
     relatedDealId?: string;
     relatedDealTitle?: string;
+    details?: string;
 }
 
 export interface Ad {
@@ -123,4 +124,8 @@ export interface Ad {
   placement: 'problem-detail' | 'solution-detail' | 'idea-detail' | 'business-detail';
   isActive: boolean;
   createdAt: SerializableTimestamp;
+}
+
+export interface PaymentSettings {
+  isEnabled: boolean;
 }

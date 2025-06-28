@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users, Info } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
@@ -20,14 +20,16 @@ import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import AdDisplay from "./ad-display";
 import { useRouter } from "next/navigation";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
   initialSolutions: Solution[];
   ad: Ad | null;
+  isPaymentEnabled: boolean;
 }
 
-export default function ProblemClientPage({ initialProblem, initialSolutions, ad }: ProblemClientPageProps) {
+export default function ProblemClientPage({ initialProblem, initialSolutions, ad, isPaymentEnabled }: ProblemClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -109,16 +111,21 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
       const existingDeal = await findExistingDealAction(problem.id, userProfile.uid);
       if(existingDeal.dealId) {
         router.push(`/deals/${existingDeal.dealId}`);
-      } else {
-        setDealConfig({ solution });
-        setCoffeePopupOpen(true);
+        return;
       }
+      
+      setDealConfig({ solution });
 
-      setIsDealLoading(false);
+      if (isPaymentEnabled) {
+        setCoffeePopupOpen(true);
+        setIsDealLoading(false);
+      } else {
+        await confirmAndStartDeal(0); // Start deal for free
+      }
   }
 
   const confirmAndStartDeal = async (amount: number) => {
-    if (!userProfile || !problem || !dealConfig) return;
+    if (!userProfile || !problem || dealConfig === null) return;
   
     setIsDealLoading(true);
 
@@ -131,9 +138,12 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
         amount,
         dealConfig.solution?.creator.userId
     );
-
+    
     if (result.success && result.url) {
         window.location.href = result.url;
+    } else if (result.success && result.dealId) {
+        toast({ title: "Deal Started!", description: "The deal has been created successfully." });
+        router.push(`/deals/${result.dealId}`);
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
         setIsDealLoading(false);
@@ -165,6 +175,15 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           <SubmitProblemDialog />
         )}
       </div>
+       {!isPaymentEnabled && (
+        <Alert className="mb-4">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Payments Disabled</AlertTitle>
+            <AlertDescription>
+                The payment system is currently turned off. All premium actions are free.
+            </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <div className="flex items-start gap-4">
@@ -237,7 +256,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           {canStartDeal && !isProblemCreator && (
             <Button onClick={() => handleStartDealClick()} disabled={isDealLoading}>
               {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
-              Start a Deal with Creator
+              {isPaymentEnabled ? "Start Deal with Creator" : "Start Deal (Free)"}
             </Button>
           )}
         </CardFooter>
@@ -255,6 +274,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
                 solution={solution} 
                 onUpvote={() => handleSolutionUpvote(solution.id)}
                 onStartDeal={handleStartDealClick} 
+                isPaymentEnabled={isPaymentEnabled}
               />
             ))
           ) : (

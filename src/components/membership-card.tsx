@@ -20,6 +20,7 @@ interface MembershipCardProps {
     lifetimePrice: number;
     planType: 'creator' | 'investor';
     isPopular?: boolean;
+    isPaymentEnabled: boolean;
 }
 
 export default function MembershipCard({
@@ -30,7 +31,8 @@ export default function MembershipCard({
     monthlyPrice,
     lifetimePrice,
     planType,
-    isPopular = false
+    isPopular = false,
+    isPaymentEnabled,
 }: MembershipCardProps) {
     const { userProfile, loading } = useAuth();
     const { toast } = useToast();
@@ -51,8 +53,13 @@ export default function MembershipCard({
 
         const result = await upgradeMembershipAction(planType, paymentFrequency, price, userProfile);
 
-        if (result.success && result.url) {
-            window.location.href = result.url;
+        if (result.success) {
+            if (result.url) {
+                window.location.href = result.url;
+            } else if (result.instant) {
+                toast({ title: "Success!", description: "Your membership has been upgraded successfully."});
+                window.location.reload();
+            }
         } else {
             toast({ variant: "destructive", title: "Error", description: result.message });
         }
@@ -97,16 +104,23 @@ export default function MembershipCard({
                     loading ? (
                         <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</Button>
                     ) : (
-                        <>
-                            <Button onClick={() => handleUpgrade('monthly', monthlyPrice)} disabled={monthlyLoading || lifetimeLoading}>
-                                {monthlyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Subscribe - ${monthlyPrice}/mo
-                            </Button>
-                           <Button variant="outline" onClick={() => handleUpgrade('lifetime', lifetimePrice)} disabled={monthlyLoading || lifetimeLoading}>
+                        !isPaymentEnabled ? (
+                            <Button onClick={() => handleUpgrade('lifetime', 0)} disabled={lifetimeLoading}>
                                 {lifetimeLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Get Lifetime - ${lifetimePrice}
+                                Upgrade for Free
                             </Button>
-                        </>
+                        ) : (
+                             <>
+                                <Button onClick={() => handleUpgrade('monthly', monthlyPrice)} disabled={monthlyLoading || lifetimeLoading}>
+                                    {monthlyLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Subscribe - ${monthlyPrice}/mo
+                                </Button>
+                               <Button variant="outline" onClick={() => handleUpgrade('lifetime', lifetimePrice)} disabled={monthlyLoading || lifetimeLoading}>
+                                    {lifetimeLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Get Lifetime - ${lifetimePrice}
+                                </Button>
+                            </>
+                        )
                     )
                 )}
             </CardFooter>

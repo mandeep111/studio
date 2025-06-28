@@ -1,11 +1,11 @@
 import Header from "@/components/header";
 import AdminClient from "@/components/admin-client";
-import { getUnapprovedItems, getAllUsers, getProblems, getSolutions, getIdeas, getPayments, getAds, getBusinesses } from "@/lib/firestore";
+import { getUnapprovedItems, getAllUsers, getProblems, getSolutions, getIdeas, getPayments, getAds, getBusinesses, getPaymentSettings } from "@/lib/firestore";
 
 // This page should be server-side rendered to protect it.
 export default async function AdminPage() {
     
-    const [unapprovedItems, users, problems, solutions, ideas, payments, ads, businesses] = await Promise.all([
+    const [unapprovedItems, users, problems, solutions, ideas, payments, ads, businesses, paymentSettings] = await Promise.all([
         getUnapprovedItems(),
         getAllUsers(),
         getProblems(),
@@ -14,6 +14,7 @@ export default async function AdminPage() {
         getPayments(),
         getAds(),
         getBusinesses(),
+        getPaymentSettings(),
     ]);
 
     const serializable = (data: any) => JSON.parse(JSON.stringify(data));
@@ -45,6 +46,7 @@ export default async function AdminPage() {
                             initialPayments={serializable(payments)}
                             initialAds={serializable(ads)}
                             initialBusinesses={serializable(businesses)}
+                            initialPaymentSettings={serializable(paymentSettings)}
                         />
                     </div>
                 </section>

@@ -1,13 +1,14 @@
-import { getProblem, getSolutionsForProblem, getActiveAdForPlacement } from "@/lib/firestore";
+import { getProblem, getSolutionsForProblem, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
 import { notFound } from "next/navigation";
 import ProblemClientPage from "@/components/problem-client-page";
 
 export default async function ProblemPage({ params }: { params: { id: string } }) {
-  const [problem, solutions, ad] = await Promise.all([
+  const [problem, solutions, ad, paymentSettings] = await Promise.all([
     getProblem(params.id),
     getSolutionsForProblem(params.id),
     getActiveAdForPlacement('problem-detail'),
+    getPaymentSettings()
   ]);
 
   if (!problem) {
@@ -25,6 +26,7 @@ export default async function ProblemPage({ params }: { params: { id: string } }
               initialProblem={serializable(problem)} 
               initialSolutions={serializable(solutions)} 
               ad={serializable(ad)}
+              isPaymentEnabled={paymentSettings.isEnabled}
             />
         </div>
       </main>

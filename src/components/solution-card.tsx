@@ -11,9 +11,10 @@ interface SolutionCardProps {
   solution: Solution;
   onUpvote: (solutionId: string) => void;
   onStartDeal?: (solution: Solution) => void;
+  isPaymentEnabled?: boolean;
 }
 
-export default function SolutionCard({ solution, onUpvote, onStartDeal }: SolutionCardProps) {
+export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled }: SolutionCardProps) {
   const { user, userProfile } = useAuth();
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
@@ -52,7 +53,7 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal }: Soluti
             {isInvestor && !isCreator && onStartDeal && (
                  <Button size="sm" onClick={() => onStartDeal(solution)}>
                     <Coffee className="mr-2 h-4 w-4" />
-                    Start Deal
+                    {isPaymentEnabled ? "Start Deal" : "Start (Free)"}
                 </Button>
             )}
         </div>

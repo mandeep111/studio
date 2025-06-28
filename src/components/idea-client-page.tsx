@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users } from "lucide-react";
+import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
@@ -16,12 +16,14 @@ import { startDealAction, findExistingDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
 
 interface IdeaClientPageProps {
   initialIdea: Idea;
+  isPaymentEnabled: boolean;
 }
 
-export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
+export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -70,11 +72,15 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
     const existingDeal = await findExistingDealAction(idea.id, userProfile.uid);
     if (existingDeal.dealId) {
       router.push(`/deals/${existingDeal.dealId}`);
-    } else {
-      setCoffeePopupOpen(true);
+      return;
     }
 
-    setIsDealLoading(false);
+    if (isPaymentEnabled) {
+      setCoffeePopupOpen(true);
+      setIsDealLoading(false);
+    } else {
+      await handleStartDeal(0); // Start deal for free
+    }
   }
 
    const handleStartDeal = async (amount: number) => {
@@ -93,6 +99,9 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
 
     if (result.success && result.url) {
         window.location.href = result.url;
+    } else if (result.success && result.dealId) {
+        toast({ title: "Deal Started!", description: "The deal has been created successfully." });
+        router.push(`/deals/${result.dealId}`);
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
         setIsDealLoading(false);
@@ -121,6 +130,15 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
           <SubmitIdeaDialog onIdeaCreated={fetchIdea} />
         )}
       </div>
+      {!isPaymentEnabled && (
+        <Alert className="mb-4">
+            <Info className="h-4 w-4" />
+            <AlertTitle>Payments Disabled</AlertTitle>
+            <AlertDescription>
+                The payment system is currently turned off. All premium actions are free.
+            </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <div className="flex items-start gap-4">
@@ -181,7 +199,7 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
            {userProfile?.role === "Investor" && !isCreator && (
             <Button onClick={handleStartDealClick} disabled={isDealLoading}>
               {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
-              Start a Deal
+              {isPaymentEnabled ? "Start a Deal" : "Start Deal (Free)"}
             </Button>
           )}
         </CardFooter>

@@ -1,8 +1,8 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getAds, deleteAd } from "@/lib/firestore";
-import type { UserProfile, Ad } from "@/lib/types";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getAds, getPaymentSettings, updatePaymentSettings } from "@/lib/firestore";
+import type { UserProfile, Ad, PaymentSettings } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
@@ -108,6 +108,28 @@ export async function upgradeMembershipAction(
         return { success: false, message: 'User not authenticated.' };
     }
 
+    const { isEnabled } = await getPaymentSettings();
+
+    if (!isEnabled) {
+        try {
+            await updateUserMembership(userProfile.uid, plan as 'creator' | 'investor');
+            await logPayment({
+                userId: userProfile.uid,
+                userName: userProfile.name,
+                userAvatarUrl: userProfile.avatarUrl,
+                type: 'membership',
+                amount: 0,
+                plan: plan as 'creator' | 'investor',
+                paymentFrequency,
+                details: 'Free upgrade (payments disabled)'
+            });
+            return { success: true, instant: true };
+        } catch (error) {
+            console.error("Error during free membership upgrade:", error);
+            return { success: false, message: "Could not upgrade membership." };
+        }
+    }
+
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
     if (!baseUrl) {
         throw new Error('NEXT_PUBLIC_BASE_URL is not set.');
@@ -163,9 +185,21 @@ export async function startDealAction(
     itemId: string,
     itemTitle: string,
     itemType: 'problem' | 'idea' | 'business',
-    amount: number,
+    amount: number, // Can be 0 if payments are disabled
     solutionCreatorId?: string
 ) {
+    const { isEnabled } = await getPaymentSettings();
+    
+    if (!isEnabled) {
+        try {
+            const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
+            return { success: true, dealId };
+        } catch (error) {
+            console.error("Error creating free deal:", error);
+            return { success: false, message: "Could not start the deal. Please try again."};
+        }
+    }
+    
     if (isNaN(amount) || amount < 5) {
         return { success: false, message: "Invalid contribution amount." };
     }
@@ -319,5 +353,17 @@ export async function toggleAdStatusAction(formData: FormData) {
     } catch (error) {
         console.error("Failed to toggle ad status:", error);
         return { success: false, message: 'Failed to update ad status.' };
+    }
+}
+
+export async function updatePaymentSettingsAction(formData: FormData) {
+    try {
+        const isEnabled = formData.get('isEnabled') === 'true';
+        await updatePaymentSettings(isEnabled);
+        revalidatePath('/admin');
+        return { success: true, message: 'Payment settings updated.' };
+    } catch (error) {
+        console.error("Failed to update payment settings:", error);
+        return { success: false, message: 'Failed to update settings.' };
     }
 }

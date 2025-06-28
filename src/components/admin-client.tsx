@@ -4,21 +4,22 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Problem, Solution, UserProfile, Idea, Payment, Ad, Business } from "@/lib/types";
+import { Problem, Solution, UserProfile, Idea, Payment, Ad, Business, PaymentSettings } from "@/lib/types";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { approveItemAction, deleteItemAction, toggleAdStatusAction } from "@/app/actions";
+import { approveItemAction, deleteItemAction, toggleAdStatusAction, updatePaymentSettingsAction } from "@/app/actions";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, Settings } from "lucide-react";
 import { format } from 'date-fns';
 import { getDateFromTimestamp } from "@/lib/utils";
 import CreateAdForm from "./create-ad-form";
 import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 type UnapprovedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' }) | (Business & { type: 'business' });
 type DeletableItem = { id: string; type: 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad' };
@@ -32,6 +33,7 @@ interface AdminClientProps {
     initialPayments: Payment[];
     initialAds: Ad[];
     initialBusinesses: Business[];
+    initialPaymentSettings: PaymentSettings;
 }
 
 export default function AdminClient({ 
@@ -42,7 +44,8 @@ export default function AdminClient({
     initialIdeas,
     initialPayments,
     initialAds,
-    initialBusinesses
+    initialBusinesses,
+    initialPaymentSettings
 }: AdminClientProps) {
     const { userProfile, loading } = useAuth();
     const router = useRouter();
@@ -56,6 +59,7 @@ export default function AdminClient({
     const [unapprovedItems, setUnapprovedItems] = useState(initialItems);
     const [payments, setPayments] = useState(initialPayments);
     const [ads, setAds] = useState(initialAds);
+    const [paymentSettings, setPaymentSettings] = useState(initialPaymentSettings);
 
     useEffect(() => {
         if (!loading && userProfile?.role !== 'Admin') {
@@ -111,6 +115,20 @@ export default function AdminClient({
             toast({ variant: "destructive", title: "Error", description: result.message });
         }
     }
+
+    const handlePaymentSettingsToggle = async () => {
+        const newIsEnabled = !paymentSettings.isEnabled;
+        const formData = new FormData();
+        formData.append('isEnabled', String(newIsEnabled));
+        
+        const result = await updatePaymentSettingsAction(formData);
+        if (result.success) {
+            toast({ title: "Success", description: result.message });
+            setPaymentSettings({ isEnabled: newIsEnabled });
+        } else {
+             toast({ variant: "destructive", title: "Error", description: result.message });
+        }
+    }
     
     const handleAdCreated = (newAd: Ad) => {
         // In a real app, we'd refetch, but for now this is fine.
@@ -121,19 +139,20 @@ export default function AdminClient({
         return <p>Loading or redirecting...</p>;
     }
     
-    const AdminTab = ({ value, children, count }: { value: string, children: React.ReactNode, count: number }) => (
+    const AdminTab = ({ value, children, count }: { value: string, children: React.ReactNode, count?: number }) => (
         <TabsTrigger value={value} className="justify-center">
             {children}
-            {count > 0 && <Badge variant="secondary" className="ml-2">{count}</Badge>}
+            {count !== undefined && count > 0 && <Badge variant="secondary" className="ml-2">{count}</Badge>}
         </TabsTrigger>
     );
 
     return (
         <Tabs defaultValue="approval">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 h-auto flex-wrap">
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 h-auto flex-wrap">
                 <AdminTab value="approval" count={unapprovedItems.length}>Approval</AdminTab>
                 <AdminTab value="payments" count={payments.length}>Payments</AdminTab>
                 <AdminTab value="ads" count={ads.length}>Ads</AdminTab>
+                <AdminTab value="settings"><Settings className="h-4 w-4" /></AdminTab>
                 <AdminTab value="users" count={users.length}>Users</AdminTab>
                 <AdminTab value="problems" count={problems.length}>Problems</AdminTab>
                 <AdminTab value="solutions" count={solutions.length}>Solutions</AdminTab>
@@ -214,10 +233,8 @@ export default function AdminClient({
                                             ${payment.amount.toFixed(2)}
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">{format(getDateFromTimestamp(payment.createdAt), 'PPp')}</TableCell>
-                                        <TableCell className="text-sm">
-                                            {payment.type === 'membership' && (
-                                                <span className="capitalize">{payment.plan} - {payment.paymentFrequency}</span>
-                                            )}
+                                        <TableCell className="text-sm capitalize">
+                                            {payment.details || (payment.type === 'membership' && `${payment.plan} - ${payment.paymentFrequency}`)}
                                              {payment.type === 'deal_creation' && payment.relatedDealId && (
                                                 <Button variant="link" asChild className="p-0 h-auto">
                                                     <Link href={`/deals/${payment.relatedDealId}`}>
@@ -294,6 +311,30 @@ export default function AdminClient({
                         </Card>
                     </div>
                 </div>
+            </TabsContent>
+
+             <TabsContent value="settings" className="mt-4">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Platform Settings</CardTitle>
+                        <CardDescription>Manage global settings for the VentureForge platform.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       <div className="flex items-center justify-between rounded-lg border p-4">
+                           <div>
+                                <Label htmlFor="payment-toggle" className="font-semibold">Enable Payments</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    Turn this on to require Stripe payments for membership upgrades and deal creation.
+                                </p>
+                           </div>
+                           <Switch
+                             id="payment-toggle"
+                             checked={paymentSettings.isEnabled}
+                             onCheckedChange={handlePaymentSettingsToggle}
+                           />
+                       </div>
+                    </CardContent>
+                </Card>
             </TabsContent>
 
             <TabsContent value="users" className="mt-4">
