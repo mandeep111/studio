@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 interface BuyMeACoffeePopupProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
-  onConfirm: () => void;
+  onConfirm: (amount: number) => void;
 }
 
 export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: BuyMeACoffeePopupProps) {
@@ -34,7 +34,7 @@ export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: B
       });
       return;
     }
-    onConfirm();
+    onConfirm(amount);
     onOpenChange(false);
   }
 

@@ -20,7 +20,7 @@ import {
   deleteField,
 } from "firebase/firestore";
 import { db, storage } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference } from "./types";
+import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment } from "./types";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 
@@ -507,6 +507,14 @@ export async function upvoteBusiness(docId: string, userId: string) {
 
 // --- Investor & Deals ---
 
+export async function logPayment(paymentData: Omit<Payment, 'id' | 'createdAt'>) {
+    const paymentsCol = collection(db, "payments");
+    await addDoc(paymentsCol, {
+        ...paymentData,
+        createdAt: serverTimestamp(),
+    });
+}
+
 export async function updateUserMembership(userId: string, plan: 'creator' | 'investor') {
     const userRef = doc(db, "users", userId);
     const updates: Partial<UserProfile> = {
@@ -523,7 +531,8 @@ export async function createDeal(
     primaryCreatorId: string, 
     itemId: string, 
     itemTitle: string, 
-    itemType: 'problem' | 'idea' | 'business', 
+    itemType: 'problem' | 'idea' | 'business',
+    amount: number,
     solutionCreatorId?: string
 ): Promise<string> {
     
@@ -571,20 +580,28 @@ export async function createDeal(
         transaction.update(itemRef, { interestedInvestorsCount: increment(1) });
     });
     
-    // Notifications part
+    // Notifications and Payment Logging
     const dealLink = `/deals/${newDealRef.id}`;
     const dealDoc = await getDoc(newDealRef);
     if (!dealDoc.exists()) throw new Error("Could not create deal.");
-    
     const dealData = dealDoc.data() as Deal;
 
     const participantsToNotify = (dealData.participantIds || []).filter(id => id !== investorProfile.uid);
-    
     for (const participantId of participantsToNotify) {
         const message = `${investorProfile.name} wants to start a deal about "${itemTitle}"!`;
         await createNotification(participantId, message, dealLink);
     }
     
+    await logPayment({
+        userId: investorProfile.uid,
+        userName: investorProfile.name,
+        userAvatarUrl: investorProfile.avatarUrl,
+        type: 'deal_creation',
+        amount,
+        relatedDealId: newDealRef.id,
+        relatedDealTitle: itemTitle,
+    });
+
     return newDealRef.id;
 }
 
@@ -700,6 +717,13 @@ export async function getLeaderboardData(): Promise<UserProfile[]> {
     const q = query(usersCol, where("points", ">", 0), orderBy("points", "desc"), limit(20));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+}
+
+export async function getPayments(): Promise<Payment[]> {
+    const paymentsCol = collection(db, "payments");
+    const q = query(paymentsCol, orderBy("createdAt", "desc"), limit(100));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 }
 
 export async function getUnapprovedItems() {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -78,7 +77,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
       setCoffeePopupOpen(true);
   }
 
-  const confirmAndStartDeal = async () => {
+  const confirmAndStartDeal = async (amount: number) => {
     if (!userProfile || !problem || !dealConfig) return;
   
     const formData = new FormData();
@@ -87,6 +86,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions }: 
     formData.append('itemId', problem.id);
     formData.append('itemTitle', problem.title);
     formData.append('itemType', 'problem');
+    formData.append('amount', String(amount));
 
     if (dealConfig.solution) {
         formData.append('solutionCreatorId', dealConfig.solution.creator.userId);

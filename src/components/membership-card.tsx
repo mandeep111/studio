@@ -1,14 +1,12 @@
-
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { cn } from "@/lib/utils";
-import { Check, Star } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { upgradeMembershipAction } from "@/app/actions";
-import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { SubmitButton } from "./submit-button";
 
@@ -44,6 +42,7 @@ export default function MembershipCard({
         }
         formData.append('userId', userProfile.uid);
         formData.append('plan', planType);
+        formData.append('userProfile', JSON.stringify(userProfile));
 
         const result = await upgradeMembershipAction(formData);
 
@@ -89,12 +88,16 @@ export default function MembershipCard({
                     ) : (
                         <>
                             <form action={handleUpgrade}>
+                                <input type="hidden" name="price" value={monthlyPrice} />
+                                <input type="hidden" name="paymentFrequency" value="monthly" />
                                 <SubmitButton className="w-full" pendingText="Processing...">
                                     Subscribe - ${monthlyPrice}/mo
                                 </SubmitButton>
                             </form>
                             <form action={handleUpgrade}>
-                                 <SubmitButton variant="outline" className="w-full" pendingText="Processing...">
+                                <input type="hidden" name="price" value={lifetimePrice} />
+                                <input type="hidden" name="paymentFrequency" value="lifetime" />
+                                <SubmitButton variant="outline" className="w-full" pendingText="Processing...">
                                     Get Lifetime - ${lifetimePrice}
                                 </SubmitButton>
                             </form>

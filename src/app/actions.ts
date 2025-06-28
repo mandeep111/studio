@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership } from "@/lib/firestore";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment } from "@/lib/firestore";
 import type { UserProfile } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -99,13 +99,27 @@ export async function getAiPairings(
 export async function upgradeMembershipAction(formData: FormData) {
     const userId = formData.get('userId') as string;
     const plan = formData.get('plan') as 'creator' | 'investor';
-    
-    if (!userId || !plan) {
+    const price = parseFloat(formData.get('price') as string);
+    const paymentFrequency = formData.get('paymentFrequency') as 'monthly' | 'lifetime';
+    const user = JSON.parse(formData.get('userProfile') as string) as UserProfile;
+
+    if (!userId || !plan || isNaN(price) || !paymentFrequency || !user) {
         return { success: false, message: 'Invalid data provided.' };
     }
 
     try {
         await updateUserMembership(userId, plan);
+        
+        await logPayment({
+            userId,
+            userName: user.name,
+            userAvatarUrl: user.avatarUrl,
+            type: 'membership',
+            amount: price,
+            plan,
+            paymentFrequency,
+        });
+
         revalidatePath('/membership');
         revalidatePath('/'); // Revalidate home to update header/user state
         revalidatePath(`/users/${userId}`); // Revalidate profile page
@@ -122,10 +136,15 @@ export async function startDealAction(formData: FormData) {
     const itemId = formData.get('itemId') as string;
     const itemTitle = formData.get('itemTitle') as string;
     const itemType = formData.get('itemType') as 'problem' | 'idea' | 'business';
+    const amount = parseFloat(formData.get('amount') as string);
     const solutionCreatorId = formData.get('solutionCreatorId') as string | undefined;
 
+    if (isNaN(amount) || amount < 5) {
+        return { success: false, message: "Invalid contribution amount." };
+    }
+
     try {
-        const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, solutionCreatorId);
+        const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, amount, solutionCreatorId);
         revalidatePath(`/deals/${dealId}`);
         return { success: true, dealId };
     } catch (error) {

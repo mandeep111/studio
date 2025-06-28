@@ -100,3 +100,17 @@ export interface Notification {
     read: boolean;
     createdAt: SerializableTimestamp;
 }
+
+export interface Payment {
+    id: string;
+    userId: string;
+    userName: string;
+    userAvatarUrl: string;
+    type: 'membership' | 'deal_creation';
+    amount: number;
+    createdAt: SerializableTimestamp;
+    plan?: 'creator' | 'investor';
+    paymentFrequency?: 'monthly' | 'lifetime';
+    relatedDealId?: string;
+    relatedDealTitle?: string;
+}

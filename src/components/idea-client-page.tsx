@@ -51,7 +51,7 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
     }
   };
 
-   const handleStartDeal = async () => {
+   const handleStartDeal = async (amount: number) => {
     if (!userProfile || userProfile.role !== "Investor" || !idea) return;
   
     const formData = new FormData();
@@ -60,6 +60,7 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
     formData.append('itemId', idea.id);
     formData.append('itemTitle', idea.title);
     formData.append('itemType', 'idea');
+    formData.append('amount', String(amount));
 
     const result = await startDealAction(formData);
 

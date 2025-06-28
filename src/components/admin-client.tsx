@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Problem, Solution, UserProfile, Idea } from "@/lib/types";
+import { Problem, Solution, UserProfile, Idea, Payment } from "@/lib/types";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { approveItemAction, deleteItemAction } from "@/app/actions";
@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
-import { Trash2 } from "lucide-react";
+import { DollarSign, Trash2 } from "lucide-react";
 import { format } from 'date-fns';
 import { getDateFromTimestamp } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ interface AdminClientProps {
     initialProblems: Problem[];
     initialSolutions: Solution[];
     initialIdeas: Idea[];
+    initialPayments: Payment[];
 }
 
 export default function AdminClient({ 
@@ -34,7 +35,8 @@ export default function AdminClient({
     initialUsers, 
     initialProblems, 
     initialSolutions, 
-    initialIdeas 
+    initialIdeas,
+    initialPayments
 }: AdminClientProps) {
     const { userProfile, loading } = useAuth();
     const router = useRouter();
@@ -46,6 +48,7 @@ export default function AdminClient({
     const [solutions, setSolutions] = useState(initialSolutions);
     const [ideas, setIdeas] = useState(initialIdeas);
     const [unapprovedItems, setUnapprovedItems] = useState(initialItems);
+    const [payments, setPayments] = useState(initialPayments);
 
     useEffect(() => {
         if (!loading && userProfile?.role !== 'Admin') {
@@ -94,8 +97,9 @@ export default function AdminClient({
 
     return (
         <Tabs defaultValue="approval">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
                 <TabsTrigger value="approval">Awaiting Approval</TabsTrigger>
+                <TabsTrigger value="payments">Payments</TabsTrigger>
                 <TabsTrigger value="users">Users</TabsTrigger>
                 <TabsTrigger value="problems">Problems</TabsTrigger>
                 <TabsTrigger value="solutions">Solutions</TabsTrigger>
@@ -131,6 +135,64 @@ export default function AdminClient({
                                 ))}
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+             <TabsContent value="payments" className="mt-4">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Payment History</CardTitle>
+                        <CardDescription>All transactions made on the platform.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Type</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead className="hidden md:table-cell">Date</TableHead>
+                                    <TableHead>Details</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {payments.map(payment => (
+                                    <TableRow key={payment.id}>
+                                        <TableCell>
+                                             <div className="flex items-center gap-2">
+                                                <Avatar className="h-8 w-8">
+                                                    <AvatarImage src={payment.userAvatarUrl} />
+                                                    <AvatarFallback>{payment.userName.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                                <span>{payment.userName}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className="capitalize">
+                                                {payment.type.replace('_', ' ')}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="font-medium">
+                                            ${payment.amount.toFixed(2)}
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">{format(getDateFromTimestamp(payment.createdAt), 'PPp')}</TableCell>
+                                        <TableCell className="text-sm">
+                                            {payment.type === 'membership' && (
+                                                <span className="capitalize">{payment.plan} - {payment.paymentFrequency}</span>
+                                            )}
+                                             {payment.type === 'deal_creation' && payment.relatedDealId && (
+                                                <Button variant="link" asChild className="p-0 h-auto">
+                                                    <Link href={`/deals/${payment.relatedDealId}`}>
+                                                        View Deal
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>

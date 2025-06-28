@@ -55,7 +55,7 @@ export default function AiMatchmaking() {
     setCoffeePopupOpen(true);
   }
 
-  const confirmStartDeal = async () => {
+  const confirmStartDeal = async (amount: number) => {
     if (!selectedPairing || !userProfile) return;
 
     const formData = new FormData();
@@ -65,6 +65,7 @@ export default function AiMatchmaking() {
     formData.append('itemId', selectedPairing.problemId); 
     formData.append('itemTitle', selectedPairing.problemTitle);
     formData.append('itemType', 'problem');
+    formData.append('amount', String(amount));
 
     const result = await startDealAction(formData);
 

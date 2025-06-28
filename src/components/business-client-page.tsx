@@ -51,7 +51,7 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
     }
   };
 
-  const handleStartDeal = async () => {
+  const handleStartDeal = async (amount: number) => {
     if (!userProfile || userProfile.role !== "Investor" || !business) return;
   
     const formData = new FormData();
@@ -60,6 +60,7 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
     formData.append('itemId', business.id);
     formData.append('itemTitle', business.title);
     formData.append('itemType', 'business');
+    formData.append('amount', String(amount));
 
     const result = await startDealAction(formData);
 
