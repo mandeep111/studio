@@ -54,24 +54,51 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
 
 
   const handleProblemUpvote = async () => {
-    if (!user || !problem) return;
+    if (!user || !problem || user.uid === problem.creator.userId) return;
+
+    setProblem(prevProblem => {
+        if (!prevProblem) return prevProblem;
+        const isAlreadyUpvoted = prevProblem.upvotedBy.includes(user.uid);
+        return {
+            ...prevProblem,
+            upvotes: isAlreadyUpvoted ? prevProblem.upvotes - 1 : prevProblem.upvotes + 1,
+            upvotedBy: isAlreadyUpvoted
+                ? prevProblem.upvotedBy.filter(uid => uid !== user.uid)
+                : [...prevProblem.upvotedBy, user.uid],
+        };
+    });
+
     try {
         await upvoteProblem(problem.id, user.uid);
-        fetchProblemAndSolutions();
-        toast({title: "Success", description: "Your upvote has been recorded."})
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Could not record upvote."})
+        fetchProblemAndSolutions(); // Revert
     }
   };
 
   const handleSolutionUpvote = async (solutionId: string) => {
     if (!user) return;
+     
+    setSolutions(prevSolutions => prevSolutions.map(s => {
+        if (s.id === solutionId) {
+            if (s.creator.userId === user.uid) return s;
+            const isAlreadyUpvoted = s.upvotedBy.includes(user.uid);
+            return {
+                ...s,
+                upvotes: isAlreadyUpvoted ? s.upvotes - 1 : s.upvotes + 1,
+                upvotedBy: isAlreadyUpvoted
+                    ? s.upvotedBy.filter(uid => uid !== user.uid)
+                    : [...s.upvotedBy, user.uid],
+            };
+        }
+        return s;
+    }));
+
      try {
         await upvoteSolution(solutionId, user.uid);
-        fetchProblemAndSolutions();
-        toast({title: "Success", description: "Your upvote has been recorded."})
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Could not record upvote."})
+        fetchProblemAndSolutions(); // Revert
     }
   };
   

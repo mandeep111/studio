@@ -79,44 +79,68 @@ export default function UserProfileClient({
 
     const handleProblemUpvote = async (problemId: string) => {
         if (!user) return;
+        setProblems(prev => prev.map(p => {
+            if (p.id === problemId && p.creator.userId !== user.uid) {
+                const isUpvoted = p.upvotedBy.includes(user.uid);
+                return { ...p, upvotes: isUpvoted ? p.upvotes - 1 : p.upvotes + 1, upvotedBy: isUpvoted ? p.upvotedBy.filter(uid => uid !== user.uid) : [...p.upvotedBy, user.uid] };
+            }
+            return p;
+        }));
         try {
             await upvoteProblem(problemId, user.uid);
-            fetchData();
-            toast({title: "Success", description: "Your upvote has been recorded."});
         } catch (e) {
+            fetchData(); // revert
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
 
     const handleSolutionUpvote = async (solutionId: string) => {
         if (!user) return;
+        setSolutions(prev => prev.map(s => {
+            if (s.id === solutionId && s.creator.userId !== user.uid) {
+                const isUpvoted = s.upvotedBy.includes(user.uid);
+                return { ...s, upvotes: isUpvoted ? s.upvotes - 1 : s.upvotes + 1, upvotedBy: isUpvoted ? s.upvotedBy.filter(uid => uid !== user.uid) : [...s.upvotedBy, user.uid] };
+            }
+            return s;
+        }));
         try {
             await upvoteSolution(solutionId, user.uid);
-            fetchData();
-            toast({title: "Success", description: "Your upvote has been recorded."});
         } catch (e) {
+            fetchData(); // revert
             toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
 
     const handleIdeaUpvote = async (ideaId: string) => {
         if (!user) return;
+        setIdeas(prev => prev.map(i => {
+            if (i.id === ideaId && i.creator.userId !== user.uid) {
+                const isUpvoted = i.upvotedBy.includes(user.uid);
+                return { ...i, upvotes: isUpvoted ? i.upvotes - 1 : i.upvotes + 1, upvotedBy: isUpvoted ? i.upvotedBy.filter(uid => uid !== user.uid) : [...i.upvotedBy, user.uid] };
+            }
+            return i;
+        }));
         try {
             await upvoteIdea(ideaId, user.uid);
-            fetchData();
-            toast({ title: "Success", description: "Your upvote has been recorded." });
         } catch (e) {
+            fetchData(); // revert
             toast({ variant: "destructive", title: "Error", description: "Could not record upvote." });
         }
     };
 
     const handleBusinessUpvote = async (businessId: string) => {
         if (!user) return;
+        setBusinesses(prev => prev.map(b => {
+            if (b.id === businessId && b.creator.userId !== user.uid) {
+                const isUpvoted = b.upvotedBy.includes(user.uid);
+                return { ...b, upvotes: isUpvoted ? b.upvotes - 1 : b.upvotes + 1, upvotedBy: isUpvoted ? b.upvotedBy.filter(uid => uid !== user.uid) : [...b.upvotedBy, user.uid] };
+            }
+            return b;
+        }));
         try {
             await upvoteBusiness(businessId, user.uid);
-            fetchData();
-            toast({ title: "Success", description: "Your upvote has been recorded." });
         } catch (e) {
+            fetchData(); // revert
             toast({ variant: "destructive", title: "Error", description: "Could not record upvote." });
         }
     };

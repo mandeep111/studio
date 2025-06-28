@@ -55,12 +55,33 @@ export default function SolutionList() {
 
     const handleUpvote = async (solutionId: string) => {
         if (!user) return;
+
+        setSolutions(prevSolutions =>
+            prevSolutions.map(s => {
+                if (s.id === solutionId) {
+                    if (s.creator.userId === user.uid) return s;
+                    const isAlreadyUpvoted = s.upvotedBy.includes(user.uid);
+                    return {
+                        ...s,
+                        upvotes: isAlreadyUpvoted ? s.upvotes - 1 : s.upvotes + 1,
+                        upvotedBy: isAlreadyUpvoted
+                            ? s.upvotedBy.filter(uid => uid !== user.uid)
+                            : [...s.upvotedBy, user.uid],
+                    };
+                }
+                return s;
+            })
+        );
+
         try {
             await upvoteSolution(solutionId, user.uid);
+        } catch (e: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: e.message || "Could not record upvote. Reverting.",
+            });
             fetchSolutions(true);
-            toast({title: "Success", description: "Your upvote has been recorded."});
-        } catch (e) {
-            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
 

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -26,17 +25,26 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
   }, [initialSolution]);
 
   const handleUpvote = async () => {
-    if (!user || !solution) return;
+    if (!user || !solution || user.uid === solution.creator.userId) return;
     
+    setSolution(prevSolution => {
+        if (!prevSolution) return prevSolution;
+        const isUpvoted = prevSolution.upvotedBy.includes(user.uid);
+        return {
+            ...prevSolution,
+            upvotes: isUpvoted ? prevSolution.upvotes - 1 : prevSolution.upvotes + 1,
+            upvotedBy: isUpvoted ? prevSolution.upvotedBy.filter(uid => uid !== user.uid) : [...prevSolution.upvotedBy, user.uid]
+        };
+    });
+
     try {
         await upvoteSolution(solution.id, user.uid);
-        const updatedSolution = await getSolution(solution.id);
-        if (updatedSolution) {
-          setSolution(updatedSolution);
-        }
-        toast({title: "Success", description: "Your upvote has been recorded."});
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+        const revertedSolution = await getSolution(solution.id);
+        if (revertedSolution) {
+          setSolution(revertedSolution);
+        }
     }
   };
 

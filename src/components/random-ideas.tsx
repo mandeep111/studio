@@ -55,12 +55,33 @@ export default function RandomIdeas() {
 
   const handleUpvote = async (ideaId: string) => {
     if (!user) return;
+
+    setIdeas(prevIdeas =>
+        prevIdeas.map(i => {
+            if (i.id === ideaId) {
+                if (i.creator.userId === user.uid) return i;
+                const isAlreadyUpvoted = i.upvotedBy.includes(user.uid);
+                return {
+                    ...i,
+                    upvotes: isAlreadyUpvoted ? i.upvotes - 1 : i.upvotes + 1,
+                    upvotedBy: isAlreadyUpvoted
+                        ? i.upvotedBy.filter(uid => uid !== user.uid)
+                        : [...i.upvotedBy, user.uid],
+                };
+            }
+            return i;
+        })
+    );
+    
     try {
         await upvoteIdea(ideaId, user.uid);
+    } catch (e: any) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: e.message || "Could not record upvote. Reverting.",
+        });
         fetchIdeas(true);
-        toast({ title: "Success", description: "Your upvote has been recorded." });
-    } catch(e) {
-        toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
     }
   };
 

@@ -43,13 +43,23 @@ export default function IdeaClientPage({ initialIdea }: IdeaClientPageProps) {
 
 
   const handleIdeaUpvote = async () => {
-    if (!user || !idea) return;
+    if (!user || !idea || user.uid === idea.creator.userId) return;
+
+    setIdea(prevIdea => {
+        if (!prevIdea) return prevIdea;
+        const isUpvoted = prevIdea.upvotedBy.includes(user.uid);
+        return {
+            ...prevIdea,
+            upvotes: isUpvoted ? prevIdea.upvotes - 1 : prevIdea.upvotes + 1,
+            upvotedBy: isUpvoted ? prevIdea.upvotedBy.filter(uid => uid !== user.uid) : [...prevIdea.upvotedBy, user.uid]
+        };
+    });
+
     try {
         await upvoteIdea(idea.id, user.uid);
-        fetchIdea();
-        toast({title: "Success", description: "Your upvote has been recorded."})
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+        fetchIdea(); // Revert
     }
   };
 

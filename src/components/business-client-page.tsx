@@ -43,13 +43,25 @@ export default function BusinessClientPage({ initialBusiness }: BusinessClientPa
 
 
   const handleBusinessUpvote = async () => {
-    if (!user || !business) return;
+    if (!user || !business || user.uid === business.creator.userId) return;
+
+    setBusiness(prevBusiness => {
+        if (!prevBusiness) return prevBusiness;
+        const isAlreadyUpvoted = prevBusiness.upvotedBy.includes(user.uid);
+        return {
+            ...prevBusiness,
+            upvotes: isAlreadyUpvoted ? prevBusiness.upvotes - 1 : prevBusiness.upvotes + 1,
+            upvotedBy: isAlreadyUpvoted
+                ? prevBusiness.upvotedBy.filter(uid => uid !== user.uid)
+                : [...prevBusiness.upvotedBy, user.uid],
+        };
+    });
+
     try {
         await upvoteBusiness(business.id, user.uid);
-        fetchBusiness();
-        toast({title: "Success", description: "Your upvote has been recorded."})
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+        fetchBusiness(); // Revert
     }
   };
 

@@ -56,12 +56,33 @@ export default function ProblemList() {
 
     const handleUpvote = async (problemId: string) => {
         if (!user) return;
+        
+        setProblems(prevProblems =>
+            prevProblems.map(p => {
+                if (p.id === problemId) {
+                    if (p.creator.userId === user.uid) return p;
+                    const isAlreadyUpvoted = p.upvotedBy.includes(user.uid);
+                    return {
+                        ...p,
+                        upvotes: isAlreadyUpvoted ? p.upvotes - 1 : p.upvotes + 1,
+                        upvotedBy: isAlreadyUpvoted
+                            ? p.upvotedBy.filter(uid => uid !== user.uid)
+                            : [...p.upvotedBy, user.uid],
+                    };
+                }
+                return p;
+            })
+        );
+
         try {
             await upvoteProblem(problemId, user.uid);
-            fetchProblems(true); 
-            toast({title: "Success", description: "Your upvote has been recorded."});
-        } catch (e) {
-            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+        } catch (e: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: e.message || "Could not record upvote. Reverting.",
+            });
+            fetchProblems(true);
         }
     };
 

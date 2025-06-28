@@ -55,12 +55,33 @@ export default function BusinessList() {
 
     const handleUpvote = async (businessId: string) => {
         if (!user) return;
+
+        setBusinesses(prevBusinesses =>
+            prevBusinesses.map(b => {
+                if (b.id === businessId) {
+                    if (b.creator.userId === user.uid) return b;
+                    const isAlreadyUpvoted = b.upvotedBy.includes(user.uid);
+                    return {
+                        ...b,
+                        upvotes: isAlreadyUpvoted ? b.upvotes - 1 : b.upvotes + 1,
+                        upvotedBy: isAlreadyUpvoted
+                            ? b.upvotedBy.filter(uid => uid !== user.uid)
+                            : [...b.upvotedBy, user.uid],
+                    };
+                }
+                return b;
+            })
+        );
+        
         try {
             await upvoteBusiness(businessId, user.uid);
+        } catch (e: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: e.message || "Could not record upvote. Reverting.",
+            });
             fetchBusinesses(true);
-            toast({title: "Success", description: "Your upvote has been recorded."});
-        } catch (e) {
-            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         }
     };
     
