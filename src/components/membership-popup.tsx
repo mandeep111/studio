@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { becomeInvestorAction } from "@/app/actions";
+import { upgradeMembershipAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
@@ -29,7 +29,12 @@ export default function MembershipPopup({ isOpen, onOpenChange }: MembershipPopu
   const handleBecomeInvestor = async () => {
     if (!userProfile) return;
     setLoading(true);
-    const result = await becomeInvestorAction(userProfile.uid);
+    
+    const formData = new FormData();
+    formData.append('userId', userProfile.uid);
+    formData.append('plan', 'investor');
+
+    const result = await upgradeMembershipAction(formData);
     if (result.success) {
       toast({ title: "Success!", description: result.message });
       onOpenChange(false);

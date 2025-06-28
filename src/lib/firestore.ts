@@ -507,12 +507,15 @@ export async function upvoteBusiness(docId: string, userId: string) {
 
 // --- Investor & Deals ---
 
-export async function becomeInvestor(userId: string) {
+export async function updateUserMembership(userId: string, plan: 'creator' | 'investor') {
     const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, {
-        role: "Investor",
-        isPremium: true
-    });
+    const updates: Partial<UserProfile> = {
+        isPremium: true,
+    };
+    if (plan === 'investor') {
+        updates.role = 'Investor';
+    }
+    await updateDoc(userRef, updates);
 }
 
 export async function createDeal(

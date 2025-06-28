@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { becomeInvestor, createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage } from "@/lib/firestore";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership } from "@/lib/firestore";
 import type { UserProfile } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -96,14 +96,23 @@ export async function getAiPairings(
   }
 }
 
-export async function becomeInvestorAction(userId: string) {
+export async function upgradeMembershipAction(formData: FormData) {
+    const userId = formData.get('userId') as string;
+    const plan = formData.get('plan') as 'creator' | 'investor';
+    
+    if (!userId || !plan) {
+        return { success: false, message: 'Invalid data provided.' };
+    }
+
     try {
-        await becomeInvestor(userId);
-        revalidatePath('/');
-        return { success: true, message: "Welcome! You are now an Investor." };
+        await updateUserMembership(userId, plan);
+        revalidatePath('/membership');
+        revalidatePath('/'); // Revalidate home to update header/user state
+        revalidatePath(`/users/${userId}`); // Revalidate profile page
+        return { success: true, message: `Successfully upgraded to ${plan}!`};
     } catch (error) {
-        console.error(error);
-        return { success: false, message: "Failed to update your role." };
+        console.error("Failed to upgrade membership:", error);
+        return { success: false, message: "Could not upgrade your membership. Please try again."};
     }
 }
 

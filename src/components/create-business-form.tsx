@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from './submit-button';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Gem } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import Link from 'next/link';
 
 interface CreateBusinessFormProps {
     onBusinessCreated?: () => void;
@@ -26,6 +27,8 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
 
+  const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
+
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,15 +42,16 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const tags = formData.get('tags') as string;
-    const price = formData.get('price') ? parseFloat(formData.get('price') as string) : null;
+    const priceStr = formData.get('price') as string;
+    const price = canSetPrice && priceStr ? parseFloat(priceStr) : null;
     
     if (!title || !description || !tags || !stage) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setFormLoading(false);
         return;
     }
-    if (!price || isNaN(price)) {
-        toast({ variant: "destructive", title: "Validation Error", description: "Funding sought must be a valid number."});
+    if (canSetPrice && !priceStr) {
+        toast({ variant: "destructive", title: "Validation Error", description: "Funding sought is required for premium users."});
         setFormLoading(false);
         return;
     }
@@ -101,13 +105,22 @@ export default function CreateBusinessForm({ onBusinessCreated }: CreateBusiness
       </div>
        <div className="space-y-2">
         <Label htmlFor="price">Funding Sought</Label>
-        <div className="relative">
-             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input id="price" name="price" type="number" step="1000" placeholder="50000" className="pl-8" required disabled={isFieldsDisabled}/>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Set a funding amount. Amounts over $1,000 require admin approval.
-        </p>
+        {canSetPrice ? (
+          <>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="price" name="price" type="number" step="1000" placeholder="50000" className="pl-8" required disabled={isFieldsDisabled}/>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Amounts over $1,000 require admin approval.
+            </p>
+          </>
+        ) : (
+           <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                <Gem className="h-4 w-4 text-primary" />
+                <span><Link href="/membership" className="underline text-primary">Upgrade to Creator</Link> or earn 10,000 points to set a price.</span>
+            </div>
+        )}
       </div>
        <div className="space-y-2">
         <Label htmlFor="tags">Tags</Label>

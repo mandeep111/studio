@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from './submit-button';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Gem } from 'lucide-react';
+import Link from 'next/link';
 
 interface CreateProblemFormProps {
     onProblemCreated?: () => void;
@@ -25,6 +26,7 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
 
+  const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,8 +38,8 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         return;
     }
 
-    if (userProfile.role !== 'User' && userProfile.role !== 'Admin') {
-        toast({ variant: "destructive", title: "Permission Denied", description: "Only Users and Admins can create problems." });
+    if (userProfile.role !== 'User' && userProfile.role !== 'Admin' && !userProfile.isPremium) {
+        toast({ variant: "destructive", title: "Permission Denied", description: "Only Premium Users and Admins can create problems." });
         setFormLoading(false);
         return;
     }
@@ -46,14 +48,15 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const tags = formData.get('tags') as string;
-    const price = formData.get('price') ? parseFloat(formData.get('price') as string) : null;
+    const priceStr = formData.get('price') as string;
+    const price = canSetPrice && priceStr ? parseFloat(priceStr) : null;
     
     if (!title || !description || !tags) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setFormLoading(false);
         return;
     }
-    if (price && isNaN(price)) {
+    if (canSetPrice && priceStr && isNaN(parseFloat(priceStr))) {
         toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
         setFormLoading(false);
         return;
@@ -101,13 +104,22 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
       </div>
        <div className="space-y-2">
         <Label htmlFor="price">Price (Optional)</Label>
-        <div className="relative">
-             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isFieldsDisabled}/>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Set a price for your problem. Prices over $1,000 require admin approval.
-        </p>
+        {canSetPrice ? (
+          <>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="price" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isFieldsDisabled}/>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Set a price for your problem. Prices over $1,000 require admin approval.
+            </p>
+          </>
+        ) : (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                <Gem className="h-4 w-4 text-primary" />
+                <span><Link href="/membership" className="underline text-primary">Upgrade to Creator</Link> or earn 10,000 points to set a price.</span>
+            </div>
+        )}
       </div>
       <div className="space-y-2">
         <Label htmlFor="attachment">Attachment (Optional)</Label>
