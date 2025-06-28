@@ -44,7 +44,7 @@ export default function DealClientPage({
   }, [initialDeal.id]);
 
   const handleMarkAsComplete = async () => {
-    if (!userProfile || deal.status === 'completed' || deal.completionVotes.includes(userProfile.uid)) return;
+    if (!userProfile || deal.status === 'completed' || (deal.completionVotes || []).includes(userProfile.uid)) return;
 
     setIsSubmitting(true);
     const formData = new FormData();
@@ -62,7 +62,7 @@ export default function DealClientPage({
     setIsSubmitting(false);
   };
   
-  const waitingFor = participants.filter(p => !deal.completionVotes.includes(p.uid));
+  const waitingFor = participants.filter(p => !(deal.completionVotes || []).includes(p.uid));
 
   return (
     <main className="flex-1 flex flex-col bg-muted/40">
@@ -98,7 +98,7 @@ export default function DealClientPage({
                 </CardHeader>
                 {deal.status === 'active' && (
                     <CardFooter className="flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        {deal.completionVotes.length > 0 && (
+                        {(deal.completionVotes || []).length > 0 && (
                             <Alert variant="default" className="w-full sm:w-auto flex-grow">
                                 <Info className="h-4 w-4"/>
                                 <AlertTitle>Pending Completion</AlertTitle>
@@ -109,11 +109,11 @@ export default function DealClientPage({
                         )}
                         <Button 
                             onClick={handleMarkAsComplete}
-                            disabled={isSubmitting || deal.completionVotes.includes(userProfile?.uid || '') || authLoading}
+                            disabled={isSubmitting || (deal.completionVotes || []).includes(userProfile?.uid || '') || authLoading}
                             className="w-full sm:w-auto sm:ml-auto"
                         >
                             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Handshake className="mr-2 h-4 w-4" />}
-                            {deal.completionVotes.includes(userProfile?.uid || '') ? "You Voted to Complete" : "Mark as Complete"}
+                            {(deal.completionVotes || []).includes(userProfile?.uid || '') ? "You Voted to Complete" : "Mark as Complete"}
                         </Button>
                     </CardFooter>
                 )}

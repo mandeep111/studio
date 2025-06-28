@@ -299,11 +299,11 @@ export async function markDealAsCompleteAction(formData: FormData) {
         }
 
         const deal = dealSnap.data() as Deal;
-        if (deal.completionVotes.includes(userId)) {
+        if ((deal.completionVotes || []).includes(userId)) {
              return { success: true, message: 'You have already voted.' };
         }
 
-        const updatedVotes = [...deal.completionVotes, userId];
+        const updatedVotes = [...(deal.completionVotes || []), userId];
         const allVoted = updatedVotes.length === deal.participantIds.length;
 
         const updates: Partial<Deal> = {
