@@ -1,7 +1,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus, getDeal, getUserProfile, createNotification, getIdeas } from "@/lib/firestore";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus, getDeal, getUserProfile, createNotification, getIdeas, updateUserProfile } from "@/lib/firestore";
 import type { UserProfile, Ad, PaymentSettings, Deal } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -414,5 +414,26 @@ export async function updatePaymentSettingsAction(formData: FormData) {
     } catch (error) {
         console.error("Failed to update payment settings:", error);
         return { success: false, message: 'Failed to update settings.' };
+    }
+}
+
+export async function updateUserProfileAction(formData: FormData): Promise<{success: boolean; message: string;}> {
+    const userId = formData.get('userId') as string;
+    const name = formData.get('name') as string;
+    const expertise = formData.get('expertise') as string;
+    const avatarFile = formData.get('avatar') as File | null;
+
+    if (!userId) {
+        return { success: false, message: "User ID is missing." };
+    }
+
+    try {
+        await updateUserProfile(userId, { name, expertise }, avatarFile ?? undefined);
+        revalidatePath(`/users/${userId}`);
+        revalidatePath(`/`); // For header
+        return { success: true, message: "Profile updated successfully." };
+    } catch (error) {
+        console.error("Failed to update profile:", error);
+        return { success: false, message: (error as Error).message || "An unexpected error occurred." };
     }
 }

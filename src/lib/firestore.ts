@@ -1059,3 +1059,61 @@ export async function updatePaymentSettings(isEnabled: boolean) {
     const docRef = doc(db, 'settings', 'payment');
     await setDoc(docRef, { isEnabled });
 }
+
+export async function updateUserProfile(userId: string, data: { name: string; expertise: string }, avatarFile?: File) {
+    const batch = writeBatch(db);
+    const userRef = doc(db, "users", userId);
+
+    const updateData: { name: string; expertise: string; avatarUrl?: string } = {
+        name: data.name,
+        expertise: data.expertise,
+    };
+    
+    let newAvatarUrl: string | undefined = undefined;
+    if (avatarFile) {
+        const { url } = await uploadAttachment(avatarFile);
+        updateData.avatarUrl = url;
+        newAvatarUrl = url;
+    }
+
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) throw new Error("User not found");
+    const existingProfile = userSnap.data() as UserProfile;
+    
+    const newCreatorRef: CreatorReference = {
+        userId: userId,
+        name: data.name,
+        avatarUrl: newAvatarUrl || existingProfile.avatarUrl,
+        expertise: data.expertise,
+    };
+
+    // 1. Update User Profile
+    batch.update(userRef, updateData);
+
+    // 2. Update denormalized creator fields in items
+    const collectionsToUpdate = ['problems', 'solutions', 'ideas', 'businesses'];
+    for (const collectionName of collectionsToUpdate) {
+        const q = query(collection(db, collectionName), where("creator.userId", "==", userId));
+        const snapshot = await getDocs(q);
+        snapshot.forEach(doc => batch.update(doc.ref, { creator: newCreatorRef }));
+    }
+
+    // 3. Update denormalized fields in deals
+    const dealsAsInvestorQuery = query(collection(db, "deals"), where("investor.userId", "==", userId));
+    const dealsAsPrimaryCreatorQuery = query(collection(db, "deals"), where("primaryCreator.userId", "==", userId));
+    const dealsAsSolutionCreatorQuery = query(collection(db, "deals"), where("solutionCreator.userId", "==", userId));
+    
+    const [dealsAsInvestorSnap, dealsAsPrimaryCreatorSnap, dealsAsSolutionCreatorSnap] = await Promise.all([
+        getDocs(dealsAsInvestorQuery),
+        getDocs(dealsAsPrimaryCreatorQuery),
+        getDocs(dealsAsSolutionCreatorQuery)
+    ]);
+    
+    dealsAsInvestorSnap.forEach(doc => batch.update(doc.ref, { investor: newCreatorRef }));
+    dealsAsPrimaryCreatorSnap.forEach(doc => batch.update(doc.ref, { primaryCreator: newCreatorRef }));
+    dealsAsSolutionCreatorSnap.forEach(doc => batch.update(doc.ref, { solutionCreator: newCreatorRef }));
+
+    // Messages will not be updated to avoid performance issues. The sender info is a snapshot.
+    
+    await batch.commit();
+}

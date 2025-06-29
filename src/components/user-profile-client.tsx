@@ -7,7 +7,7 @@ import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems,
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users, ThumbsUp, Loader2 } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users, ThumbsUp, Loader2, Edit } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
@@ -263,14 +263,22 @@ export default function UserProfileClient({
                          ) : null}
                     </CardContent>
                     
-                    <CardFooter>
+                    <CardFooter className="flex-col gap-2 items-stretch">
                         {isOwnProfile ? (
-                            <Button variant="outline" className="w-full" onClick={handleLogout}>
-                                <LogOut className="mr-2 h-4 w-4" />
-                                Log Out
-                            </Button>
+                            <>
+                                <Button variant="outline" className="w-full" asChild>
+                                    <Link href={`/users/${profile.uid}/edit`}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit Profile
+                                    </Link>
+                                </Button>
+                                <Button variant="outline" className="w-full" onClick={handleLogout}>
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    Log Out
+                                </Button>
+                            </>
                         ) : profile.role === 'Investor' && user ? (
-                             <Button variant="outline" className="w-full" onClick={handleInvestorUpvote} disabled={isUpvoting}>
+                            <Button variant="outline" className="w-full" onClick={handleInvestorUpvote} disabled={isUpvoting}>
                                 {isUpvoting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-2 h-4 w-4" />}
                                 {(profile.upvotedBy || []).includes(user.uid) ? 'Upvoted' : 'Upvote Investor'}
                             </Button>
