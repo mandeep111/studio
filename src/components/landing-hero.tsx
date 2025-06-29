@@ -68,7 +68,8 @@ export default function LandingHero() {
                 </div>
                 </div>
                 <Image
-                    src="/banner.png"
+                    src="https://placehold.co/600x400.png"
+                    data-ai-hint="innovation process"
                     width="600"
                     height="400"
                     alt="A banner showing the flow from Problem to Solution to Investment to Profit."
