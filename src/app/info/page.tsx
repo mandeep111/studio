@@ -29,6 +29,7 @@ export default function InfoPage() {
                             <li><strong>Don't Reveal Everything:</strong> Think of your public problem or solution description as a "teaser." Provide enough detail to generate interest, but hold back the core "secret sauce," proprietary algorithms, or detailed implementation plans.</li>
                             <li><strong>Use Attachments Wisely:</strong> You can upload detailed documents (business plans, technical specifications) as attachments. These attachments are <strong>only visible to investors who start a deal with you</strong>, creating a secure second layer of information sharing.</li>
                             <li><strong>Focus on the "What" and "Why":</strong> Describe what the problem is and why it's important, or what your solution does and the value it provides. Save the "how" for private conversations within a deal.</li>
+                            <li><strong>Negotiate Directly:</strong> All financial agreements and payouts are negotiated and handled directly with the investor via the private deal chat. Problem2Profit facilitates the connection but does not process payments between users.</li>
                             <li><strong>Build Your Reputation:</strong> A strong reputation, built by earning points through popular content, signals credibility to investors and makes them more likely to engage in a deal to learn more.</li>
                         </ul>
                     </CardContent>
@@ -47,7 +48,8 @@ export default function InfoPage() {
                             <li><strong>Check the Creator's Profile:</strong> Review their reputation points, expertise, and history of submissions. A long-standing, active user is generally more reliable.</li>
                             <li><strong>Use the AI Matchmaker:</strong> Our AI tool analyzes reputation and expertise to suggest promising pairings, providing an initial layer of vetting.</li>
                             <li><strong>Start a Deal to Vet:</strong> The deal-making process is your opportunity for due diligence. Use the private chat to ask detailed questions, request more information, and assess the creator's knowledge and seriousness.</li>
-                            <li><strong>Start Small:</strong> The initial "deal creation" fee is a small contribution to facilitate the introduction. Do not transfer significant funds outside of a formal, legally-binding agreement managed outside of this platform.</li>
+                             <li><strong>Platform Facilitation:</strong> The $10 deal contribution fee helps maintain the platform and ensures creators are connected with serious investors. All further financial transactions must be handled through external, legally-binding agreements.</li>
+                             <li><strong>Start Small:</strong> Do not transfer significant funds outside of a formal, legally-binding agreement managed outside of this platform. This platform is for discovery and initial contact.</li>
                              <li><strong>Report Suspicious Activity:</strong> If you suspect a creator is misrepresenting themselves or their idea, please report it to our admin team immediately.</li>
                         </ul>
                     </CardContent>

@@ -46,7 +46,7 @@ export default async function MembershipPage() {
               description="For the visionaries who fund the future."
               icon={<Star className="h-8 w-8 text-yellow-500" />}
               features={investorFeatures}
-              lifetimePrice={50}
+              lifetimePrice={20}
               isPaymentEnabled={isPaymentEnabled}
             />
 

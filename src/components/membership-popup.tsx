@@ -33,7 +33,7 @@ export default function MembershipPopup({ isOpen, onOpenChange }: MembershipPopu
     };
     setLoading(true);
 
-    const result = await upgradeMembershipAction('investor', 'lifetime', 100, userProfile);
+    const result = await upgradeMembershipAction('investor', 'lifetime', 20, userProfile);
 
     if (result.success && result.url) {
       window.location.href = result.url;

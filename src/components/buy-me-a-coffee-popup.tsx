@@ -47,7 +47,7 @@ export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: B
             Support the Creators
           </DialogTitle>
           <DialogDescription>
-            Facilitate this introduction by contributing to the platform. This small gesture helps keep the platform running and shows your appreciation.
+            Facilitate this introduction by making a small contribution. This helps keep the platform running and signals to creators that you are a genuine investor.
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 space-y-2">
@@ -65,7 +65,7 @@ export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: B
               />
             </div>
              <p className="text-xs text-muted-foreground">
-                Minimum contribution is $10.
+                Minimum contribution is $10 to filter for genuine investors.
             </p>
         </div>
         <DialogFooter>
