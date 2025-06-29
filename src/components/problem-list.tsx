@@ -16,14 +16,12 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import ProblemCard from "./problem-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
-import { Switch } from "./ui/switch";
-import { Label } from "./ui/label";
 
 export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [sortBy, setSortBy] = useState<'createdAt' | 'upvotes' | 'solutionsCount'>('upvotes');
+    const [sortBy, setSortBy] = useState<'createdAt' | 'upvotes' | 'solutionsCount' | 'interestedInvestorsCount'>('upvotes');
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const { user, userProfile } = useAuth();
@@ -31,7 +29,6 @@ export default function ProblemList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
-    const [showClosed, setShowClosed] = useState(false);
 
     useEffect(() => {
         getActiveAdForPlacement('problem-list').then(setAd);
@@ -107,7 +104,6 @@ export default function ProblemList() {
 
     const filteredProblems = useMemo(() => {
         return problems.filter(problem => {
-            if (!showClosed && problem.isClosed) return false;
             if (searchTerm) {
                 const searchLower = searchTerm.toLowerCase();
                 return problem.title.toLowerCase().includes(searchLower) ||
@@ -116,7 +112,7 @@ export default function ProblemList() {
             }
             return true;
         });
-    }, [problems, showClosed, searchTerm]);
+    }, [problems, searchTerm]);
 
 
     const problemCards = filteredProblems.map((problem) => (
@@ -144,20 +140,17 @@ export default function ProblemList() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                     <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes' | 'solutionsCount') => setSortBy(value)}>
+                     <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes' | 'solutionsCount' | 'interestedInvestorsCount') => setSortBy(value)}>
                         <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="upvotes">Most Upvoted</SelectItem>
                             <SelectItem value="solutionsCount">Most Solutions</SelectItem>
+                            <SelectItem value="interestedInvestorsCount">Most Investors</SelectItem>
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
-                     <div className="flex items-center space-x-2">
-                        <Switch id="show-closed" checked={showClosed} onCheckedChange={setShowClosed} />
-                        <Label htmlFor="show-closed">Show Closed</Label>
-                    </div>
                     {canCreateProblem && (
                         <SubmitProblemDialog onProblemCreated={() => fetchProblems(true)} />
                     )}

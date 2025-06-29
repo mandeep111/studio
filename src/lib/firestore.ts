@@ -1,3 +1,4 @@
+
 import {
   addDoc,
   arrayRemove,
@@ -191,18 +192,15 @@ export async function getUpvotedItems(userId: string) {
 
 const PAGE_SIZE = 9;
 
-export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upvotes' | 'solutionsCount' | 'interestedInvestorsCount', lastVisible?: DocumentSnapshot | null, showClosed?: boolean }): Promise<{ data: Problem[], lastVisible: DocumentSnapshot | null }> {
+export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upvotes' | 'solutionsCount' | 'interestedInvestorsCount', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Problem[], lastVisible: DocumentSnapshot | null }> {
     const col = collection(db, "problems");
-    const { sortBy, lastVisible, showClosed = false } = options;
+    const { sortBy, lastVisible } = options;
 
     const qConstraints = [
+        where("isClosed", "==", false),
         orderBy(sortBy, "desc"), 
         limit(PAGE_SIZE)
     ];
-
-    if (!showClosed) {
-        qConstraints.unshift(where("isClosed", "==", false));
-    }
     
     if (lastVisible) {
       qConstraints.push(startAfter(lastVisible));

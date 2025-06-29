@@ -225,12 +225,12 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
         onConfirm={confirmAndStartDeal} 
       />
       <div className="flex justify-between items-center mb-4">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
           Back to all problems
         </Link>
         {userProfile?.isPremium && (
-          <SubmitProblemDialog onProblemCreated={() => router.push('/')} />
+          <SubmitProblemDialog onProblemCreated={() => router.push('/marketplace')} />
         )}
       </div>
        {!isPaymentEnabled && (
@@ -347,7 +347,6 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
                 isPaymentEnabled={isPaymentEnabled}
                 isUpvoting={false}
                 existingDealId={existingDealId}
-                isProtected={!existingDealId}
               />
             ))
           ) : (

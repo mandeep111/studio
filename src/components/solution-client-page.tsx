@@ -69,7 +69,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
 
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
-  const canViewSolution = !loadingDeal && (!userProfile || userProfile.role !== 'Investor' || !!existingDealId);
+  const canViewSolution = !loadingDeal && ((userProfile?.role === 'Investor' || userProfile?.role === 'Admin') || !!existingDealId);
 
 
   return (

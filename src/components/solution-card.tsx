@@ -16,14 +16,15 @@ interface SolutionCardProps {
   isPaymentEnabled?: boolean;
   isUpvoting: boolean;
   existingDealId?: string | null;
-  isProtected?: boolean;
 }
 
-export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled, isUpvoting, existingDealId, isProtected }: SolutionCardProps) {
+export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled, isUpvoting, existingDealId }: SolutionCardProps) {
   const { user, userProfile } = useAuth();
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
   const isInvestor = userProfile?.role === "Investor" || userProfile?.role === "Admin";
+
+  const isProtected = !(isInvestor || !!existingDealId);
 
   return (
     <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", solution.isClosed && "opacity-60 bg-muted/50")}>
@@ -42,7 +43,7 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymen
           </Avatar>
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">{isProtected ? `${solution.description.substring(0, 150)}...` : solution.description}</p>
-             {isProtected ? (
+             {isProtected && !isInvestor ? (
                 <div className="mt-4 rounded-md border bg-background p-4 text-center">
                     <p className="text-sm font-semibold">This solution is protected.</p>
                     <p className="text-sm text-muted-foreground">Start a deal to view the full details and any attachments.</p>

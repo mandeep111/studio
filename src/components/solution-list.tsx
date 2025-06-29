@@ -115,7 +115,7 @@ export default function SolutionList() {
     }, [solutions, showClosed, searchTerm]);
 
     const solutionCards = filteredSolutions.map((solution) => (
-       <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} isProtected={true} />
+       <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} />
     ));
 
     if (ad && !userProfile?.isPremium && solutionCards.length > 2) {
