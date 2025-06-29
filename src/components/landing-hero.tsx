@@ -18,7 +18,7 @@ const features = [
   {
     icon: <Users className="h-8 w-8 text-primary" />,
     title: "Investor Hub",
-    description: "Investors gain access to a curated list of problems, solutions, and running businesses, with tools to identify promising new ventures.",
+    description: "Investors gain access to a curated list of problems, solutions, and running bannes, with tools to identify promising new ventures.",
   },
   {
     icon: <Sparkles className="h-8 w-8 text-primary" />,
