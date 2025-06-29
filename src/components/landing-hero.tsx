@@ -1,6 +1,7 @@
 import { Lightbulb, Sparkles, Users, Briefcase, DollarSign, BrainCircuit } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import Image from "next/image";
 
 const features = [
   {
@@ -66,12 +67,11 @@ export default function LandingHero() {
                     </Button>
                 </div>
                 </div>
-                <img
-                    src="https://placehold.co/600x400.png"
-                    data-ai-hint="collaboration technology"
+                <Image
+                    src="/banner.png"
                     width="600"
                     height="400"
-                    alt="Hero"
+                    alt="A banner showing the flow from Problem to Solution to Investment to Profit."
                     className="mx-auto aspect-[3/2] overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
                 />
             </div>
