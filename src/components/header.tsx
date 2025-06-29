@@ -36,6 +36,7 @@ export default function Header() {
           <h1 className="ml-2 font-heading text-2xl font-bold">Problem2Profit</h1>
         </Link>
         <nav className="hidden items-center gap-4 text-sm font-medium md:flex">
+            <Link href="/marketplace" className="text-muted-foreground transition-colors hover:text-foreground">Marketplace</Link>
             <Link href="/leaderboard" className="text-muted-foreground transition-colors hover:text-foreground">Leaderboard</Link>
             <Link href="/investors" className="text-muted-foreground transition-colors hover:text-foreground">Investors</Link>
             {userProfile?.role !== 'Admin' && <Link href="/membership" className="text-muted-foreground transition-colors hover:text-foreground">Membership</Link>}

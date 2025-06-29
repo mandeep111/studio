@@ -63,7 +63,7 @@ export default function LandingHero() {
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
                     <Button size="lg" asChild>
-                    <Link href="#main-content">Get Started</Link>
+                    <Link href="/marketplace">Get Started</Link>
                     </Button>
                 </div>
                 </div>

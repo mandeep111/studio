@@ -191,20 +191,28 @@ export async function getUpvotedItems(userId: string) {
 
 const PAGE_SIZE = 9;
 
-export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upvotes' | 'solutionsCount', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Problem[], lastVisible: DocumentSnapshot | null }> {
-  const col = collection(db, "problems");
-  const { sortBy, lastVisible } = options;
+export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upvotes' | 'solutionsCount' | 'interestedInvestorsCount', lastVisible?: DocumentSnapshot | null, showClosed?: boolean }): Promise<{ data: Problem[], lastVisible: DocumentSnapshot | null }> {
+    const col = collection(db, "problems");
+    const { sortBy, lastVisible, showClosed = false } = options;
 
-  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
-  if(lastVisible) {
-    qConstraints.push(startAfter(lastVisible));
-  }
-  
-  const q = query(col, ...qConstraints);
-  const snapshot = await getDocs(q);
-  const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
-  const newLastVisible = snapshot.docs.length === PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
-  return { data, lastVisible: newLastVisible };
+    const qConstraints = [
+        orderBy(sortBy, "desc"), 
+        limit(PAGE_SIZE)
+    ];
+
+    if (!showClosed) {
+        qConstraints.unshift(where("isClosed", "==", false));
+    }
+    
+    if (lastVisible) {
+      qConstraints.push(startAfter(lastVisible));
+    }
+    
+    const q = query(col, ...qConstraints);
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
+    const newLastVisible = snapshot.docs.length === PAGE_SIZE ? snapshot.docs[snapshot.docs.length - 1] : null;
+    return { data, lastVisible: newLastVisible };
 }
 
 export async function getPaginatedSolutions(options: { sortBy: 'createdAt' | 'upvotes', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Solution[], lastVisible: DocumentSnapshot | null }> {
@@ -1134,4 +1142,38 @@ export async function updateUserProfile(userId: string, data: { name: string; ex
     // Messages will not be updated to avoid performance issues. The sender info is a snapshot.
     
     await batch.commit();
+}
+
+// --- Counts for Stats ---
+export async function getCounts() {
+    // This is not perfectly efficient, but for a prototype it's acceptable.
+    // In a production environment, you would maintain these counts in a separate document
+    // and update them with Cloud Functions on create/delete events.
+    const problemsQuery = query(collection(db, "problems"));
+    const solutionsQuery = query(collection(db, "solutions"));
+    const ideasQuery = query(collection(db, "ideas"));
+    const businessesQuery = query(collection(db, "businesses"));
+    const investorsQuery = query(collection(db, "users"), where("role", "==", "Investor"));
+
+    const [
+        problemsSnap,
+        solutionsSnap,
+        ideasSnap,
+        businessesSnap,
+        investorsSnap
+    ] = await Promise.all([
+        getDocs(problemsQuery),
+        getDocs(solutionsQuery),
+        getDocs(ideasQuery),
+        getDocs(businessesQuery),
+        getDocs(investorsQuery)
+    ]);
+
+    return {
+        problems: problemsSnap.size,
+        solutions: solutionsSnap.size,
+        ideas: ideasSnap.size,
+        businesses: businessesSnap.size,
+        investors: investorsSnap.size,
+    };
 }
