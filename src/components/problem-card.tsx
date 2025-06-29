@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { MessageSquare, ThumbsUp, Lightbulb, Users, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
 
 interface ProblemCardProps {
   problem: Problem;
@@ -20,7 +21,7 @@ export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCa
   const isCreator = user ? user.uid === problem.creator.userId : false;
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
+    <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", problem.isClosed && "opacity-60 bg-muted/50")}>
       <CardHeader className="flex-row items-start gap-4 space-y-0">
         <Avatar>
           <AvatarImage src={problem.creator.avatarUrl} alt={problem.creator.name} />
@@ -32,7 +33,10 @@ export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCa
               {problem.title}
             </Link>
           </CardTitle>
-          <CardDescription>by {problem.creator.name}</CardDescription>
+          <div className="flex items-center gap-2">
+            <CardDescription>by {problem.creator.name}</CardDescription>
+            {problem.isClosed && <Badge variant="destructive">Closed</Badge>}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
@@ -65,7 +69,7 @@ export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCa
             </div>
         </div>
         <Link href={`/problems/${problem.id}`} passHref>
-          <Button size="sm" variant="outline" disabled={isUpvoting}>
+          <Button size="sm" variant="outline" disabled={isUpvoting || problem.isClosed}>
             <Lightbulb className="mr-2 h-4 w-4" />
             View & Discuss
           </Button>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedBusinesses, upvoteBusiness, getActiveAdForPlacement } from "@/lib/firestore";
 import type { Business, Ad } from "@/lib/types";
@@ -16,6 +16,8 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import BusinessCard from "./business-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 export default function BusinessList() {
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -29,6 +31,7 @@ export default function BusinessList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
+    const [showClosed, setShowClosed] = useState(false);
 
     useEffect(() => {
         getActiveAdForPlacement('business-list').then(setAd);
@@ -101,11 +104,18 @@ export default function BusinessList() {
     
     const canCreateBusiness = userProfile?.isPremium;
 
-    const filteredBusinesses = businesses.filter(business =>
-        business.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        business.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        business.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredBusinesses = useMemo(() => {
+        return businesses.filter(business => {
+            if (!showClosed && business.isClosed) return false;
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                return business.title.toLowerCase().includes(searchLower) ||
+                       business.description.toLowerCase().includes(searchLower) ||
+                       business.tags.some(tag => tag.toLowerCase().includes(searchLower));
+            }
+            return true;
+        });
+    }, [businesses, showClosed, searchTerm]);
 
     const businessCards = filteredBusinesses.map((business) => (
         <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
@@ -133,7 +143,7 @@ export default function BusinessList() {
                         />
                     </div>
                      <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[150px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -141,6 +151,10 @@ export default function BusinessList() {
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
+                     <div className="flex items-center space-x-2">
+                        <Switch id="show-closed" checked={showClosed} onCheckedChange={setShowClosed} />
+                        <Label htmlFor="show-closed">Show Closed</Label>
+                    </div>
                     {canCreateBusiness && <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)} />}
                 </div>
             </CardHeader>

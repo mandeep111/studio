@@ -9,9 +9,10 @@ import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, ExternalLink, ThumbsUp, File, Coffee } from "lucide-react";
+import { ArrowLeft, ExternalLink, ThumbsUp, File, Coffee, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "./ui/badge";
 
 interface SolutionClientPageProps {
   initialSolution: Solution;
@@ -22,15 +23,21 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
   const { toast } = useToast();
   const [solution, setSolution] = useState<Solution>(initialSolution);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
+  const [loadingDeal, setLoadingDeal] = useState(true);
+
   
   useEffect(() => {
     setSolution(initialSolution);
     if (userProfile && userProfile.role === 'Investor') {
+        setLoadingDeal(true);
         findExistingDealAction(initialSolution.problemId, userProfile.uid).then(result => {
             if (result.dealId) {
                 setExistingDealId(result.dealId);
             }
+            setLoadingDeal(false);
         });
+    } else {
+        setLoadingDeal(false);
     }
   }, [initialSolution, userProfile]);
 
@@ -62,7 +69,8 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
 
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
-  const canViewAttachment = existingDealId !== null;
+  const canViewSolution = !loadingDeal && (!userProfile || userProfile.role !== 'Investor' || !!existingDealId);
+
 
   return (
     <>
@@ -72,7 +80,10 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
       </Link>
       <Card>
         <CardHeader>
-          <CardDescription>Solution for: <Link className="text-primary hover:underline" href={`/problems/${solution.problemId}`}>{solution.problemTitle}</Link></CardDescription>
+            <div className="flex items-center justify-between">
+              <CardDescription>Solution for: <Link className="text-primary hover:underline" href={`/problems/${solution.problemId}`}>{solution.problemTitle}</Link></CardDescription>
+              {solution.isClosed && <Badge variant="destructive">Closed</Badge>}
+            </div>
           <div className="flex items-start gap-4 pt-2">
             <Avatar className="h-12 w-12">
               <AvatarImage src={solution.creator.avatarUrl} alt={solution.creator.name} />
@@ -87,24 +98,36 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-lg leading-relaxed">{solution.description}</p>
-           {solution.attachmentUrl && (
-                <div className="mt-6 border-t pt-4">
-                    <h4 className="font-semibold mb-2">Attachment</h4>
-                    {canViewAttachment ? (
-                        <Button asChild variant="outline">
-                            <a href={solution.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                <File className="mr-2 h-4 w-4" />
-                                {solution.attachmentFileName || 'Download Attachment'}
-                            </a>
-                        </Button>
-                    ) : (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
-                            <Coffee className="h-4 w-4 text-primary" />
-                            <span>An attachment is available. Start a deal for the problem to view.</span>
+            {loadingDeal ? (
+                <div className="flex justify-center items-center h-24">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : canViewSolution ? (
+                <>
+                    <p className="text-lg leading-relaxed">{solution.description}</p>
+                    {solution.attachmentUrl && (
+                        <div className="mt-6 border-t pt-4">
+                            <h4 className="font-semibold mb-2">Attachment</h4>
+                            <Button asChild variant="outline">
+                                <a href={solution.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                    <File className="mr-2 h-4 w-4" />
+                                    {solution.attachmentFileName || 'Download Attachment'}
+                                </a>
+                            </Button>
                         </div>
                     )}
-                </div>
+                </>
+            ) : (
+                <>
+                    <p className="text-lg leading-relaxed">{`${solution.description.substring(0, 200)}...`}</p>
+                    <div className="mt-4 rounded-md border bg-background p-4 text-center">
+                        <p className="text-sm font-semibold">This solution is protected.</p>
+                        <p className="text-sm text-muted-foreground">You must have an active deal for the related problem to view full details.</p>
+                        <Button asChild className="mt-2">
+                            <Link href={`/problems/${solution.problemId}`}>Go to Problem Page</Link>
+                        </Button>
+                    </div>
+                </>
             )}
         </CardContent>
         <CardFooter className="flex justify-between">

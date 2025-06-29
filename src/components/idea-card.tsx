@@ -7,6 +7,7 @@ import { ThumbsUp, Users, Loader2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface IdeaCardProps {
   idea: Idea;
@@ -20,7 +21,7 @@ export default function IdeaCard({ idea, onUpvote, isUpvoting }: IdeaCardProps) 
   const isCreator = user ? user.uid === idea.creator.userId : false;
   
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
+    <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", idea.isClosed && "opacity-60 bg-muted/50")}>
       <CardHeader>
         <div className="flex items-center gap-4">
           <Avatar>
@@ -33,7 +34,10 @@ export default function IdeaCard({ idea, onUpvote, isUpvoting }: IdeaCardProps) 
                 {idea.title}
               </Link>
             </CardTitle>
-            <CardDescription>by {idea.creator.name}</CardDescription>
+            <div className="flex items-center gap-2">
+                <CardDescription>by {idea.creator.name}</CardDescription>
+                {idea.isClosed && <Badge variant="destructive">Closed</Badge>}
+            </div>
           </div>
         </div>
       </CardHeader>
@@ -57,7 +61,7 @@ export default function IdeaCard({ idea, onUpvote, isUpvoting }: IdeaCardProps) 
             </div>
         </div>
          <Link href={`/ideas/${idea.id}`} passHref>
-          <Button size="sm" disabled={isUpvoting}>View Details</Button>
+          <Button size="sm" disabled={isUpvoting || idea.isClosed}>View Details</Button>
         </Link>
       </CardFooter>
     </Card>

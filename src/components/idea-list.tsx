@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement } from "@/lib/firestore";
 import type { Idea, Ad } from "@/lib/types";
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import IdeaCard from "./idea-card";
 import { Skeleton } from "./ui/skeleton";
@@ -16,6 +16,8 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 export default function RandomIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -29,6 +31,7 @@ export default function RandomIdeas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [upvotingId, setUpvotingId] = useState<string | null>(null);
   const [ad, setAd] = useState<Ad | null>(null);
+  const [showClosed, setShowClosed] = useState(false);
 
   useEffect(() => {
     getActiveAdForPlacement('idea-list').then(setAd);
@@ -105,11 +108,19 @@ export default function RandomIdeas() {
   
   const canCreateIdea = userProfile?.isPremium;
 
-  const filteredIdeas = ideas.filter(idea =>
-    idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    idea.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    idea.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredIdeas = useMemo(() => {
+    return ideas.filter(idea => {
+        if (!showClosed && idea.isClosed) return false;
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            return idea.title.toLowerCase().includes(searchLower) ||
+                   idea.description.toLowerCase().includes(searchLower) ||
+                   idea.tags.some(tag => tag.toLowerCase().includes(searchLower));
+        }
+        return true;
+    });
+  }, [ideas, showClosed, searchTerm]);
+
 
     const ideaCards = filteredIdeas.map((idea) => (
       <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} isUpvoting={upvotingId === idea.id} />
@@ -139,7 +150,7 @@ export default function RandomIdeas() {
                 />
             </div>
             <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                     <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -147,6 +158,10 @@ export default function RandomIdeas() {
                     <SelectItem value="upvotes">Most Upvoted</SelectItem>
                 </SelectContent>
             </Select>
+            <div className="flex items-center space-x-2">
+                <Switch id="show-closed-ideas" checked={showClosed} onCheckedChange={setShowClosed} />
+                <Label htmlFor="show-closed-ideas">Show Closed</Label>
+            </div>
             {canCreateIdea && <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />}
         </div>
       </CardHeader>

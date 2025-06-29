@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ThumbsUp, Briefcase, DollarSign, Users, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
 
 interface BusinessCardProps {
   business: Business;
@@ -20,7 +21,7 @@ export default function BusinessCard({ business, onUpvote, isUpvoting }: Busines
   const isCreator = user ? user.uid === business.creator.userId : false;
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
+    <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", business.isClosed && "opacity-60 bg-muted/50")}>
       <CardHeader className="flex-row items-start gap-4 space-y-0">
         <Avatar>
           <AvatarImage src={business.creator.avatarUrl} alt={business.creator.name} />
@@ -32,7 +33,10 @@ export default function BusinessCard({ business, onUpvote, isUpvoting }: Busines
               {business.title}
             </Link>
           </CardTitle>
-          <CardDescription>by {business.creator.name}</CardDescription>
+          <div className="flex items-center gap-2">
+            <CardDescription>by {business.creator.name}</CardDescription>
+            {business.isClosed && <Badge variant="destructive">Closed</Badge>}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-grow">
@@ -68,7 +72,7 @@ export default function BusinessCard({ business, onUpvote, isUpvoting }: Busines
             </div>
         </div>
         <Link href={`/businesses/${business.id}`} passHref>
-          <Button size="sm" variant="outline" disabled={isUpvoting}>
+          <Button size="sm" variant="outline" disabled={isUpvoting || business.isClosed}>
             <Briefcase className="mr-2 h-4 w-4" />
             View Business
           </Button>

@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedProblems, upvoteProblem, getActiveAdForPlacement } from "@/lib/firestore";
 import type { Problem, Ad } from "@/lib/types";
@@ -16,6 +16,8 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import ProblemCard from "./problem-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
@@ -29,6 +31,7 @@ export default function ProblemList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
+    const [showClosed, setShowClosed] = useState(false);
 
     useEffect(() => {
         getActiveAdForPlacement('problem-list').then(setAd);
@@ -102,11 +105,19 @@ export default function ProblemList() {
 
     const canCreateProblem = userProfile?.isPremium;
 
-    const filteredProblems = problems.filter(problem => 
-        problem.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        problem.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        problem.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredProblems = useMemo(() => {
+        return problems.filter(problem => {
+            if (!showClosed && problem.isClosed) return false;
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                return problem.title.toLowerCase().includes(searchLower) ||
+                       problem.description.toLowerCase().includes(searchLower) ||
+                       problem.tags.some(tag => tag.toLowerCase().includes(searchLower));
+            }
+            return true;
+        });
+    }, [problems, showClosed, searchTerm]);
+
 
     const problemCards = filteredProblems.map((problem) => (
       <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} isUpvoting={upvotingId === problem.id} />
@@ -134,7 +145,7 @@ export default function ProblemList() {
                         />
                     </div>
                      <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[150px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -142,6 +153,10 @@ export default function ProblemList() {
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
+                     <div className="flex items-center space-x-2">
+                        <Switch id="show-closed" checked={showClosed} onCheckedChange={setShowClosed} />
+                        <Label htmlFor="show-closed">Show Closed</Label>
+                    </div>
                     {canCreateProblem && (
                         <SubmitProblemDialog onProblemCreated={() => fetchProblems(true)} />
                     )}

@@ -202,27 +202,25 @@ export async function startDealAction(
     
     const { isEnabled } = await getPaymentSettings();
     
-    if (!isEnabled) {
-        try {
-            const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
+    try {
+        const contributionAmount = isEnabled ? amount : 0;
+        if (isEnabled && (isNaN(amount) || amount < 10)) {
+            return { success: false, message: "Invalid contribution amount. Minimum is $10." };
+        }
+
+        // Free deal creation path
+        if (!isEnabled) {
+             const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
             revalidatePath(`/${itemType}s/${itemId}`);
             return { success: true, dealId };
-        } catch (error) {
-            console.error("Error creating free deal:", error);
-            return { success: false, message: "Could not start the deal. Please try again."};
         }
-    }
-    
-    if (isNaN(amount) || amount < 10) {
-        return { success: false, message: "Invalid contribution amount. Minimum is $10." };
-    }
 
-     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-    if (!baseUrl) {
-        throw new Error('NEXT_PUBLIC_BASE_URL is not set.');
-    }
+        // Paid deal creation path
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+        if (!baseUrl) {
+            throw new Error('NEXT_PUBLIC_BASE_URL is not set.');
+        }
 
-    try {
         const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{
             price_data: {
                 currency: 'usd',
@@ -230,7 +228,7 @@ export async function startDealAction(
                     name: `Facilitate Deal: ${itemTitle}`,
                     description: 'A small contribution to start the conversation with the creator(s).'
                 },
-                unit_amount: amount * 100, // Amount in cents
+                unit_amount: contributionAmount * 100, // Amount in cents
             },
             quantity: 1,
         }];
@@ -242,7 +240,7 @@ export async function startDealAction(
             itemId,
             itemTitle,
             itemType,
-            amount: String(amount),
+            amount: String(contributionAmount),
         };
         if (solutionCreatorId) {
             metadata.solutionCreatorId = solutionCreatorId;
@@ -263,8 +261,8 @@ export async function startDealAction(
 
         return { success: true, url: session.url };
     } catch (error) {
-        console.error("Stripe Error (Start Deal):", (error as Error).message);
-        return { success: false, message: "Could not start the deal. Please try again."};
+        console.error("Error creating deal:", error);
+        return { success: false, message: (error as Error).message || "Could not start the deal. Please try again."};
     }
 }
 

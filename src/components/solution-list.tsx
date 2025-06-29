@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedSolutions, upvoteSolution, getActiveAdForPlacement } from "@/lib/firestore";
 import type { Solution, Ad } from "@/lib/types";
@@ -15,6 +15,8 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import SolutionCard from "./solution-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 export default function SolutionList() {
     const [solutions, setSolutions] = useState<Solution[]>([]);
@@ -28,6 +30,7 @@ export default function SolutionList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
+    const [showClosed, setShowClosed] = useState(false);
 
      useEffect(() => {
         getActiveAdForPlacement('solution-list').then(setAd);
@@ -99,13 +102,20 @@ export default function SolutionList() {
         }
     };
     
-    const filteredSolutions = solutions.filter(solution => 
-        solution.problemTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        solution.description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredSolutions = useMemo(() => {
+        return solutions.filter(solution => {
+            if (!showClosed && solution.isClosed) return false;
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                return solution.problemTitle.toLowerCase().includes(searchLower) ||
+                       solution.description.toLowerCase().includes(searchLower);
+            }
+            return true;
+        });
+    }, [solutions, showClosed, searchTerm]);
 
     const solutionCards = filteredSolutions.map((solution) => (
-       <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} />
+       <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} isProtected={true} />
     ));
 
     if (ad && !userProfile?.isPremium && solutionCards.length > 2) {
@@ -130,7 +140,7 @@ export default function SolutionList() {
                         />
                     </div>
                      <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[150px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
@@ -138,6 +148,10 @@ export default function SolutionList() {
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
+                     <div className="flex items-center space-x-2">
+                        <Switch id="show-closed-solutions" checked={showClosed} onCheckedChange={setShowClosed} />
+                        <Label htmlFor="show-closed-solutions">Show Closed</Label>
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>

@@ -365,6 +365,7 @@ export async function createProblem(title: string, description: string, tags: st
             attachmentUrl: attachmentData?.url || null,
             attachmentFileName: attachmentData?.name || null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         };
         
         transaction.set(newProblemRef, problemData);
@@ -415,7 +416,8 @@ export async function createSolution(description: string, problemId: string, pro
         priceApproved,
         attachmentUrl: attachmentData?.url || null,
         attachmentFileName: attachmentData?.name || null,
-        interestedInvestorsCount: 0, 
+        interestedInvestorsCount: 0,
+        isClosed: false,
     };
     
     batch.set(solutionRef, solutionData);
@@ -473,6 +475,7 @@ export async function createIdea(title: string, description: string, tags: strin
     attachmentUrl: attachmentData?.url || null,
     attachmentFileName: attachmentData?.name || null,
     interestedInvestorsCount: 0,
+    isClosed: false,
   });
 
    if (!priceApproved) {
@@ -517,6 +520,7 @@ export async function createBusiness(title: string, description: string, tags: s
             attachmentUrl: attachmentData?.url || null,
             attachmentFileName: attachmentData?.name || null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         };
 
         transaction.set(newBusinessRef, businessData);
@@ -677,6 +681,13 @@ export async function createDeal(
     const newDealRef = doc(collection(db, "deals"));
 
     await runTransaction(db, async (transaction) => {
+        const itemRef = doc(db, `${itemType}s`, itemId);
+        const itemSnap = await transaction.get(itemRef);
+        if (!itemSnap.exists()) throw new Error("Item to start deal on not found.");
+        if (itemSnap.data().isClosed) {
+            throw new Error("This item is already part of a completed deal and is closed to new deals.");
+        }
+    
         const participantsMap = new Map<string, CreatorReference>();
 
         participantsMap.set(investorProfile.uid, { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise });
@@ -711,8 +722,6 @@ export async function createDeal(
         }
         
         transaction.set(newDealRef, dealData);
-
-        const itemRef = doc(db, `${itemType}s`, itemId);
         transaction.update(itemRef, { interestedInvestorsCount: increment(1) });
         
         const investorRef = doc(db, "users", investorProfile.uid);
@@ -860,6 +869,13 @@ export async function updateDealStatus(
         }
 
         transaction.update(dealRef, { status: status });
+
+        // If a deal is completed, mark the related item as closed.
+        if (status === 'completed') {
+            const itemRef = doc(db, `${deal.type}s`, deal.relatedItemId);
+            transaction.update(itemRef, { isClosed: true });
+        }
+
 
         // Add a system message to the chat
         const messagesCol = collection(db, `deals/${dealId}/messages`);

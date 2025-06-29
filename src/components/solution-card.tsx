@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ThumbsUp, Coffee, Loader2, MessageSquare, File } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
+import { Badge } from "./ui/badge";
 
 interface SolutionCardProps {
   solution: Solution;
@@ -14,19 +16,22 @@ interface SolutionCardProps {
   isPaymentEnabled?: boolean;
   isUpvoting: boolean;
   existingDealId?: string | null;
+  isProtected?: boolean;
 }
 
-export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled, isUpvoting, existingDealId }: SolutionCardProps) {
+export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymentEnabled, isUpvoting, existingDealId, isProtected }: SolutionCardProps) {
   const { user, userProfile } = useAuth();
   const isUpvoted = user ? solution.upvotedBy.includes(user.uid) : false;
   const isCreator = user ? user.uid === solution.creator.userId : false;
   const isInvestor = userProfile?.role === "Investor" || userProfile?.role === "Admin";
-  const canViewAttachment = existingDealId !== null;
 
   return (
-    <Card className="flex flex-col overflow-hidden transition-all hover:shadow-lg">
+    <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", solution.isClosed && "opacity-60 bg-muted/50")}>
       <CardHeader>
-        <CardDescription>Solution for: <Link href={`/problems/${solution.problemId}`} className="text-primary hover:underline">{solution.problemTitle}</Link></CardDescription>
+        <div className="flex items-center justify-between">
+            <CardDescription>Solution for: <Link href={`/problems/${solution.problemId}`} className="text-primary hover:underline">{solution.problemTitle}</Link></CardDescription>
+            {solution.isClosed && <Badge variant="destructive">Closed</Badge>}
+        </div>
         <CardTitle className="text-lg">Solution by {solution.creator.name}</CardTitle>
       </CardHeader>
       <CardContent className="flex-grow">
@@ -36,22 +41,20 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymen
             <AvatarFallback>{solution.creator.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <p className="text-sm text-muted-foreground">{solution.description}</p>
-             {solution.attachmentUrl && (
+            <p className="text-sm text-muted-foreground">{isProtected ? `${solution.description.substring(0, 150)}...` : solution.description}</p>
+             {isProtected ? (
+                <div className="mt-4 rounded-md border bg-background p-4 text-center">
+                    <p className="text-sm font-semibold">This solution is protected.</p>
+                    <p className="text-sm text-muted-foreground">Start a deal to view the full details and any attachments.</p>
+                </div>
+             ) : solution.attachmentUrl && (
                 <div className="mt-4">
-                    {canViewAttachment ? (
-                         <Button asChild variant="outline" size="sm">
-                            <a href={solution.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                <File className="mr-2 h-4 w-4" />
-                                View Attachment
-                            </a>
-                        </Button>
-                    ) : (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground p-2 rounded-md bg-muted/50 border w-fit">
-                            <File className="h-4 w-4 text-primary" />
-                            <span>Attachment available</span>
-                        </div>
-                    )}
+                    <Button asChild variant="outline" size="sm">
+                        <a href={solution.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                            <File className="mr-2 h-4 w-4" />
+                            View Attachment
+                        </a>
+                    </Button>
                 </div>
             )}
           </div>
@@ -70,7 +73,7 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymen
         </Button>
         <div className="flex items-center gap-2">
             <Link href={`/solutions/${solution.id}`} passHref>
-                <Button size="sm" variant="outline" disabled={isUpvoting}>View Details</Button>
+                <Button size="sm" variant="outline" disabled={isUpvoting || solution.isClosed}>View Details</Button>
             </Link>
             {isInvestor && !isCreator && onStartDeal && (
                 existingDealId ? (
@@ -81,7 +84,7 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymen
                         </Link>
                     </Button>
                 ) : (
-                    <Button size="sm" onClick={() => onStartDeal(solution)} disabled={isUpvoting}>
+                    <Button size="sm" onClick={() => onStartDeal(solution)} disabled={isUpvoting || solution.isClosed}>
                         <Coffee className="mr-2 h-4 w-4" />
                         {isPaymentEnabled ? "Start Deal" : "Start (Free)"}
                     </Button>

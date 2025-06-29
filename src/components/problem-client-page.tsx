@@ -158,6 +158,12 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
   
   const handleStartDealClick = async (solution?: Solution) => {
       if (!userProfile || userProfile.role !== "Investor") return;
+      
+      if (problem.isClosed) {
+        toast({ variant: "destructive", title: "Deal Closed", description: "This item is already part of a finalized deal." });
+        return;
+      }
+      
       setIsDealLoading(true);
 
       const existingDeal = await findExistingDealAction(problem.id, userProfile.uid);
@@ -208,7 +214,6 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
   const hasUserSubmittedSolution = user ? solutions.some(s => s.creator.userId === user.uid) : false;
   const canSubmitSolution = userProfile?.isPremium && !isProblemCreator && !hasUserSubmittedSolution;
   const canStartDeal = userProfile && userProfile.role === 'Investor';
-  const canViewAttachment = existingDealId !== null;
 
   if (!problem) return null;
 
@@ -245,7 +250,10 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
               <AvatarFallback>{problem.creator.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl lg:text-3xl">{problem.title}</CardTitle>
+                <div className="flex items-center gap-4">
+                    <CardTitle className="text-2xl lg:text-3xl">{problem.title}</CardTitle>
+                    {problem.isClosed && <Badge variant="destructive">Closed</Badge>}
+                </div>
               <CardDescription className="mt-1">
                 Problem by {problem.creator.name} &bull; Expertise: {problem.creator.expertise}
               </CardDescription>
@@ -270,7 +278,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
             {problem.attachmentUrl && (
                 <div className="mt-6 border-t pt-4">
                     <h4 className="font-semibold mb-2">Attachment</h4>
-                    {canViewAttachment ? (
+                    {existingDealId ? (
                         <Button asChild variant="outline">
                             <a href={problem.attachmentUrl} target="_blank" rel="noopener noreferrer">
                                 <File className="mr-2 h-4 w-4" />
@@ -311,11 +319,11 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
                 <Button asChild>
                     <Link href={`/deals/${existingDealId}`}>
                         <MessageSquare className="mr-2 h-4 w-4" />
-                        View Deal
+                        View Your Deal
                     </Link>
                 </Button>
             ) : (
-                <Button onClick={() => handleStartDealClick()} disabled={isDealLoading}>
+                <Button onClick={() => handleStartDealClick()} disabled={isDealLoading || problem.isClosed}>
                     {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
                     {isPaymentEnabled ? "Start Deal with Creator" : "Start Deal (Free)"}
                 </Button>
@@ -339,6 +347,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
                 isPaymentEnabled={isPaymentEnabled}
                 isUpvoting={false}
                 existingDealId={existingDealId}
+                isProtected={!existingDealId}
               />
             ))
           ) : (

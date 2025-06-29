@@ -39,6 +39,7 @@ export interface BaseItem {
   attachmentUrl?: string | null;
   attachmentFileName?: string | null;
   interestedInvestorsCount: number;
+  isClosed?: boolean;
 }
 
 export interface Problem extends BaseItem {
