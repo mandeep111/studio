@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, Fragment } from "react";
@@ -23,7 +24,7 @@ export default function InvestorsClientPage({ initialInvestors, initialLastVisib
     const [investors, setInvestors] = useState<UserProfile[]>(initialInvestors);
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [sortBy, setSortBy] = useState<'dealsCount' | 'upvotes' | 'name'>('dealsCount');
+    const [sortBy, setSortBy] = useState<'dealsCount' | 'dealsCompletedCount' | 'upvotes' | 'name'>('dealsCompletedCount');
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(initialLastVisible);
     const [hasMore, setHasMore] = useState(true);
     const { toast } = useToast();
@@ -88,12 +89,13 @@ export default function InvestorsClientPage({ initialInvestors, initialLastVisib
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                     <Select value={sortBy} onValueChange={(value: 'dealsCount' | 'upvotes' | 'name') => setSortBy(value)}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
+                     <Select value={sortBy} onValueChange={(value: 'dealsCount' | 'dealsCompletedCount' | 'upvotes' | 'name') => setSortBy(value)}>
+                        <SelectTrigger className="w-full sm:w-[200px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="dealsCount">Most Deals</SelectItem>
+                            <SelectItem value="dealsCompletedCount">Most Deals Completed</SelectItem>
+                            <SelectItem value="dealsCount">Most Deals Started</SelectItem>
                             <SelectItem value="upvotes">Most Upvoted</SelectItem>
                             <SelectItem value="name">Name</SelectItem>
                         </SelectContent>

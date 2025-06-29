@@ -15,6 +15,8 @@ export interface UserProfile {
   points: number;
   isPremium: boolean;
   dealsCount?: number;
+  dealsCompletedCount?: number;
+  dealsCancelledCount?: number;
   unreadDealMessages?: { [dealId: string]: number };
   upvotes?: number;
   upvotedBy?: string[];

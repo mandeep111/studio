@@ -23,7 +23,7 @@ export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [sortBy, setSortBy] = useState<'createdAt' | 'upvotes'>('upvotes');
+    const [sortBy, setSortBy] = useState<'createdAt' | 'upvotes' | 'solutionsCount'>('upvotes');
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(null);
     const [hasMore, setHasMore] = useState(true);
     const { user, userProfile } = useAuth();
@@ -144,12 +144,13 @@ export default function ProblemList() {
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                     <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                        <SelectTrigger className="w-full sm:w-[150px]">
+                     <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes' | 'solutionsCount') => setSortBy(value)}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="upvotes">Most Upvoted</SelectItem>
+                            <SelectItem value="solutionsCount">Most Solutions</SelectItem>
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>

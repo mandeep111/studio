@@ -191,7 +191,7 @@ export async function getUpvotedItems(userId: string) {
 
 const PAGE_SIZE = 9;
 
-export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upvotes', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Problem[], lastVisible: DocumentSnapshot | null }> {
+export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upvotes' | 'solutionsCount', lastVisible?: DocumentSnapshot | null }): Promise<{ data: Problem[], lastVisible: DocumentSnapshot | null }> {
   const col = collection(db, "problems");
   const { sortBy, lastVisible } = options;
 
@@ -256,9 +256,9 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
 }
 
 const INVESTOR_PAGE_SIZE = 12;
-export async function getPaginatedInvestors(options: { sortBy?: 'dealsCount' | 'upvotes' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
+export async function getPaginatedInvestors(options: { sortBy?: 'dealsCount' | 'dealsCompletedCount' | 'upvotes' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
-    const { sortBy = 'dealsCount', lastVisible } = options;
+    const { sortBy = 'dealsCompletedCount', lastVisible } = options;
 
     const qConstraints = [
         where("role", "==", "Investor"),
@@ -880,10 +880,18 @@ export async function updateDealStatus(
 
         transaction.update(dealRef, { status: status });
 
-        // If a deal is completed, mark the related item as closed.
-        if (status === 'completed') {
+        // If a deal is completed or cancelled, mark the related item as closed.
+        if (status === 'completed' || status === 'cancelled') {
             const itemRef = doc(db, `${deal.type}s`, deal.relatedItemId);
             transaction.update(itemRef, { isClosed: true });
+
+            // Update investor stats
+            const investorRef = doc(db, "users", investorId);
+            if (status === 'completed') {
+                transaction.update(investorRef, { dealsCompletedCount: increment(1) });
+            } else if (status === 'cancelled') {
+                transaction.update(investorRef, { dealsCancelledCount: increment(1) });
+            }
         }
 
 

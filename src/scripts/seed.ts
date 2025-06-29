@@ -59,6 +59,8 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     isPremium: true,
     unreadDealMessages: {},
     dealsCount: 0,
+    dealsCompletedCount: 0,
+    dealsCancelledCount: 0,
     upvotes: 0,
     upvotedBy: [],
   },
@@ -105,6 +107,8 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     isPremium: true,
     unreadDealMessages: {},
     dealsCount: 0,
+    dealsCompletedCount: 0,
+    dealsCancelledCount: 0,
     upvotes: 0,
     upvotedBy: [],
   }

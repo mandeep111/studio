@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -7,7 +8,7 @@ import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems,
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users, ThumbsUp, Loader2, Edit } from "lucide-react";
+import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users, ThumbsUp, Loader2, Edit, CheckCircle, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
@@ -250,7 +251,13 @@ export default function UserProfileClient({
                          {profile.role === 'Investor' ? (
                             <>
                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Handshake className="h-5 w-5 text-primary" /> <span>{profile.dealsCount || 0} Deals</span>
+                                    <Handshake className="h-5 w-5 text-primary" /> <span>{profile.dealsCount || 0} Deals Initiated</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <CheckCircle className="h-5 w-5 text-green-500" /> <span>{profile.dealsCompletedCount || 0} Deals Completed</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                    <XCircle className="h-5 w-5 text-red-500" /> <span>{profile.dealsCancelledCount || 0} Deals Cancelled</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                     <ThumbsUp className="h-5 w-5 text-primary" /> <span>{(profile.upvotes || 0).toLocaleString()} Upvotes</span>
