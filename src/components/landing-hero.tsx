@@ -72,7 +72,7 @@ export default function LandingHero() {
                     src="/banner.png"
                     width="600"
                     height="400"
-                    alt="A banner showing the flow from Problem to Solution to Investment to Profit."
+                    alt="A banner showing the flow from Problem, to Solution, to Investment, and finally to Profit, with descriptions for each stage."
                     className="mx-auto aspect-[3/2] overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
                 />
             </div>
