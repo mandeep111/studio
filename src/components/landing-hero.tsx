@@ -2,6 +2,7 @@ import { Lightbulb, Sparkles, Users, Briefcase, DollarSign, BrainCircuit } from 
 import { Button } from "./ui/button";
 import Link from "next/link";
 import Image from "next/image";
+import StatsSection from "./stats-section";
 
 const features = [
   {
@@ -78,6 +79,8 @@ export default function LandingHero() {
             </section>
         </div>
       </div>
+
+      <StatsSection />
 
       <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-background">
         <div className="container px-4 md:px-6">
