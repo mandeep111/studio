@@ -1,4 +1,4 @@
-import { Lightbulb, Sparkles, Users, Briefcase, DollarSign, BrainCircuit } from "lucide-react";
+import { Lightbulb, Sparkles, Users, Briefcase, DollarSign } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import Image from "next/image";
@@ -29,7 +29,7 @@ const features = [
 
 const personas = [
   {
-    icon: <BrainCircuit className="h-10 w-10 text-primary" />,
+    icon: <Image src="/logo.png" alt="Problem Expert" width={40} height={40} />,
     title: "The Problem Expert",
     description: "You see the challenges and gaps in the market. You understand a problem intimately but need the right team and resources to bring a solution to life. Share your insights and find partners to build with.",
   },
@@ -72,7 +72,7 @@ export default function LandingHero() {
                     src="/banner.png"
                     width="600"
                     height="400"
-                    alt="A banner showing the flow from Problem, to Solution, to Investment, and finally to Profit, with descriptions for each stage."
+                    alt="A clear visual flow from a 'Problem' icon (like a question mark in a gear), to a 'Solution' icon (a lightbulb), to an 'Investment' icon (a growing chart with a dollar sign), and finally to a 'Profit' icon (a trophy or a bag of money), illustrating the core concept of the app."
                     className="mx-auto aspect-[3/2] overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
                 />
             </div>

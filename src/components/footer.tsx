@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { BrainCircuit } from 'lucide-react';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="container mx-auto py-8 px-4 md:px-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <BrainCircuit className="h-6 w-6 text-primary" />
+            <Image src="/logo.png" alt="Problem2Profit Logo" width={24} height={24} />
             <span className="font-semibold text-foreground">Problem2Profit</span>
           </div>
           <nav className="flex gap-4 sm:gap-6">

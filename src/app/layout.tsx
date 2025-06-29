@@ -13,6 +13,9 @@ const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space
 export const metadata: Metadata = {
   title: "Problem2Profit",
   description: "Where every problem is a link to an opportunity.",
+  icons: {
+    icon: '/logo.png',
+  }
 };
 
 export default function RootLayout({
