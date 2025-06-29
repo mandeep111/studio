@@ -1,3 +1,4 @@
+
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
@@ -434,6 +435,9 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
         return { success: true, message: "Profile updated successfully." };
     } catch (error) {
         console.error("Failed to update profile:", error);
+        if (error instanceof Error && (error as any).code?.startsWith('storage/')) {
+             return { success: false, message: "Could not upload image. This might be due to Firebase Storage security rules. Please ensure authenticated users are allowed to write to the 'avatars/' path." };
+        }
         return { success: false, message: (error as Error).message || "An unexpected error occurred." };
     }
 }

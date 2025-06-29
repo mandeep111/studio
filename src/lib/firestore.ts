@@ -37,6 +37,16 @@ async function uploadAttachment(file: File): Promise<{ url: string; name: string
   return { url, name: file.name };
 }
 
+async function uploadAvatar(userId: string, file: File): Promise<{ url: string }> {
+    if (!file) {
+        throw new Error("No file provided for avatar upload.");
+    }
+    const storageRef = ref(storage, `avatars/${userId}/${file.name}`);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    return { url };
+}
+
 // --- Data Fetching ---
 
 export async function getProblems(): Promise<Problem[]> {
@@ -1071,7 +1081,7 @@ export async function updateUserProfile(userId: string, data: { name: string; ex
     
     let newAvatarUrl: string | undefined = undefined;
     if (avatarFile) {
-        const { url } = await uploadAttachment(avatarFile);
+        const { url } = await uploadAvatar(userId, avatarFile);
         updateData.avatarUrl = url;
         newAvatarUrl = url;
     }
