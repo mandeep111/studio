@@ -29,7 +29,7 @@ const features = [
 
 const personas = [
   {
-    icon: <Image src="/logo.png" alt="Problem Expert" width={40} height={40} />,
+    icon: <Image src="/logo.png" alt="Problem Expert" width={48} height={48} />,
     title: "The Problem Expert",
     description: "You see the challenges and gaps in the market. You understand a problem intimately but need the right team and resources to bring a solution to life. Share your insights and find partners to build with.",
   },
