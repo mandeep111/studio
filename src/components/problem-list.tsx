@@ -10,7 +10,7 @@ import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitProblemDialog } from "./submit-problem-dialog";
 import { Button } from "./ui/button";
-import { BrainCircuit, Loader2, PlusCircle, Search } from "lucide-react";
+import { Loader2, PlusCircle, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import type { DocumentSnapshot } from "firebase/firestore";
 import ProblemCard from "./problem-card";
@@ -18,6 +18,7 @@ import { Input } from "./ui/input";
 import AdCard from "./ad-card";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
+import { P2PLogo } from "./p2p-logo";
 
 export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
@@ -200,7 +201,7 @@ export default function ProblemList() {
                     </>
                 ) : (
                     <div className="text-center py-16">
-                         <BrainCircuit className="mx-auto h-12 w-12 text-muted-foreground" />
+                         <P2PLogo className="mx-auto h-12 w-12 text-muted-foreground" />
                         <h3 className="text-xl font-semibold mt-4">No Problems Found</h3>
                         <p className="text-muted-foreground mt-2 mb-6">
                             {searchTerm ? "Try a different search term." : "Be the first to post a problem and challenge the community."}

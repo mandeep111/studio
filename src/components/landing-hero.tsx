@@ -1,6 +1,7 @@
-import { BrainCircuit, Lightbulb, Sparkles, Users, Briefcase, DollarSign } from "lucide-react";
+import { Lightbulb, Sparkles, Users, Briefcase, DollarSign } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
+import { P2PLogo } from "./p2p-logo";
 
 const features = [
   {
@@ -27,7 +28,7 @@ const features = [
 
 const personas = [
   {
-    icon: <BrainCircuit className="h-10 w-10 text-primary" />,
+    icon: <P2PLogo className="h-10 w-10" />,
     title: "The Problem Expert",
     description: "You see the challenges and gaps in the market. You understand a problem intimately but need the right team and resources to bring a solution to life. Share your insights and find partners to build with.",
   },
