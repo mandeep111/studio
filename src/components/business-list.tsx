@@ -31,7 +31,6 @@ export default function BusinessList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
-    const [showClosed, setShowClosed] = useState(false);
 
     useEffect(() => {
         getActiveAdForPlacement('business-list').then(setAd);
@@ -102,11 +101,10 @@ export default function BusinessList() {
         }
     };
     
-    const canCreateBusiness = userProfile?.isPremium;
+    const canCreateBusiness = !!userProfile;
 
     const filteredBusinesses = useMemo(() => {
         return businesses.filter(business => {
-            if (!showClosed && business.isClosed) return false;
             if (searchTerm) {
                 const searchLower = searchTerm.toLowerCase();
                 return business.title.toLowerCase().includes(searchLower) ||
@@ -115,7 +113,7 @@ export default function BusinessList() {
             }
             return true;
         });
-    }, [businesses, showClosed, searchTerm]);
+    }, [businesses, searchTerm]);
 
     const businessCards = filteredBusinesses.map((business) => (
         <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
@@ -151,10 +149,6 @@ export default function BusinessList() {
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
-                     <div className="flex items-center space-x-2">
-                        <Switch id="show-closed" checked={showClosed} onCheckedChange={setShowClosed} />
-                        <Label htmlFor="show-closed">Show Closed</Label>
-                    </div>
                     {canCreateBusiness && <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)} />}
                 </div>
             </CardHeader>

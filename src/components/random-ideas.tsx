@@ -1,10 +1,10 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedIdeas, upvoteIdea } from "@/lib/firestore";
-import type { Idea } from "@/lib/types";
-import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement } from "@/lib/firestore";
+import type { Idea, Ad } from "@/lib/types";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import IdeaCard from "./idea-card";
 import { Skeleton } from "./ui/skeleton";
@@ -15,6 +15,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import type { DocumentSnapshot } from "firebase/firestore";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import AdCard from "./ad-card";
+import { Switch } from "./ui/switch";
+import { Label } from "./ui/label";
 
 export default function RandomIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -27,6 +30,11 @@ export default function RandomIdeas() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [upvotingId, setUpvotingId] = useState<string | null>(null);
+  const [ad, setAd] = useState<Ad | null>(null);
+
+  useEffect(() => {
+    getActiveAdForPlacement('idea-list').then(setAd);
+  }, []);
 
   const fetchIdeas = useCallback(async (reset: boolean = false) => {
     if (reset) {
@@ -97,14 +105,28 @@ export default function RandomIdeas() {
     fetchIdeas(true);
   };
   
-  const canCreateIdea = userProfile?.isPremium;
+  const canCreateIdea = !!userProfile;
 
-  const filteredIdeas = ideas.filter(idea =>
-    idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    idea.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    idea.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredIdeas = useMemo(() => {
+    return ideas.filter(idea => {
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            return idea.title.toLowerCase().includes(searchLower) ||
+                   idea.description.toLowerCase().includes(searchLower) ||
+                   idea.tags.some(tag => tag.toLowerCase().includes(searchLower));
+        }
+        return true;
+    });
+  }, [ideas, searchTerm]);
 
+
+    const ideaCards = filteredIdeas.map((idea) => (
+      <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} isUpvoting={upvotingId === idea.id} />
+    ));
+
+    if (ad && !userProfile?.isPremium && ideaCards.length > 2) {
+      ideaCards.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+    }
 
   return (
     <Card>
@@ -126,7 +148,7 @@ export default function RandomIdeas() {
                 />
             </div>
             <Select value={sortBy} onValueChange={(value: 'createdAt' | 'upvotes') => setSortBy(value)}>
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-full sm:w-[150px]">
                     <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
                 <SelectContent>
@@ -145,9 +167,7 @@ export default function RandomIdeas() {
         ) : filteredIdeas.length > 0 ? (
           <>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredIdeas.map((idea) => (
-                <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} isUpvoting={upvotingId === idea.id} />
-              ))}
+              {ideaCards}
             </div>
             {hasMore && !searchTerm && (
                 <div className="mt-8 text-center">

@@ -100,7 +100,7 @@ export default function ProblemList() {
         }
     };
 
-    const canCreateProblem = userProfile?.isPremium;
+    const canCreateProblem = !!userProfile;
 
     const filteredProblems = useMemo(() => {
         return problems.filter(problem => {

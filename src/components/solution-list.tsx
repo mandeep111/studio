@@ -30,7 +30,6 @@ export default function SolutionList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
-    const [showClosed, setShowClosed] = useState(false);
 
      useEffect(() => {
         getActiveAdForPlacement('solution-list').then(setAd);
@@ -104,7 +103,6 @@ export default function SolutionList() {
     
     const filteredSolutions = useMemo(() => {
         return solutions.filter(solution => {
-            if (!showClosed && solution.isClosed) return false;
             if (searchTerm) {
                 const searchLower = searchTerm.toLowerCase();
                 return solution.problemTitle.toLowerCase().includes(searchLower) ||
@@ -112,7 +110,7 @@ export default function SolutionList() {
             }
             return true;
         });
-    }, [solutions, showClosed, searchTerm]);
+    }, [solutions, searchTerm]);
 
     const solutionCards = filteredSolutions.map((solution) => (
        <SolutionCard key={solution.id} solution={solution} onUpvote={handleUpvote} isUpvoting={upvotingId === solution.id} />
@@ -148,10 +146,6 @@ export default function SolutionList() {
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
-                     <div className="flex items-center space-x-2">
-                        <Switch id="show-closed-solutions" checked={showClosed} onCheckedChange={setShowClosed} />
-                        <Label htmlFor="show-closed-solutions">Show Closed</Label>
-                    </div>
                 </div>
             </CardHeader>
             <CardContent>

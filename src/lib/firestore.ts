@@ -197,7 +197,6 @@ export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upv
     const { sortBy, lastVisible } = options;
 
     const qConstraints = [
-        where("isClosed", "==", false),
         orderBy(sortBy, "desc"), 
         limit(PAGE_SIZE)
     ];
