@@ -176,12 +176,12 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
         onConfirm={handleStartDeal} 
       />
       <div className="flex justify-between items-center mb-4">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" />
           Back to all businesses
         </Link>
         {userProfile?.isPremium && (
-          <SubmitBusinessDialog onBusinessCreated={() => router.push('/')} />
+          <SubmitBusinessDialog onBusinessCreated={() => router.push('/marketplace')} />
         )}
       </div>
       {!isPaymentEnabled && (
