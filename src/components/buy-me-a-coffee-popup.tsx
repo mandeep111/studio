@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -72,7 +73,7 @@ export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: B
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleConfirm}>
             <Coffee className="mr-2 h-4 w-4" />
-            Continue to Chat
+            Continue
           </Button>
         </DialogFooter>
       </DialogContent>

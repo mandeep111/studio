@@ -156,6 +156,38 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
     }
   };
   
+  const confirmAndStartDeal = async (amount: number, directDealConfig?: { solution?: Solution }) => {
+    const configToUse = directDealConfig || dealConfig;
+    if (!userProfile || !problem || !configToUse) return;
+
+    setIsDealLoading(true);
+
+    try {
+        const result = await startDealAction(
+            userProfile,
+            problem.creator.userId,
+            problem.id,
+            problem.title,
+            'problem',
+            amount,
+            configToUse.solution?.creator.userId
+        );
+        
+        if (result.success && result.url) {
+            window.location.href = result.url;
+        } else if (result.success && result.dealId) {
+            toast({ title: "Deal Started!", description: "The deal has been created successfully." });
+            router.push(`/deals/${result.dealId}`);
+        } else {
+            toast({ variant: "destructive", title: "Error", description: result.message });
+            setIsDealLoading(false);
+        }
+    } catch (error) {
+        toast({ variant: "destructive", title: "Error", description: "An unexpected error occurred." });
+        setIsDealLoading(false);
+    }
+  };
+
   const handleStartDealClick = async (solution?: Solution) => {
       if (!userProfile || userProfile.role !== "Investor") return;
       
@@ -172,41 +204,16 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
         return;
       }
       
-      setDealConfig({ solution });
+      const currentDealConfig = { solution };
+      setDealConfig(currentDealConfig);
 
       if (isPaymentEnabled) {
         setCoffeePopupOpen(true);
         setIsDealLoading(false);
       } else {
-        await confirmAndStartDeal(0); // Start deal for free
+        await confirmAndStartDeal(0, currentDealConfig);
       }
   }
-
-  const confirmAndStartDeal = async (amount: number) => {
-    if (!userProfile || !problem || dealConfig === null) return;
-  
-    setIsDealLoading(true);
-
-    const result = await startDealAction(
-        userProfile,
-        problem.creator.userId,
-        problem.id,
-        problem.title,
-        'problem',
-        amount,
-        dealConfig.solution?.creator.userId
-    );
-    
-    if (result.success && result.url) {
-        window.location.href = result.url;
-    } else if (result.success && result.dealId) {
-        toast({ title: "Deal Started!", description: "The deal has been created successfully." });
-        router.push(`/deals/${result.dealId}`);
-    } else {
-        toast({ variant: "destructive", title: "Error", description: result.message });
-        setIsDealLoading(false);
-    }
-  };
 
 
   const isProblemCreator = user?.uid === problem?.creator.userId;
@@ -222,7 +229,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
       <BuyMeACoffeePopup 
         isOpen={isCoffeePopupOpen} 
         onOpenChange={setCoffeePopupOpen} 
-        onConfirm={confirmAndStartDeal} 
+        onConfirm={(amount) => confirmAndStartDeal(amount)} 
       />
       <div className="flex justify-between items-center mb-4">
         <Link href="/marketplace" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
