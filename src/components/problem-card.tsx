@@ -42,8 +42,8 @@ export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCa
       <CardContent className="flex-grow">
         <p className="line-clamp-3 text-sm text-muted-foreground">{problem.description}</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {problem.tags.map((tag) => (
-            <Badge key={tag} variant="secondary">{tag}</Badge>
+          {problem.tags.map((tag, index) => (
+            <Badge key={`${tag}-${index}`} variant="secondary">{tag}</Badge>
           ))}
         </div>
       </CardContent>

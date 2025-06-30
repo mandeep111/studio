@@ -49,8 +49,8 @@ export default function BusinessCard({ business, onUpvote, isUpvoting }: Busines
                     Funding: {business.price.toLocaleString()}
                 </Badge>
             )}
-            {business.tags.map((tag) => (
-                <Badge key={tag} variant="secondary">{tag}</Badge>
+            {business.tags.map((tag, index) => (
+                <Badge key={`${tag}-${index}`} variant="secondary">{tag}</Badge>
             ))}
         </div>
       </CardContent>

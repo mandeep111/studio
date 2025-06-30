@@ -271,8 +271,8 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           <p className="leading-relaxed">{problem.description}</p>
           <div className="mt-4 flex flex-wrap gap-4">
             <div className="flex flex-wrap gap-2">
-                {problem.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
+                {problem.tags.map((tag, index) => (
+                  <Badge key={`${tag}-${index}`} variant="secondary">{tag}</Badge>
                 ))}
             </div>
             {problem.price && (

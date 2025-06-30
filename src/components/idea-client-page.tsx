@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -210,8 +211,8 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
           <p className="leading-relaxed">{idea.description}</p>
           <div className="mt-4 flex flex-wrap gap-4">
             <div className="flex flex-wrap gap-2">
-              {idea.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
+              {idea.tags.map((tag, index) => (
+                  <Badge key={`${tag}-${index}`} variant="secondary">{tag}</Badge>
               ))}
             </div>
             {idea.price && (

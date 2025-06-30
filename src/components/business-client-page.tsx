@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -213,8 +214,8 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
           <div className="mt-4 flex flex-wrap gap-4">
             <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">{business.stage}</Badge>
-                {business.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
+                {business.tags.map((tag, index) => (
+                  <Badge key={`${tag}-${index}`} variant="secondary">{tag}</Badge>
                 ))}
             </div>
             {business.price && (

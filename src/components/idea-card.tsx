@@ -44,8 +44,8 @@ export default function IdeaCard({ idea, onUpvote, isUpvoting }: IdeaCardProps) 
       <CardContent className="flex-grow">
         <p className="text-sm text-muted-foreground line-clamp-3">{idea.description}</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {idea.tags.map((tag) => (
-            <Badge key={tag} variant="secondary">{tag}</Badge>
+          {idea.tags.map((tag, index) => (
+            <Badge key={`${tag}-${index}`} variant="secondary">{tag}</Badge>
           ))}
         </div>
       </CardContent>
