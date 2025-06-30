@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -148,17 +149,19 @@ export default function AdminClient({
 
     return (
         <Tabs defaultValue="approval">
-            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 h-auto flex-wrap">
-                <AdminTab value="approval" count={unapprovedItems.length}>Approval</AdminTab>
-                <AdminTab value="payments" count={payments.length}>Payments</AdminTab>
-                <AdminTab value="ads" count={ads.length}>Ads</AdminTab>
-                <AdminTab value="settings"><Settings className="h-4 w-4" /></AdminTab>
-                <AdminTab value="users" count={users.length}>Users</AdminTab>
-                <AdminTab value="problems" count={problems.length}>Problems</AdminTab>
-                <AdminTab value="solutions" count={solutions.length}>Solutions</AdminTab>
-                <AdminTab value="ideas" count={ideas.length}>Ideas</AdminTab>
-                <AdminTab value="businesses" count={businesses.length}>Businesses</AdminTab>
-            </TabsList>
+            <div className="overflow-x-auto pb-2">
+                <TabsList className="h-auto">
+                    <AdminTab value="approval" count={unapprovedItems.length}>Approval</AdminTab>
+                    <AdminTab value="payments" count={payments.length}>Payments</AdminTab>
+                    <AdminTab value="ads" count={ads.length}>Ads</AdminTab>
+                    <AdminTab value="settings"><Settings className="h-4 w-4" /></AdminTab>
+                    <AdminTab value="users" count={users.length}>Users</AdminTab>
+                    <AdminTab value="problems" count={problems.length}>Problems</AdminTab>
+                    <AdminTab value="solutions" count={solutions.length}>Solutions</AdminTab>
+                    <AdminTab value="ideas" count={ideas.length}>Ideas</AdminTab>
+                    <AdminTab value="businesses" count={businesses.length}>Businesses</AdminTab>
+                </TabsList>
+            </div>
             
             <TabsContent value="approval" className="mt-4">
                 <Card>

@@ -1,9 +1,11 @@
+
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
@@ -19,6 +21,11 @@ import { Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { UserRole } from "@/lib/types";
 import { getRandomAvatar } from "@/lib/avatars";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" {...props}>
@@ -29,24 +36,70 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
+const passwordPolicy = z.string()
+  .min(8, "Password must be at least 8 characters long.")
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter.")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter.")
+  .regex(/[0-9]/, "Password must contain at least one number.")
+  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character.");
+
+const loginSchema = z.object({
+    email: z.string().email({ message: "Please enter a valid email." }),
+    password: z.string().min(1, { message: "Password is required." }),
+});
+
+const signupSchema = z.object({
+    name: z.string().min(2, { message: "Name must be at least 2 characters." }),
+    email: z.string().email({ message: "Please enter a valid email." }),
+    password: passwordPolicy,
+    role: z.enum(["User", "Investor"]),
+    expertise: z.string().min(2, { message: "Expertise must be at least 2 characters." }),
+});
+
+
 export function AuthForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState<UserRole>("User");
-  const [expertise, setExpertise] = useState("");
+  const [activeTab, setActiveTab] = useState("login");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const loginForm = useForm<z.infer<typeof loginSchema>>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+
+  const signupForm = useForm<z.infer<typeof signupSchema>>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { name: "", email: "", password: "", role: "User", expertise: "" },
+  });
+  
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const handlePasswordReset = async () => {
+    if(!resetEmail) {
+        toast({ variant: "destructive", title: "Error", description: "Please enter your email address." });
+        return;
+    }
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, resetEmail);
+      toast({ title: "Password Reset Email Sent", description: "Check your inbox for instructions to reset your password." });
+      setResetEmail("");
+    } catch (error: any) {
+       toast({ variant: "destructive", title: "Error", description: error.message });
+    } finally {
+        setResetLoading(false);
+    }
+  }
+
+  const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({ title: "Success", description: "Logged in successfully." });
-      router.push("/");
+      router.push("/marketplace");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -89,7 +142,7 @@ export function AuthForm() {
         });
       }
       toast({ title: "Success", description: "Logged in with Google successfully." });
-      router.push("/");
+      router.push("/marketplace");
     } catch (error: any) {
        toast({
         variant: "destructive",
@@ -101,34 +154,28 @@ export function AuthForm() {
     }
   }
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSignUp = async (values: z.infer<typeof signupSchema>) => {
     setLoading(true);
-    if (password.length < 6) {
-        toast({ variant: "destructive", title: "Error", description: "Password must be at least 6 characters long."});
-        setLoading(false);
-        return;
-    }
     try {
       const usersCollectionRef = collection(db, "users");
       const q = query(usersCollectionRef, limit(1));
       const existingUsersSnapshot = await getDocs(q);
       const isFirstUser = existingUsersSnapshot.empty;
-      const userRole: UserRole = isFirstUser ? "Admin" : role;
+      const userRole: UserRole = isFirstUser ? "Admin" : values.role;
 
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        email,
-        password
+        values.email,
+        values.password
       );
       const user = userCredential.user;
 
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
-        name,
+        name: values.name,
         role: userRole,
-        expertise,
+        expertise: values.expertise,
         avatarUrl: getRandomAvatar(userRole),
         points: 0,
         isPremium: isFirstUser, // First user is Admin and Premium
@@ -136,7 +183,7 @@ export function AuthForm() {
       });
       
       toast({ title: "Success", description: `Account created successfully. ${isFirstUser ? 'You are the Admin!' : ''}` });
-      router.push("/");
+      router.push("/marketplace");
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -149,156 +196,206 @@ export function AuthForm() {
   };
 
   return (
-    <Tabs defaultValue="login" className="w-full">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="login">Login</TabsTrigger>
         <TabsTrigger value="signup">Sign Up</TabsTrigger>
       </TabsList>
       <TabsContent value="login">
         <Card>
-          <form onSubmit={handleLogin}>
-            <CardHeader>
-              <CardTitle>Login</CardTitle>
-              <CardDescription>
-                Enter your credentials to access your account.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading}>
-                {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
-                Login with Google
-              </Button>
-               <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button disabled={loading || googleLoading} className="w-full">
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Login
-              </Button>
-            </CardFooter>
-          </form>
+            <Form {...loginForm}>
+              <form onSubmit={loginForm.handleSubmit(handleLogin)}>
+                <CardHeader>
+                  <CardTitle>Login</CardTitle>
+                  <CardDescription>
+                    Enter your credentials to access your account.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading || loading}>
+                    {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
+                    Login with Google
+                  </Button>
+                   <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="m@example.com" {...field} disabled={loading}/>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} disabled={loading}/>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="text-sm">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button type="button" variant="link" className="p-0 h-auto">Forgot Password?</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reset Password</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Enter your email address and we'll send you a link to reset your password.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="space-y-2">
+                            <Label htmlFor="reset-email">Email</Label>
+                            <Input id="reset-email" type="email" placeholder="m@example.com" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+                          </div>
+                          <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handlePasswordReset} disabled={resetLoading}>
+                                  {resetLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                  Send Reset Link
+                              </AlertDialogAction>
+                          </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button disabled={loading || googleLoading} className="w-full" type="submit">
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Login
+                  </Button>
+                </CardFooter>
+              </form>
+            </Form>
         </Card>
       </TabsContent>
       <TabsContent value="signup">
         <Card>
-          <form onSubmit={handleSignUp}>
-            <CardHeader>
-              <CardTitle>Sign Up</CardTitle>
-              <CardDescription>
-                Create a new account to join the community.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-               <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading}>
-                 {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
-                Sign Up with Google
-              </Button>
-               <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-name">Full Name</Label>
-                <Input
-                  id="signup-name"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-email">Email</Label>
-                <Input
-                  id="signup-email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-password">Password</Label>
-                <Input
-                  id="signup-password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-               <div className="space-y-2">
-                <Label htmlFor="role">I am a...</Label>
-                <Select onValueChange={(value: UserRole) => setRole(value)} defaultValue={role} disabled={loading}>
-                    <SelectTrigger id="role">
-                        <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="User">User (Problem/Solution Creator)</SelectItem>
-                        <SelectItem value="Investor">Investor</SelectItem>
-                    </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signup-expertise">Area of Expertise</Label>
-                <Input
-                  id="signup-expertise"
-                  placeholder="e.g., Sustainable Tech"
-                  required
-                  value={expertise}
-                  onChange={(e) => setExpertise(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button disabled={loading || googleLoading} className="w-full">
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Account
-              </Button>
-            </CardFooter>
-          </form>
+            <Form {...signupForm}>
+              <form onSubmit={signupForm.handleSubmit(handleSignUp)}>
+                <CardHeader>
+                  <CardTitle>Sign Up</CardTitle>
+                  <CardDescription>
+                    Create a new account to join the community.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                   <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading || loading}>
+                     {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
+                    Sign Up with Google
+                  </Button>
+                   <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        Or continue with
+                      </span>
+                    </div>
+                  </div>
+                  <FormField
+                    control={signupForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Your name" {...field} disabled={loading}/>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="m@example.com" {...field} disabled={loading}/>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} disabled={loading}/>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>I am a...</FormLabel>
+                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loading}>
+                           <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select your role" />
+                            </SelectTrigger>
+                           </FormControl>
+                            <SelectContent>
+                                <SelectItem value="User">User (Creator)</SelectItem>
+                                <SelectItem value="Investor">Investor</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={signupForm.control}
+                    name="expertise"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Area of Expertise</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Sustainable Tech" {...field} disabled={loading}/>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+                <CardFooter>
+                  <Button disabled={loading || googleLoading} className="w-full" type="submit">
+                    {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Create Account
+                  </Button>
+                </CardFooter>
+              </form>
+            </Form>
         </Card>
       </TabsContent>
     </Tabs>

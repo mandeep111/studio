@@ -26,6 +26,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { Badge } from "./ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion";
+import { ScrollArea, ScrollBar } from "./ui/scroll-area";
 
 interface UserProfileClientProps {
     userProfile: UserProfile;
@@ -229,6 +230,46 @@ export default function UserProfileClient({
     const activeDeals = useMemo(() => deals.filter(d => d.status === 'active'), [deals]);
     const archivedDeals = useMemo(() => deals.filter(d => d.status === 'completed' || d.status === 'cancelled'), [deals]);
 
+    const tabList = (
+        <TabsList>
+            <TabsTrigger value="problems">
+                <BrainCircuit className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Problems</span>
+            </TabsTrigger>
+            <TabsTrigger value="solutions">
+                <Lightbulb className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Solutions</span>
+            </TabsTrigger>
+            <TabsTrigger value="businesses">
+                <Briefcase className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Businesses</span>
+            </TabsTrigger>
+            <TabsTrigger value="ideas">
+                <Sparkles className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Ideas</span>
+            </TabsTrigger>
+            {profile.role === 'Investor' && (
+                <TabsTrigger value="worked-with">
+                    <Users className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Network</span>
+                </TabsTrigger>
+            )}
+            {(isOwnProfile || profile.role === 'Investor') && (
+                <TabsTrigger value="deals">
+                    <Handshake className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Deals</span>
+                </TabsTrigger>
+            )}
+            {isOwnProfile && (
+                <TabsTrigger value="upvoted-history">
+                    <History className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Upvoted</span>
+                </TabsTrigger>
+            )}
+        </TabsList>
+    );
+
+
     return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-1">
@@ -296,49 +337,11 @@ export default function UserProfileClient({
 
             <div className="lg:col-span-2">
                 <Tabs defaultValue="problems">
-                    <TabsList className={cn("grid w-full", (isOwnProfile || profile.role === 'Investor') ? "grid-cols-3 md:grid-cols-7" : "grid-cols-2 md:grid-cols-4")}>
-                        <TabsTrigger value="problems">
-                            <BrainCircuit className="h-4 w-4 md:mr-2" />
-                            <span className="hidden md:inline">Problems</span>
-                            <span className="md:hidden">({problems.length})</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="solutions">
-                            <Lightbulb className="h-4 w-4 md:mr-2" />
-                            <span className="hidden md:inline">Solutions</span>
-                            <span className="md:hidden">({solutions.length})</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="businesses">
-                            <Briefcase className="h-4 w-4 md:mr-2" />
-                             <span className="hidden md:inline">Businesses</span>
-                             <span className="md:hidden">({businesses.length})</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="ideas">
-                            <Sparkles className="h-4 w-4 md:mr-2" />
-                             <span className="hidden md:inline">Ideas</span>
-                             <span className="md:hidden">({ideas.length})</span>
-                        </TabsTrigger>
-                         {profile.role === 'Investor' && (
-                             <TabsTrigger value="worked-with">
-                                <Users className="h-4 w-4 md:mr-2" />
-                                <span className="hidden md:inline">Network</span>
-                                <span className="md:hidden">({workedWithContent.length})</span>
-                            </TabsTrigger>
-                        )}
-                        {(isOwnProfile || profile.role === 'Investor') && (
-                             <TabsTrigger value="deals">
-                                <Handshake className="h-4 w-4 md:mr-2" />
-                                <span className="hidden md:inline">Deals</span>
-                                 <span className="md:hidden">({deals.length})</span>
-                            </TabsTrigger>
-                        )}
-                        {isOwnProfile && (
-                            <TabsTrigger value="upvoted-history">
-                                <History className="h-4 w-4 md:mr-2" />
-                                <span className="hidden md:inline">Upvoted</span>
-                                 <span className="md:hidden">({upvotedItems.length})</span>
-                            </TabsTrigger>
-                        )}
-                    </TabsList>
+                    <ScrollArea className="w-full whitespace-nowrap">
+                        {tabList}
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+                    
                     <TabsContent value="problems" className="mt-4">
                         <Card>
                              <CardHeader className="flex flex-row items-center justify-between">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
@@ -33,9 +34,10 @@ export function TagInput({ value, onChange, placeholder, disabled }: TagInputPro
     const newValue = e.target.value;
     setInputValue(newValue);
     if(newValue) {
+        const lowerCaseValue = value.map(t => t.toLowerCase());
         const filteredSuggestions = allTags
             .filter(tag => tag.toLowerCase().includes(newValue.toLowerCase()))
-            .filter(tag => !value.includes(tag))
+            .filter(tag => !lowerCaseValue.includes(tag.toLowerCase()))
             .slice(0, 5); // Limit suggestions
         setSuggestions(filteredSuggestions);
         setShowSuggestions(true);
@@ -44,24 +46,26 @@ export function TagInput({ value, onChange, placeholder, disabled }: TagInputPro
     }
   };
 
+  const addTag = (tagToAdd: string) => {
+    const newTag = tagToAdd.trim();
+    if (newTag && !value.some(tag => tag.toLowerCase() === newTag.toLowerCase())) {
+        onChange([...value, newTag]);
+    }
+    setInputValue("");
+    setShowSuggestions(false);
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      const newTag = inputValue.trim();
-      if (newTag && !value.includes(newTag)) {
-        onChange([...value, newTag]);
-      }
-      setInputValue("");
-      setShowSuggestions(false);
+      addTag(inputValue);
     } else if (e.key === "Backspace" && inputValue === "" && value.length > 0) {
       onChange(value.slice(0, -1));
     }
   };
   
   const addSuggestion = (tag: string) => {
-    onChange([...value, tag]);
-    setInputValue("");
-    setShowSuggestions(false);
+    addTag(tag);
     inputRef.current?.focus();
   };
 

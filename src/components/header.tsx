@@ -1,3 +1,4 @@
+
 "use client";
 
 import { LogOut, User, Trophy, Gem, Users } from "lucide-react";
@@ -32,9 +33,9 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 max-w-screen-2xl items-center">
-        <Link href="/" className="mr-4 flex items-center">
-          <Image src="/logo.png" alt="Problem2Profit Logo" width={36} height={36} className="h-9 w-9" />
-          <h1 className="ml-2 font-heading text-2xl font-bold">Problem2Profit</h1>
+        <Link href="/" className="mr-4 flex shrink-0 items-center">
+          <Image src="/logo.png" alt="Problem2Profit Logo" width={40} height={40} className="h-10 w-10" />
+          <h1 className="ml-2 font-heading text-2xl font-bold hidden sm:block">Problem2Profit</h1>
         </Link>
         <nav className="hidden items-center gap-4 text-sm font-medium md:flex">
             <Link href="/marketplace" className="text-muted-foreground transition-colors hover:text-foreground">Marketplace</Link>
