@@ -1,23 +1,36 @@
 "use client";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import Header from "@/components/header";
 import MainTabs from "@/components/main-tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MarketplacePage() {
-  const { user, userProfile, loading } = useAuth();
-  const router = useRouter();
+  const { userProfile, loading } = useAuth();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user) {
-    return null;
+  if (loading) {
+    return (
+       <div className="flex min-h-screen w-full flex-col">
+        <Header />
+        <main className="flex-1 bg-muted/40">
+           <section className="w-full py-12 md:py-24">
+            <div className="container px-4 md:px-6">
+                <div className="flex flex-col items-center justify-center space-y-4 text-center">
+                    <div className="space-y-2">
+                        <Skeleton className="h-12 w-96" />
+                        <Skeleton className="h-8 w-[600px]" />
+                    </div>
+                </div>
+            </div>
+            </section>
+            <section className="w-full pb-12 md:pb-24 lg:pb-32">
+                <div className="container mx-auto px-4 md:px-6 lg:px-8">
+                    <Skeleton className="h-[600px] w-full" />
+                </div>
+            </section>
+        </main>
+      </div>
+    )
   }
 
   return (

@@ -223,7 +223,7 @@ export default function UserProfileClient({
 
     const handleLogout = async () => {
         await signOut(auth);
-        router.push('/login');
+        router.push('/');
     };
     
     const activeDeals = useMemo(() => deals.filter(d => d.status === 'active'), [deals]);
