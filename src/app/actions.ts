@@ -194,7 +194,7 @@ export async function startDealAction(
     itemId: string,
     itemTitle: string,
     itemType: 'problem' | 'idea' | 'business',
-    amount: number, // Can be 0 if payments are disabled
+    amount: number,
     solutionCreatorId?: string
 ) {
     if (investorProfile.role !== 'Investor') {
@@ -204,19 +204,18 @@ export async function startDealAction(
     const { isEnabled } = await getPaymentSettings();
     
     try {
-        const contributionAmount = isEnabled ? amount : 0;
-        if (isEnabled && (isNaN(amount) || amount < 10)) {
-            return { success: false, message: "Invalid contribution amount. Minimum is $10." };
-        }
-
         // Free deal creation path
         if (!isEnabled) {
-             const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
+            const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
             revalidatePath(`/${itemType}s/${itemId}`);
             return { success: true, dealId };
         }
 
         // Paid deal creation path
+        if (isNaN(amount) || amount < 10) {
+            return { success: false, message: "Invalid contribution amount. Minimum is $10." };
+        }
+
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
         if (!baseUrl) {
             throw new Error('NEXT_PUBLIC_BASE_URL is not set.');
@@ -229,7 +228,7 @@ export async function startDealAction(
                     name: `Facilitate Deal: ${itemTitle}`,
                     description: 'A small contribution to start the conversation with the creator(s).'
                 },
-                unit_amount: contributionAmount * 100, // Amount in cents
+                unit_amount: amount * 100, // Amount in cents
             },
             quantity: 1,
         }];
@@ -241,7 +240,7 @@ export async function startDealAction(
             itemId,
             itemTitle,
             itemType,
-            amount: String(contributionAmount),
+            amount: String(amount),
         };
         if (solutionCreatorId) {
             metadata.solutionCreatorId = solutionCreatorId;
