@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement } from "@/lib/firestore";
 import type { Idea, Ad } from "@/lib/types";
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -16,7 +16,6 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
-import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 
 export default function RandomIdeas() {
