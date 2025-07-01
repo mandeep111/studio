@@ -1,16 +1,11 @@
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Avatars can be read by anyone, but only written by the owning user.
-    match /avatars/{userId}/{allPaths=**} {
-      allow read;
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Attachments can be read by anyone, but only written by authenticated users.
-    match /attachments/{allPaths=**} {
-      allow read;
-      allow write: if request.auth != null;
+    // Allow any authenticated user to read and write to storage.
+    // This is for debugging purposes. We can tighten these rules later.
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
