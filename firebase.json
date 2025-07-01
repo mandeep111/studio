@@ -5,7 +5,6 @@
     "indexes": "firestore.indexes.json"
   },
   "storage": {
-    "rules": "storage.rules",
-    "cors": "storage.cors.json"
+    "rules": "storage.rules"
   }
 }
