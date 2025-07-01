@@ -9,7 +9,7 @@ import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, ExternalLink, ThumbsUp, File, Coffee, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, ThumbsUp, File, Loader2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
@@ -74,10 +74,20 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
 
   return (
     <>
-      <Link href={`/problems/${solution.problemId}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-          <ArrowLeft className="h-4 w-4" />
-          Back to problem
-      </Link>
+      <div className="flex justify-between items-center mb-4">
+        <Link href={`/problems/${solution.problemId}`} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />
+            Back to problem
+        </Link>
+        {isCreator && (
+            <Button asChild variant="outline">
+                <Link href={`/solutions/${solution.id}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Solution
+                </Link>
+            </Button>
+        )}
+      </div>
       <Card>
         <CardHeader>
             <div className="flex items-center justify-between">

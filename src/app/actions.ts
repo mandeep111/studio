@@ -2,7 +2,7 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus, getDeal, getUserProfile, createNotification, getIdeas, updateUserProfile } from "@/lib/firestore";
+import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus, getDeal, getUserProfile, createNotification, getIdeas, updateUserProfile, updateProblem, updateSolution, updateIdea, updateBusiness } from "@/lib/firestore";
 import type { UserProfile, Ad, PaymentSettings, Deal } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -439,4 +439,55 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
         }
         return { success: false, message: (error as Error).message || "An unexpected error occurred." };
     }
+}
+
+
+// --- Content Edit Actions ---
+
+async function handleContentUpdate(
+    id: string,
+    type: 'problem' | 'solution' | 'idea' | 'business',
+    updateFunction: (id: string, data: any, attachment?: File) => Promise<void>,
+    formData: FormData
+) {
+    const data: any = {
+        title: formData.get('title') as string,
+        description: formData.get('description') as string,
+        tags: formData.getAll('tags') as string[],
+    };
+    if (type === 'business') {
+        data.stage = formData.get('stage') as string;
+    }
+    
+    const attachment = formData.get('attachment') as File | null;
+
+    try {
+        await updateFunction(id, data, attachment && attachment.size > 0 ? attachment : undefined);
+        revalidatePath(`/${type}s/${id}`);
+        revalidatePath(`/${type}s/${id}/edit`);
+        return { success: true, message: `${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully.` };
+    } catch (error) {
+        console.error(`Failed to update ${type}:`, error);
+        return { success: false, message: `Failed to update ${type}.` };
+    }
+}
+
+export async function updateProblemAction(formData: FormData) {
+    const id = formData.get('id') as string;
+    return handleContentUpdate(id, 'problem', updateProblem, formData);
+}
+
+export async function updateSolutionAction(formData: FormData) {
+    const id = formData.get('id') as string;
+    return handleContentUpdate(id, 'solution', updateSolution, formData);
+}
+
+export async function updateIdeaAction(formData: FormData) {
+    const id = formData.get('id') as string;
+    return handleContentUpdate(id, 'idea', updateIdea, formData);
+}
+
+export async function updateBusinessAction(formData: FormData) {
+    const id = formData.get('id') as string;
+    return handleContentUpdate(id, 'business', updateBusiness, formData);
 }

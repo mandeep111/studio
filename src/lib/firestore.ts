@@ -1,5 +1,4 @@
 
-
 import {
   addDoc,
   arrayRemove,
@@ -198,7 +197,6 @@ export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upv
     const { sortBy, lastVisible } = options;
 
     const qConstraints = [
-        where("isClosed", "==", false),
         orderBy(sortBy, "desc"), 
         limit(PAGE_SIZE)
     ];
@@ -218,7 +216,7 @@ export async function getPaginatedSolutions(options: { sortBy: 'createdAt' | 'up
   const col = collection(db, "solutions");
   const { sortBy, lastVisible } = options;
 
-  const qConstraints = [where("isClosed", "==", false), orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
   if(lastVisible) {
     qConstraints.push(startAfter(lastVisible));
   }
@@ -234,7 +232,7 @@ export async function getPaginatedIdeas(options: { sortBy: 'createdAt' | 'upvote
   const col = collection(db, "ideas");
   const { sortBy, lastVisible } = options;
 
-  const qConstraints = [where("isClosed", "==", false), orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
   if(lastVisible) {
     qConstraints.push(startAfter(lastVisible));
   }
@@ -250,7 +248,7 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
     const col = collection(db, "businesses");
     const { sortBy, lastVisible } = options;
   
-    const qConstraints = [where("isClosed", "==", false), orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+    const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
     if(lastVisible) {
       qConstraints.push(startAfter(lastVisible));
     }
@@ -886,21 +884,16 @@ export async function updateDealStatus(
         }
 
         transaction.update(dealRef, { status: status });
+        
+        const investorRef = doc(db, "users", investorId);
 
-        // If a deal is completed or cancelled, mark the related item as closed.
-        if (status === 'completed' || status === 'cancelled') {
+        if (status === 'completed') {
             const itemRef = doc(db, `${deal.type}s`, deal.relatedItemId);
             transaction.update(itemRef, { isClosed: true });
-
-            // Update investor stats
-            const investorRef = doc(db, "users", investorId);
-            if (status === 'completed') {
-                transaction.update(investorRef, { dealsCompletedCount: increment(1) });
-            } else if (status === 'cancelled') {
-                transaction.update(investorRef, { dealsCancelledCount: increment(1) });
-            }
+            transaction.update(investorRef, { dealsCompletedCount: increment(1) });
+        } else if (status === 'cancelled') {
+            transaction.update(investorRef, { dealsCancelledCount: increment(1) });
         }
-
 
         // Add a system message to the chat
         const messagesCol = collection(db, `deals/${dealId}/messages`);
@@ -1176,3 +1169,40 @@ export async function getCounts() {
         investors: investorsSnap.size,
     };
 }
+
+
+// --- Content Editing ---
+
+async function handleItemUpdate(
+    id: string,
+    collectionName: 'problems' | 'solutions' | 'ideas' | 'businesses',
+    data: { title?: string; description: string; tags?: string[]; stage?: string; },
+    attachment?: File
+) {
+    const itemRef = doc(db, collectionName, id);
+
+    const updateData: any = { ...data };
+
+    if (attachment) {
+        const attachmentData = await uploadAttachment(attachment);
+        updateData.attachmentUrl = attachmentData.url;
+        updateData.attachmentFileName = attachmentData.name;
+    }
+
+    await updateDoc(itemRef, updateData);
+    if (data.tags) {
+        await addTags(data.tags);
+    }
+}
+
+export const updateProblem = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => 
+    handleItemUpdate(id, 'problems', data, attachment);
+
+export const updateSolution = (id: string, data: { description: string }, attachment?: File) => 
+    handleItemUpdate(id, 'solutions', data, attachment);
+
+export const updateIdea = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => 
+    handleItemUpdate(id, 'ideas', data, attachment);
+
+export const updateBusiness = (id: string, data: { title: string; description: string; tags: string[]; stage: string }, attachment?: File) => 
+    handleItemUpdate(id, 'businesses', data, attachment);

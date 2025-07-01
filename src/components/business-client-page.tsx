@@ -9,9 +9,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users, Info, MessageSquare } from "lucide-react";
+import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users, Info, MessageSquare, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { SubmitBusinessDialog } from "@/components/submit-business-dialog";
 import { Button } from "./ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { startDealAction, findExistingDealAction } from "@/app/actions";
@@ -181,8 +180,13 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
           <ArrowLeft className="h-4 w-4" />
           Back to all businesses
         </Link>
-        {userProfile?.isPremium && (
-          <SubmitBusinessDialog onBusinessCreated={() => router.push('/marketplace')} />
+        {isCreator && (
+            <Button asChild variant="outline">
+                <Link href={`/businesses/${business.id}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Business
+                </Link>
+            </Button>
         )}
       </div>
       {!isPaymentEnabled && (
@@ -269,7 +273,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
                     </Link>
                 </Button>
             ) : (
-                <Button onClick={handleStartDealClick} disabled={isDealLoading}>
+                <Button onClick={handleStartDealClick} disabled={isDealLoading || business.isClosed}>
                     {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
                     {isPaymentEnabled ? "Start a Deal" : "Start Deal (Free)"}
                 </Button>

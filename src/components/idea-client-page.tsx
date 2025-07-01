@@ -9,9 +9,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle, MessageSquare } from "lucide-react";
+import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle, MessageSquare, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { SubmitIdeaDialog } from "@/components/submit-idea-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { startDealAction, findExistingDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
@@ -179,8 +178,13 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
           <ArrowLeft className="h-4 w-4" />
           Back to all ideas
         </Link>
-        {userProfile && (
-          <SubmitIdeaDialog onIdeaCreated={fetchIdea} />
+        {isCreator && (
+            <Button asChild variant="outline">
+                <Link href={`/ideas/${idea.id}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Idea
+                </Link>
+            </Button>
         )}
       </div>
       {!isPaymentEnabled && (
@@ -266,7 +270,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
                     </Link>
                 </Button>
             ) : (
-                <Button onClick={handleStartDealClick} disabled={isDealLoading}>
+                <Button onClick={handleStartDealClick} disabled={isDealLoading || idea.isClosed}>
                     {isDealLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Coffee className="mr-2 h-4 w-4" />}
                     {isPaymentEnabled ? "Start a Deal" : "Start Deal (Free)"}
                 </Button>

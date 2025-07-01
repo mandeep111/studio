@@ -9,12 +9,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users, Info, Loader2, Edit } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { SubmitProblemDialog } from "@/components/submit-problem-dialog";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { startDealAction, findExistingDealAction } from "@/app/actions";
 import { Button } from "./ui/button";
@@ -236,8 +235,13 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           <ArrowLeft className="h-4 w-4" />
           Back to all problems
         </Link>
-        {userProfile?.role === 'User' && (
-          <SubmitProblemDialog onProblemCreated={() => router.push('/marketplace')} isPaymentEnabled={isPaymentEnabled} />
+        {isProblemCreator && (
+            <Button asChild variant="outline">
+                <Link href={`/problems/${problem.id}/edit`}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Problem
+                </Link>
+            </Button>
         )}
       </div>
        {!isPaymentEnabled && (
