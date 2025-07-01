@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { createBusiness } from '@/lib/firestore';
@@ -13,20 +13,35 @@ import { DollarSign, Gem } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import Link from 'next/link';
 import { TagInput } from './ui/tag-input';
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 interface CreateBusinessFormProps {
     onBusinessCreated?: () => void;
     isPaymentEnabled: boolean;
 }
 
+const businessFormSchema = z.object({
+  title: z.string().min(5, { message: "Business name must be at least 5 characters." }),
+  description: z.string().min(20, { message: "Description must be at least 20 characters." }),
+  stage: z.string({ required_error: "Please select a business stage."}),
+  price: z.string().optional(),
+});
+
 export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled }: CreateBusinessFormProps) {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
-  const [stage, setStage] = useState('');
-  const formRef = useRef<HTMLFormElement>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [tags, setTags] = useState<string[]>([]);
+  
+  const form = useForm<z.infer<typeof businessFormSchema>>({
+    resolver: zodResolver(businessFormSchema),
+    defaultValues: { title: "", description: "", price: "" },
+  });
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
@@ -34,35 +49,29 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
   const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
 
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const onSubmit = async (values: z.infer<typeof businessFormSchema>) => {
     if (!userProfile) {
         toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit a business." });
         return;
     }
     setFormLoading(true);
 
-    const formData = new FormData(event.currentTarget);
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const priceStr = formData.get('price') as string;
-    const price = canSetPrice && priceStr ? parseFloat(priceStr) : null;
-    
-    if (!title || !description || tags.length === 0 || !stage) {
-        toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
+    const price = canSetPrice && values.price ? parseFloat(values.price) : null;
+    if (canSetPrice && !values.price) {
+        form.setError("price", { type: "manual", message: "Funding sought is required for premium users." });
         setFormLoading(false);
         return;
     }
-    if (canSetPrice && !priceStr) {
-        toast({ variant: "destructive", title: "Validation Error", description: "Funding sought is required for premium users."});
-        setFormLoading(false);
-        return;
+     if (canSetPrice && values.price && isNaN(price)) {
+         form.setError("price", { type: "manual", message: "Price must be a valid number." });
+         setFormLoading(false);
+         return;
     }
 
     try {
-        await createBusiness(title, description, tags, stage, price, userProfile, attachment || undefined);
+        await createBusiness(values.title, values.description, tags, values.stage, price, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Business submitted successfully. You've earned 30 points!" });
-        formRef.current?.reset();
+        form.reset();
         setAttachment(null);
         setTags([]);
         if (onBusinessCreated) {
@@ -85,77 +94,114 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
   };
 
   return (
-    <form onSubmit={handleSubmit} ref={formRef} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="title">Business Name</Label>
-        <Input id="title" name="title" placeholder="e.g., EcoWear Sustainable Fashion" required disabled={isFieldsDisabled} />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Business Name</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g., EcoWear Sustainable Fashion" {...field} disabled={isFieldsDisabled} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
           name="description"
-          placeholder="Describe your business. What problem does it solve? What is your business model?"
-          className="min-h-[120px]"
-          required
-          disabled={isFieldsDisabled}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Describe your business. What problem does it solve? What is your business model?"
+                  className="min-h-[120px]"
+                  {...field}
+                  disabled={isFieldsDisabled}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="stage">Business Stage</Label>
-        <Select onValueChange={setStage} required disabled={isFieldsDisabled}>
-            <SelectTrigger>
-                <SelectValue placeholder="Select business stage" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="Idea">Idea</SelectItem>
-                <SelectItem value="Prototype">Prototype / MVP</SelectItem>
-                <SelectItem value="Early Revenue">Early Revenue</SelectItem>
-                <SelectItem value="Scaling">Scaling</SelectItem>
-            </SelectContent>
-        </Select>
-      </div>
-       <div className="space-y-2">
-        <Label htmlFor="price">Funding Sought</Label>
-        {canSetPrice ? (
-          <>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="price" name="price" type="number" step="1000" placeholder="50000" className="pl-8" required disabled={isFieldsDisabled}/>
-            </div>
+        <FormField
+          control={form.control}
+          name="stage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Business Stage</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isFieldsDisabled}>
+                  <FormControl>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select business stage" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                      <SelectItem value="Idea">Idea</SelectItem>
+                      <SelectItem value="Prototype">Prototype / MVP</SelectItem>
+                      <SelectItem value="Early Revenue">Early Revenue</SelectItem>
+                      <SelectItem value="Scaling">Scaling</SelectItem>
+                  </SelectContent>
+                </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="space-y-2">
+            <Label>Funding Sought</Label>
+            {canSetPrice ? (
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <FormControl>
+                            <Input type="number" step="1000" placeholder="50000" className="pl-8" {...field} disabled={isFieldsDisabled} />
+                          </FormControl>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Amounts over $1,000 require admin approval.
+                        </p>
+                        <FormMessage />
+                    </FormItem>
+                  )}
+                />
+            ) : isPaymentEnabled ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                    <Gem className="h-4 w-4 text-primary" />
+                    <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
+                </div>
+            ) : null}
+        </div>
+        <div className="space-y-2">
+            <Label htmlFor="tags">Tags (Optional)</Label>
+            <TagInput
+                value={tags}
+                onChange={setTags}
+                placeholder="e.g. E-commerce, B2C..."
+                disabled={isFieldsDisabled}
+            />
             <p className="text-xs text-muted-foreground">
-              Amounts over $1,000 require admin approval.
+            Press Enter or comma to add a tag.
             </p>
-          </>
-        ) : isPaymentEnabled ? (
-           <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
-                <Gem className="h-4 w-4 text-primary" />
-                <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
-            </div>
-        ) : null}
-      </div>
-       <div className="space-y-2">
-        <Label htmlFor="tags">Tags</Label>
-        <TagInput
-            value={tags}
-            onChange={setTags}
-            placeholder="e.g. E-commerce, B2C..."
-            disabled={isFieldsDisabled}
-        />
-        <p className="text-xs text-muted-foreground">
-          Press Enter or comma to add a tag.
-        </p>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="attachment-business">Attachment (Optional)</Label>
-        <Input id="attachment-business" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
-        <p className="text-xs text-muted-foreground">
-            Investors will be able to see this attachment.
-        </p>
-      </div>
-      <div className="flex justify-end pt-4">
-        <SubmitButton pendingText="Submitting..." disabled={isSubmitDisabled}>Submit Business</SubmitButton>
-      </div>
-    </form>
+        </div>
+        <div className="space-y-2">
+            <Label htmlFor="attachment-business">Attachment (Optional)</Label>
+            <Input id="attachment-business" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+            <p className="text-xs text-muted-foreground">
+                Investors will be able to see this attachment.
+            </p>
+        </div>
+        <div className="flex justify-end pt-4">
+            <SubmitButton pendingText="Submitting..." disabled={isSubmitDisabled}>Submit Business</SubmitButton>
+        </div>
+      </form>
+    </Form>
   );
 }

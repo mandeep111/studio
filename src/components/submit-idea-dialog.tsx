@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,30 +17,49 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
-import { Lightbulb, PlusCircle } from "lucide-react";
+import { Lightbulb, DollarSign, Gem } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { createIdea } from "@/lib/firestore";
 import { TagInput } from "./ui/tag-input";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+
 
 interface SubmitIdeaDialogProps {
   onIdeaCreated: () => void;
   children?: React.ReactNode;
+  isPaymentEnabled: boolean;
 }
 
-export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogProps) {
+const ideaFormSchema = z.object({
+  title: z.string().min(10, { message: "Title must be at least 10 characters long." }),
+  description: z.string().min(20, { message: "Description must be at least 20 characters long." }),
+  price: z.string().optional(),
+});
+
+
+export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: SubmitIdeaDialogProps) {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const formRef = useRef<HTMLFormElement>(null);
   const [open, setOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [attachment, setAttachment] = useState<File | null>(null);
   const [tags, setTags] = useState<string[]>([]);
+  
+  const form = useForm<z.infer<typeof ideaFormSchema>>({
+    resolver: zodResolver(ideaFormSchema),
+    defaultValues: { title: "", description: "", price: "" },
+  });
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
+
+  const onSubmit = async (values: z.infer<typeof ideaFormSchema>) => {
     setFormLoading(true);
 
     if (!userProfile) {
@@ -48,34 +68,32 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
         return;
     }
 
-    const formData = new FormData(event.currentTarget);
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const priceStr = formData.get('price') as string;
-    const price = priceStr ? parseFloat(priceStr) : null;
-
-    if (!title || !description || tags.length === 0) {
-        toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
-        setFormLoading(false);
-        return;
-    }
-     if (priceStr && isNaN(parseFloat(priceStr))) {
-        toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
+    const price = canSetPrice && values.price ? parseFloat(values.price) : null;
+    if (canSetPrice && values.price && isNaN(price)) {
+        form.setError("price", { type: "manual", message: "Price must be a valid number." });
         setFormLoading(false);
         return;
     }
 
     try {
-        await createIdea(title, description, tags, price, userProfile, attachment || undefined);
+        await createIdea(values.title, values.description, tags, price, userProfile, attachment || undefined);
         toast({ title: "Success!", description: "Idea submitted successfully." });
-        formRef.current?.reset();
+        form.reset();
         setTags([]);
         setAttachment(null);
         onIdeaCreated();
         setOpen(false);
     } catch (error) {
         console.error(error);
-        toast({ variant: "destructive", title: "Error", description: "Failed to submit idea." });
+        let errorMessage = "Failed to submit idea.";
+        if (error instanceof Error) {
+            if ((error as any).code?.includes('storage')) {
+                errorMessage = "Storage permission error. Please check your Firebase rules and ensure you are logged in.";
+            } else {
+                errorMessage = error.message;
+            }
+        }
+        toast({ variant: "destructive", title: "Error", description: errorMessage });
     } finally {
         setFormLoading(false);
     }
@@ -99,41 +117,84 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
             Have a brilliant thought that isn't tied to a specific problem? Share it here.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} ref={formRef} className="grid gap-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">
-              Title
-            </Label>
-            <Input id="title" name="title" placeholder="A catchy title for your idea" required disabled={isFieldsDisabled} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="description">
-              Description
-            </Label>
-            <Textarea id="description" name="description" placeholder="Describe your idea in detail" required disabled={isFieldsDisabled} />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tags">
-              Tags
-            </Label>
-            <TagInput
-              value={tags}
-              onChange={setTags}
-              placeholder="e.g. AI, Health..."
-              disabled={isFieldsDisabled}
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 py-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="A catchy title for your idea" {...field} disabled={isFieldsDisabled} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-           <div className="space-y-2">
-            <Label htmlFor="attachment-idea">Attachment (Optional)</Label>
-            <Input id="attachment-idea" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
-            <p className="text-xs text-muted-foreground">
-                Investors will be able to see this attachment.
-            </p>
-          </div>
-          <DialogFooter>
-            <SubmitButton disabled={isSubmitDisabled} pendingText="Submitting...">Submit Idea</SubmitButton>
-          </DialogFooter>
-        </form>
+             <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Describe your idea in detail" {...field} disabled={isFieldsDisabled} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="space-y-2">
+                <Label htmlFor="tags">Tags (Optional)</Label>
+                <TagInput
+                value={tags}
+                onChange={setTags}
+                placeholder="e.g. AI, Health..."
+                disabled={isFieldsDisabled}
+                />
+            </div>
+            <div className="space-y-2">
+                <Label>Price (Optional)</Label>
+                {canSetPrice ? (
+                 <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                        <FormItem>
+                            <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <FormControl>
+                                    <Input type="number" step="0.01" placeholder="100.00" className="pl-8" {...field} disabled={isFieldsDisabled}/>
+                                </FormControl>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                Set a price for your idea. Prices over $1,000 require admin approval.
+                            </p>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                ) : isPaymentEnabled ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                    <Gem className="h-4 w-4 text-primary" />
+                    <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
+                </div>
+                ) : null}
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="attachment-idea">Attachment (Optional)</Label>
+                <Input id="attachment-idea" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+                <p className="text-xs text-muted-foreground">
+                    Investors will be able to see this attachment.
+                </p>
+            </div>
+            <DialogFooter>
+                <SubmitButton disabled={isSubmitDisabled} pendingText="Submitting...">Submit Idea</SubmitButton>
+            </DialogFooter>
+            </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
