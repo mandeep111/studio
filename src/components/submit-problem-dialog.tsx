@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -16,9 +17,10 @@ import { PlusCircle } from "lucide-react";
 interface SubmitProblemDialogProps {
     onProblemCreated?: () => void;
     children?: React.ReactNode;
+    isPaymentEnabled: boolean;
 }
 
-export function SubmitProblemDialog({ onProblemCreated, children }: SubmitProblemDialogProps) {
+export function SubmitProblemDialog({ onProblemCreated, children, isPaymentEnabled }: SubmitProblemDialogProps) {
   const [open, setOpen] = useState(false);
 
   const handleProblemCreated = () => {
@@ -46,7 +48,7 @@ export function SubmitProblemDialog({ onProblemCreated, children }: SubmitProble
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-            <CreateProblemForm onProblemCreated={handleProblemCreated} />
+            <CreateProblemForm onProblemCreated={handleProblemCreated} isPaymentEnabled={isPaymentEnabled} />
         </div>
       </DialogContent>
     </Dialog>

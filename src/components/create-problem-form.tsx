@@ -15,9 +15,10 @@ import { TagInput } from './ui/tag-input';
 
 interface CreateProblemFormProps {
     onProblemCreated?: () => void;
+    isPaymentEnabled: boolean;
 }
 
-export default function CreateProblemForm({ onProblemCreated }: CreateProblemFormProps) {
+export default function CreateProblemForm({ onProblemCreated, isPaymentEnabled }: CreateProblemFormProps) {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
@@ -124,12 +125,12 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
               Set a price for your problem. Prices over $1,000 require admin approval.
             </p>
           </>
-        ) : (
+        ) : isPaymentEnabled ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
                 <Gem className="h-4 w-4 text-primary" />
                 <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
             </div>
-        )}
+        ) : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor="attachment">Attachment (Optional)</Label>

@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedBusinesses, upvoteBusiness, getActiveAdForPlacement } from "@/lib/firestore";
-import type { Business, Ad } from "@/lib/types";
+import { getPaginatedBusinesses, upvoteBusiness, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import type { Business, Ad, PaymentSettings } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -30,9 +30,11 @@ export default function BusinessList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
+    const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ isEnabled: true });
 
     useEffect(() => {
         getActiveAdForPlacement('business-list').then(setAd);
+        getPaymentSettings().then(setPaymentSettings);
     }, []);
 
     const fetchBusinesses = useCallback(async (reset: boolean = false) => {
@@ -100,7 +102,7 @@ export default function BusinessList() {
         }
     };
     
-    const canCreateBusiness = !!user;
+    const canCreateBusiness = userProfile?.role === 'User';
 
     const filteredBusinesses = useMemo(() => {
         return businesses.filter(business => {
@@ -148,7 +150,7 @@ export default function BusinessList() {
                             <SelectItem value="createdAt">Most Recent</SelectItem>
                         </SelectContent>
                     </Select>
-                    {canCreateBusiness && <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)} />}
+                    {canCreateBusiness && <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)} isPaymentEnabled={paymentSettings.isEnabled} />}
                 </div>
             </CardHeader>
             <CardContent>
@@ -194,7 +196,7 @@ export default function BusinessList() {
                             {searchTerm ? "Try a different search term." : "Be the first to list your business and attract investors."}
                         </p>
                         {canCreateBusiness && !searchTerm && (
-                            <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)}>
+                            <SubmitBusinessDialog onBusinessCreated={() => fetchBusinesses(true)} isPaymentEnabled={paymentSettings.isEnabled}>
                                 <Button>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     List Your Business

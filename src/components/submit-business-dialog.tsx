@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -16,9 +17,10 @@ import { PlusCircle } from "lucide-react";
 interface SubmitBusinessDialogProps {
     onBusinessCreated?: () => void;
     children?: React.ReactNode;
+    isPaymentEnabled: boolean;
 }
 
-export function SubmitBusinessDialog({ onBusinessCreated, children }: SubmitBusinessDialogProps) {
+export function SubmitBusinessDialog({ onBusinessCreated, children, isPaymentEnabled }: SubmitBusinessDialogProps) {
   const [open, setOpen] = useState(false);
 
   const handleBusinessCreated = () => {
@@ -46,7 +48,7 @@ export function SubmitBusinessDialog({ onBusinessCreated, children }: SubmitBusi
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
-            <CreateBusinessForm onBusinessCreated={handleBusinessCreated} />
+            <CreateBusinessForm onBusinessCreated={handleBusinessCreated} isPaymentEnabled={isPaymentEnabled} />
         </div>
       </DialogContent>
     </Dialog>

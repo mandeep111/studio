@@ -3,8 +3,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedProblems, upvoteProblem, getActiveAdForPlacement } from "@/lib/firestore";
-import type { Problem, Ad } from "@/lib/types";
+import { getPaginatedProblems, upvoteProblem, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import type { Problem, Ad, PaymentSettings } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -30,9 +30,11 @@ export default function ProblemList() {
     const [searchTerm, setSearchTerm] = useState("");
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
     const [ad, setAd] = useState<Ad | null>(null);
+    const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ isEnabled: true });
 
     useEffect(() => {
         getActiveAdForPlacement('problem-list').then(setAd);
+        getPaymentSettings().then(setPaymentSettings);
     }, []);
 
     const fetchProblems = useCallback(async (reset: boolean = false) => {
@@ -101,7 +103,7 @@ export default function ProblemList() {
         }
     };
 
-    const canCreateProblem = !!user;
+    const canCreateProblem = userProfile?.role === 'User';
 
     const filteredProblems = useMemo(() => {
         return problems.filter(problem => {
@@ -153,7 +155,7 @@ export default function ProblemList() {
                         </SelectContent>
                     </Select>
                     {canCreateProblem && (
-                        <SubmitProblemDialog onProblemCreated={() => fetchProblems(true)} />
+                        <SubmitProblemDialog onProblemCreated={() => fetchProblems(true)} isPaymentEnabled={paymentSettings.isEnabled} />
                     )}
                 </div>
             </CardHeader>
@@ -200,7 +202,7 @@ export default function ProblemList() {
                             {searchTerm ? "Try a different search term." : "Be the first to post a problem and challenge the community."}
                         </p>
                         {canCreateProblem && !searchTerm && (
-                            <SubmitProblemDialog onProblemCreated={() => fetchProblems(true)}>
+                            <SubmitProblemDialog onProblemCreated={() => fetchProblems(true)} isPaymentEnabled={paymentSettings.isEnabled}>
                                 <Button>
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Create Problem

@@ -1,9 +1,9 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement } from "@/lib/firestore";
-import type { Idea, Ad } from "@/lib/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import type { Idea, Ad, PaymentSettings } from "@/lib/types";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import IdeaCard from "./idea-card";
@@ -30,9 +30,11 @@ export default function RandomIdeas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [upvotingId, setUpvotingId] = useState<string | null>(null);
   const [ad, setAd] = useState<Ad | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ isEnabled: true });
 
   useEffect(() => {
     getActiveAdForPlacement('idea-list').then(setAd);
+    getPaymentSettings().then(setPaymentSettings);
   }, []);
 
   const fetchIdeas = useCallback(async (reset: boolean = false) => {
@@ -104,7 +106,7 @@ export default function RandomIdeas() {
     fetchIdeas(true);
   };
   
-  const canCreateIdea = !!user;
+  const canCreateIdea = userProfile?.role === 'User';
 
   const filteredIdeas = useMemo(() => {
     return ideas.filter(idea => {
@@ -155,7 +157,7 @@ export default function RandomIdeas() {
                     <SelectItem value="upvotes">Most Upvoted</SelectItem>
                 </SelectContent>
             </Select>
-            {canCreateIdea && <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />}
+            {canCreateIdea && <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} isPaymentEnabled={paymentSettings.isEnabled} />}
         </div>
       </CardHeader>
       <CardContent>
@@ -185,7 +187,7 @@ export default function RandomIdeas() {
                 {searchTerm ? "Try a different search term." : "Be the first to share a random spark of genius."}
             </p>
             {canCreateIdea && !searchTerm && (
-                <SubmitIdeaDialog onIdeaCreated={onIdeaCreated}>
+                <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} isPaymentEnabled={paymentSettings.isEnabled}>
                      <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Submit an Idea

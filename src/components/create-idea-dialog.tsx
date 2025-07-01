@@ -17,17 +17,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
-import { Lightbulb, PlusCircle } from "lucide-react";
+import { Lightbulb, DollarSign, Gem } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { createIdea } from "@/lib/firestore";
 import { TagInput } from "./ui/tag-input";
+import Link from "next/link";
 
 interface SubmitIdeaDialogProps {
   onIdeaCreated: () => void;
   children?: React.ReactNode;
+  isPaymentEnabled: boolean;
 }
 
-export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogProps) {
+export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: SubmitIdeaDialogProps) {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
@@ -38,6 +40,8 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
 
   const isFieldsDisabled = authLoading || formLoading;
   const isSubmitDisabled = authLoading || formLoading || !user;
+
+  const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -53,14 +57,14 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const priceStr = formData.get('price') as string;
-    const price = priceStr ? parseFloat(priceStr) : null;
+    const price = canSetPrice && priceStr ? parseFloat(priceStr) : null;
 
     if (!title || !description || tags.length === 0) {
         toast({ variant: "destructive", title: "Validation Error", description: "All fields are required." });
         setFormLoading(false);
         return;
     }
-     if (priceStr && isNaN(parseFloat(priceStr))) {
+     if (canSetPrice && priceStr && isNaN(parseFloat(priceStr))) {
         toast({ variant: "destructive", title: "Validation Error", description: "Price must be a valid number."});
         setFormLoading(false);
         return;
@@ -131,6 +135,25 @@ export function SubmitIdeaDialog({ onIdeaCreated, children }: SubmitIdeaDialogPr
               placeholder="e.g. AI, Health..."
               disabled={isFieldsDisabled}
             />
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="price-idea">Price (Optional)</Label>
+            {canSetPrice ? (
+              <>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="price-idea" name="price" type="number" step="0.01" placeholder="100.00" className="pl-8" disabled={isFieldsDisabled}/>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Set a price for your idea. Prices over $1,000 require admin approval.
+                </p>
+              </>
+            ) : isPaymentEnabled ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
+                <Gem className="h-4 w-4 text-primary" />
+                <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
+              </div>
+            ) : null}
           </div>
            <div className="space-y-2">
             <Label htmlFor="attachment-idea">Attachment (Optional)</Label>

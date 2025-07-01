@@ -17,9 +17,10 @@ interface CreateSolutionFormProps {
     problemId: string;
     problemTitle: string;
     onSolutionCreated: () => void;
+    isPaymentEnabled: boolean;
 }
 
-export default function CreateSolutionForm({ problemId, problemTitle, onSolutionCreated }: CreateSolutionFormProps) {
+export default function CreateSolutionForm({ problemId, problemTitle, onSolutionCreated, isPaymentEnabled }: CreateSolutionFormProps) {
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
@@ -103,12 +104,12 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
                     Set a price for your solution. Prices over $1,000 require admin approval.
                   </p>
                 </>
-              ) : (
+              ) : isPaymentEnabled ? (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
                   <Gem className="h-4 w-4 text-primary" />
                   <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
                 </div>
-              )}
+              ) : null}
           </div>
            <div className="space-y-2">
             <Label htmlFor="attachment-solution">Attachment (Optional)</Label>
