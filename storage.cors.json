@@ -1,0 +1,21 @@
+
+[
+  {
+    "origin": [
+      "http://localhost:9002",
+      "https://studio--trisolve-t4fsa.us-central1.hosted.app"
+    ],
+    "method": [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "OPTIONS"
+    ],
+    "responseHeader": [
+      "Content-Type",
+      "Access-Control-Allow-Origin"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]
