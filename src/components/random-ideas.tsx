@@ -16,7 +16,7 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
-import { Label } from "./ui/label";
+import { ScrollArea } from "./ui/scroll-area";
 
 export default function RandomIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -104,7 +104,7 @@ export default function RandomIdeas() {
     fetchIdeas(true);
   };
   
-  const canCreateIdea = !!userProfile;
+  const canCreateIdea = !!user;
 
   const filteredIdeas = useMemo(() => {
     return ideas.filter(idea => {
@@ -164,7 +164,7 @@ export default function RandomIdeas() {
              {[...Array(3)].map((_, i) => <IdeaCardSkeleton key={i} />)}
            </div>
         ) : filteredIdeas.length > 0 ? (
-          <>
+          <ScrollArea className="h-[600px] w-full pr-4">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {ideaCards}
             </div>
@@ -176,7 +176,7 @@ export default function RandomIdeas() {
                     </Button>
                 </div>
             )}
-          </>
+          </ScrollArea>
         ) : (
           <div className="text-center py-16">
             <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground" />

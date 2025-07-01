@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from 'react';
@@ -68,7 +69,15 @@ export default function CreateProblemForm({ onProblemCreated }: CreateProblemFor
         }
     } catch (error) {
         console.error(error);
-        toast({ variant: "destructive", title: "Error", description: "Failed to submit problem." });
+        let errorMessage = "Failed to submit problem.";
+        if (error instanceof Error) {
+            if ((error as any).code?.includes('storage')) {
+                errorMessage = "Storage permission error. Please check your Firebase rules and ensure you are logged in.";
+            } else {
+                errorMessage = error.message;
+            }
+        }
+        toast({ variant: "destructive", title: "Error", description: errorMessage });
     } finally {
         setFormLoading(false);
     }

@@ -24,7 +24,7 @@ export default function InvestorsClientPage({ initialInvestors, initialLastVisib
     const [investors, setInvestors] = useState<UserProfile[]>(initialInvestors);
     const [loading, setLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [sortBy, setSortBy] = useState<'dealsCount' | 'dealsCompletedCount' | 'upvotes' | 'name'>('dealsCompletedCount');
+    const [sortBy, setSortBy] = useState<'dealsCount' | 'dealsCompletedCount' | 'upvotes' | 'name'>('name');
     const [lastVisible, setLastVisible] = useState<DocumentSnapshot | null>(initialLastVisible);
     const [hasMore, setHasMore] = useState(true);
     const { toast } = useToast();
@@ -94,10 +94,10 @@ export default function InvestorsClientPage({ initialInvestors, initialLastVisib
                             <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
                         <SelectContent>
+                            <SelectItem value="name">Name</SelectItem>
                             <SelectItem value="dealsCompletedCount">Most Deals Completed</SelectItem>
                             <SelectItem value="dealsCount">Most Deals Started</SelectItem>
                             <SelectItem value="upvotes">Most Upvoted</SelectItem>
-                            <SelectItem value="name">Name</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

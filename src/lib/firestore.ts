@@ -1,4 +1,5 @@
 
+
 import {
   addDoc,
   arrayRemove,
@@ -105,7 +106,7 @@ export async function getSolution(id: string): Promise<Solution | null> {
 export async function getIdea(id: string): Promise<Idea | null> {
     const docRef = doc(db, "ideas", id);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Idea : null;
+    return docSnap.exists() ? { id: docSnap.id, ...doc.data() } as Idea : null;
 }
 
 export async function getBusiness(id: string): Promise<Business | null> {
@@ -197,6 +198,7 @@ export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upv
     const { sortBy, lastVisible } = options;
 
     const qConstraints = [
+        where("isClosed", "==", false),
         orderBy(sortBy, "desc"), 
         limit(PAGE_SIZE)
     ];
@@ -216,7 +218,7 @@ export async function getPaginatedSolutions(options: { sortBy: 'createdAt' | 'up
   const col = collection(db, "solutions");
   const { sortBy, lastVisible } = options;
 
-  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+  const qConstraints = [where("isClosed", "==", false), orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
   if(lastVisible) {
     qConstraints.push(startAfter(lastVisible));
   }
@@ -232,7 +234,7 @@ export async function getPaginatedIdeas(options: { sortBy: 'createdAt' | 'upvote
   const col = collection(db, "ideas");
   const { sortBy, lastVisible } = options;
 
-  const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+  const qConstraints = [where("isClosed", "==", false), orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
   if(lastVisible) {
     qConstraints.push(startAfter(lastVisible));
   }
@@ -248,7 +250,7 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
     const col = collection(db, "businesses");
     const { sortBy, lastVisible } = options;
   
-    const qConstraints = [orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
+    const qConstraints = [where("isClosed", "==", false), orderBy(sortBy, "desc"), limit(PAGE_SIZE)];
     if(lastVisible) {
       qConstraints.push(startAfter(lastVisible));
     }
@@ -263,7 +265,7 @@ export async function getPaginatedBusinesses(options: { sortBy: 'createdAt' | 'u
 const INVESTOR_PAGE_SIZE = 12;
 export async function getPaginatedInvestors(options: { sortBy?: 'dealsCount' | 'dealsCompletedCount' | 'upvotes' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
-    const { sortBy = 'dealsCompletedCount', lastVisible } = options;
+    const { sortBy = 'name', lastVisible } = options;
 
     const qConstraints = [
         where("role", "==", "Investor"),

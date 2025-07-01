@@ -16,6 +16,7 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import ProblemCard from "./problem-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
+import { ScrollArea } from "./ui/scroll-area";
 
 export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
@@ -100,7 +101,7 @@ export default function ProblemList() {
         }
     };
 
-    const canCreateProblem = !!userProfile;
+    const canCreateProblem = !!user;
 
     const filteredProblems = useMemo(() => {
         return problems.filter(problem => {
@@ -178,7 +179,7 @@ export default function ProblemList() {
                         ))}
                     </div>
                 ) : filteredProblems.length > 0 ? (
-                    <>
+                    <ScrollArea className="h-[600px] w-full pr-4">
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                            {problemCards}
                         </div>
@@ -190,7 +191,7 @@ export default function ProblemList() {
                                 </Button>
                             </div>
                         )}
-                    </>
+                    </ScrollArea>
                 ) : (
                     <div className="text-center py-16">
                          <BrainCircuit className="mx-auto h-12 w-12 text-muted-foreground" />

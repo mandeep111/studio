@@ -16,8 +16,7 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import BusinessCard from "./business-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
-import { Switch } from "./ui/switch";
-import { Label } from "./ui/label";
+import { ScrollArea } from "./ui/scroll-area";
 
 export default function BusinessList() {
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -101,7 +100,7 @@ export default function BusinessList() {
         }
     };
     
-    const canCreateBusiness = !!userProfile;
+    const canCreateBusiness = !!user;
 
     const filteredBusinesses = useMemo(() => {
         return businesses.filter(business => {
@@ -174,7 +173,7 @@ export default function BusinessList() {
                         ))}
                     </div>
                 ) : filteredBusinesses.length > 0 ? (
-                    <>
+                     <ScrollArea className="h-[600px] w-full pr-4">
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                             {businessCards}
                         </div>
@@ -186,7 +185,7 @@ export default function BusinessList() {
                                 </Button>
                             </div>
                         )}
-                    </>
+                    </ScrollArea>
                 ) : (
                     <div className="text-center py-16">
                          <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef } from 'react';
@@ -64,7 +65,15 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
         onSolutionCreated(); // Callback to refetch solutions
     } catch (error) {
         console.error(error);
-        toast({ variant: "destructive", title: "Error", description: "Failed to post solution." });
+        let errorMessage = "Failed to post solution.";
+        if (error instanceof Error) {
+            if ((error as any).code?.includes('storage')) {
+                errorMessage = "Storage permission error. Please check your Firebase rules and ensure you are logged in.";
+            } else {
+                errorMessage = error.message;
+            }
+        }
+        toast({ variant: "destructive", title: "Error", description: errorMessage });
     } finally {
         setFormLoading(false);
     }

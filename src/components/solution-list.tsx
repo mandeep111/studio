@@ -15,8 +15,7 @@ import type { DocumentSnapshot } from "firebase/firestore";
 import SolutionCard from "./solution-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
-import { Switch } from "./ui/switch";
-import { Label } from "./ui/label";
+import { ScrollArea } from "./ui/scroll-area";
 
 export default function SolutionList() {
     const [solutions, setSolutions] = useState<Solution[]>([]);
@@ -171,7 +170,7 @@ export default function SolutionList() {
                         ))}
                     </div>
                 ) : filteredSolutions.length > 0 ? (
-                    <>
+                    <ScrollArea className="h-[600px] w-full pr-4">
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                             {solutionCards}
                         </div>
@@ -183,7 +182,7 @@ export default function SolutionList() {
                                 </Button>
                             </div>
                         )}
-                    </>
+                    </ScrollArea>
                 ) : (
                     <div className="text-center py-16">
                          <Lightbulb className="mx-auto h-12 w-12 text-muted-foreground" />
