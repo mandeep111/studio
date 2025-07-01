@@ -1,20 +1,16 @@
 rules_version = '2';
-
 service firebase.storage {
   match /b/{bucket}/o {
-    // Allow public read access for all files so images can be displayed.
-    match /{allPaths=**} {
+    // Avatars can be read by anyone, but only written by the owning user.
+    match /avatars/{userId}/{allPaths=**} {
       allow read;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Allow authenticated users to write to the attachments folder.
+    // Attachments can be read by anyone, but only written by authenticated users.
     match /attachments/{allPaths=**} {
+      allow read;
       allow write: if request.auth != null;
-    }
-    
-    // Only allow a user to write to their own avatar folder.
-    match /avatars/{userId}/{allPaths=**} {
-      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
