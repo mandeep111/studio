@@ -1,8 +1,9 @@
+
 [
   {
     "origin": [
-      "http://localhost:9002",
-      "https://studio--trisolve-t4fsa.us-central1.hosted.app"
+      "https://studio--trisolve-t4fsa.us-central1.hosted.app",
+      "http://localhost:9002"
     ],
     "method": [
       "GET",
@@ -11,10 +12,11 @@
       "DELETE",
       "OPTIONS"
     ],
+    "maxAgeSeconds": 3600,
     "responseHeader": [
       "Content-Type",
-      "Authorization"
-    ],
-    "maxAgeSeconds": 3600
+      "Authorization",
+      "x-firebase-storage-version"
+    ]
   }
 ]
