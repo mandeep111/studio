@@ -20,6 +20,7 @@ import { Button } from "./ui/button";
 import AdDisplay from "./ad-display";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { motion } from "framer-motion";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
@@ -27,6 +28,28 @@ interface ProblemClientPageProps {
   ad: Ad | null;
   isPaymentEnabled: boolean;
 }
+
+const containerVariants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+    },
+  },
+};
 
 export default function ProblemClientPage({ initialProblem, initialSolutions, ad, isPaymentEnabled }: ProblemClientPageProps) {
   const { user, userProfile } = useAuth();
@@ -347,23 +370,29 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
 
       <section className="mt-8">
         <h2 className="text-2xl font-bold mb-4">Proposed Solutions ({solutions.length})</h2>
-        <div className="space-y-6">
+        <motion.div 
+            className="space-y-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+        >
           {solutions.length > 0 ? (
             solutions.map(solution => (
-              <SolutionCard 
-                key={solution.id} 
-                solution={solution} 
-                onUpvote={() => handleSolutionUpvote(solution.id)}
-                onStartDeal={handleStartDealClick} 
-                isPaymentEnabled={isPaymentEnabled}
-                isUpvoting={false}
-                existingDealId={existingDealId}
-              />
+              <motion.div key={solution.id} variants={itemVariants}>
+                <SolutionCard 
+                  solution={solution} 
+                  onUpvote={() => handleSolutionUpvote(solution.id)}
+                  onStartDeal={handleStartDealClick} 
+                  isPaymentEnabled={isPaymentEnabled}
+                  isUpvoting={false}
+                  existingDealId={existingDealId}
+                />
+              </motion.div>
             ))
           ) : (
             <p className="text-muted-foreground">No solutions proposed yet. Be the first to propose one!</p>
           )}
-        </div>
+        </motion.div>
       </section>
 
       <Separator className="my-8" />
