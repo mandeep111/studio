@@ -8,7 +8,7 @@ import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems,
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Gem, Trophy, Mail, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users, ThumbsUp, Loader2, Edit, CheckCircle, XCircle } from "lucide-react";
+import { Gem, Trophy, BrainCircuit, Lightbulb, LogOut, Sparkles, History, Briefcase, Handshake, MessageSquare, Users, ThumbsUp, Loader2, Edit, CheckCircle, XCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ProblemCard from "./problem-card";
 import SolutionCard from "./solution-card";
@@ -38,32 +38,35 @@ interface UserProfileClientProps {
     initialDeals: Deal[];
 }
 
-const DealListItem = ({ deal }: { deal: Deal }) => (
-    <Link href={`/deals/${deal.id}`} key={deal.id} className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-        <div className="flex justify-between items-center">
-            <div>
-                <p className="font-semibold">{deal.title}</p>
-                <p className="text-sm text-muted-foreground">
-                    Created on {format(getDateFromTimestamp(deal.createdAt), 'PPP')}
-                </p>
+const DealListItem = ({ deal, currentUserProfile }: { deal: Deal, currentUserProfile: UserProfile | null }) => {
+    const isParticipant = currentUserProfile && deal.participantIds.includes(currentUserProfile.uid);
+    return (
+        <Link href={`/deals/${deal.id}`} key={deal.id} className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+            <div className="flex justify-between items-center">
+                <div>
+                    <p className="font-semibold">{deal.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                        Created on {format(getDateFromTimestamp(deal.createdAt), 'PPP')}
+                    </p>
+                </div>
+                {deal.status === 'active' && isParticipant && (
+                    <Button variant="outline" size="sm" asChild>
+                        <span>
+                            <MessageSquare className="mr-2 h-4 w-4" />
+                            Open Chat
+                        </span>
+                    </Button>
+                )}
+                {deal.status === 'completed' && (
+                    <Badge variant="secondary">Completed</Badge>
+                )}
+                 {deal.status === 'cancelled' && (
+                    <Badge variant="destructive">Cancelled</Badge>
+                )}
             </div>
-            {deal.status === 'active' && (
-                <Button variant="outline" size="sm" asChild>
-                    <span>
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                        Open Chat
-                    </span>
-                </Button>
-            )}
-            {deal.status === 'completed' && (
-                <Badge variant="secondary">Completed</Badge>
-            )}
-             {deal.status === 'cancelled' && (
-                <Badge variant="destructive">Cancelled</Badge>
-            )}
-        </div>
-    </Link>
-);
+        </Link>
+    );
+};
 
 export default function UserProfileClient({ 
     userProfile, 
@@ -284,9 +287,6 @@ export default function UserProfileClient({
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-2 text-muted-foreground">
-                            <Mail className="h-5 w-5" /> <span>{profile.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground">
                             <Trophy className="h-5 w-5 text-primary" /> <span>Role: {profile.role}</span>
                         </div>
                          {profile.role === 'Investor' ? (
@@ -346,8 +346,8 @@ export default function UserProfileClient({
                         <Card>
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Problems Submitted</CardTitle>
-                                {isOwnProfile && (currentUserProfile?.role === 'User' || currentUserProfile?.role === 'Admin') && (
-                                    <SubmitProblemDialog onProblemCreated={fetchData} />
+                                {isOwnProfile && (currentUserProfile?.role === 'User') && (
+                                    <SubmitProblemDialog onProblemCreated={fetchData} isPaymentEnabled={true}/>
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -385,8 +385,8 @@ export default function UserProfileClient({
                         <Card>
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Businesses Submitted</CardTitle>
-                                {isOwnProfile && (currentUserProfile?.role === 'User' || currentUserProfile?.role === 'Admin') && (
-                                    <SubmitBusinessDialog onBusinessCreated={fetchData} />
+                                {isOwnProfile && (currentUserProfile?.role === 'User') && (
+                                    <SubmitBusinessDialog onBusinessCreated={fetchData} isPaymentEnabled={true} />
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -406,8 +406,8 @@ export default function UserProfileClient({
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Ideas Submitted</CardTitle>
-                                {isOwnProfile && (currentUserProfile?.role === 'User' || currentUserProfile?.role === 'Admin') && (
-                                    <SubmitIdeaDialog onIdeaCreated={fetchData} />
+                                {isOwnProfile && (currentUserProfile?.role === 'User') && (
+                                    <SubmitIdeaDialog onIdeaCreated={fetchData} isPaymentEnabled={true}/>
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -464,7 +464,7 @@ export default function UserProfileClient({
                                             <AccordionContent className="pt-2">
                                                 {activeDeals.length > 0 ? (
                                                     <div className="space-y-2">
-                                                        {activeDeals.map(deal => <DealListItem key={deal.id} deal={deal} />)}
+                                                        {activeDeals.map(deal => <DealListItem key={deal.id} deal={deal} currentUserProfile={currentUserProfile}/>)}
                                                     </div>
                                                 ) : (
                                                     <p className="text-muted-foreground text-center py-4">No ongoing deals.</p>
@@ -476,7 +476,7 @@ export default function UserProfileClient({
                                             <AccordionContent className="pt-2">
                                                  {archivedDeals.length > 0 ? (
                                                     <div className="space-y-2">
-                                                        {archivedDeals.map(deal => <DealListItem key={deal.id} deal={deal} />)}
+                                                        {archivedDeals.map(deal => <DealListItem key={deal.id} deal={deal} currentUserProfile={currentUserProfile} />)}
                                                     </div>
                                                 ) : (
                                                     <p className="text-muted-foreground text-center py-4">No archived deals.</p>
