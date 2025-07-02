@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedBusinesses, upvoteBusiness, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
 import type { Business, Ad, PaymentSettings } from "@/lib/types";
@@ -17,6 +18,28 @@ import BusinessCard from "./business-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
 import { ScrollArea } from "./ui/scroll-area";
+
+const containerVariants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+    },
+  },
+};
 
 export default function BusinessList() {
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -116,13 +139,17 @@ export default function BusinessList() {
         });
     }, [businesses, searchTerm]);
 
-    const businessCards = filteredBusinesses.map((business) => (
-        <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
-    ));
+    const itemsToRender = useMemo(() => {
+        const cardItems: React.ReactNode[] = filteredBusinesses.map((business) => (
+            <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
+        ));
+    
+        if (ad && !userProfile?.isPremium && cardItems.length > 2) {
+            cardItems.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+        }
+        return cardItems;
+    }, [filteredBusinesses, ad, userProfile, handleUpvote, upvotingId]);
 
-    if (ad && !userProfile?.isPremium && businessCards.length > 2) {
-        businessCards.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
-    }
 
     return (
         <Card>
@@ -176,9 +203,18 @@ export default function BusinessList() {
                     </div>
                 ) : filteredBusinesses.length > 0 ? (
                      <ScrollArea className="h-[600px] w-full pr-4">
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            {businessCards}
-                        </div>
+                        <motion.div
+                            className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                        >
+                            {itemsToRender.map((item) => (
+                               <motion.div key={item.key} variants={itemVariants} whileHover={{ scale: 1.02 }}>
+                                   {item}
+                               </motion.div>
+                           ))}
+                        </motion.div>
                         {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">
                                 <Button onClick={() => fetchBusinesses(false)} disabled={loadingMore}>

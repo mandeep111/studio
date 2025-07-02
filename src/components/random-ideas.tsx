@@ -6,6 +6,7 @@ import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement, getPaymentSetti
 import type { Idea, Ad, PaymentSettings } from "@/lib/types";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { motion } from "framer-motion";
 import IdeaCard from "./idea-card";
 import { Skeleton } from "./ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,28 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
 import { ScrollArea } from "./ui/scroll-area";
+
+const containerVariants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+    },
+  },
+};
 
 export default function RandomIdeas() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
@@ -121,13 +144,17 @@ export default function RandomIdeas() {
   }, [ideas, searchTerm]);
 
 
-    const ideaCards = filteredIdeas.map((idea) => (
-      <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} isUpvoting={upvotingId === idea.id} />
-    ));
+    const itemsToRender = useMemo(() => {
+        const cardItems: React.ReactNode[] = filteredIdeas.map((idea) => (
+          <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} isUpvoting={upvotingId === idea.id} />
+        ));
+    
+        if (ad && !userProfile?.isPremium && cardItems.length > 2) {
+          cardItems.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+        }
+        return cardItems;
+    }, [filteredIdeas, ad, userProfile, handleUpvote, upvotingId]);
 
-    if (ad && !userProfile?.isPremium && ideaCards.length > 2) {
-      ideaCards.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
-    }
 
   return (
     <Card>
@@ -167,9 +194,18 @@ export default function RandomIdeas() {
            </div>
         ) : filteredIdeas.length > 0 ? (
           <ScrollArea className="h-[600px] w-full pr-4">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {ideaCards}
-            </div>
+            <motion.div
+                className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+            >
+              {itemsToRender.map((item) => (
+                <motion.div key={item.key} variants={itemVariants} whileHover={{ scale: 1.02 }}>
+                    {item}
+                </motion.div>
+              ))}
+            </motion.div>
             {hasMore && !searchTerm && (
                 <div className="mt-8 text-center">
                     <Button onClick={() => fetchIdeas(false)} disabled={loadingMore}>

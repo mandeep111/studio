@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedProblems, upvoteProblem, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
 import type { Problem, Ad, PaymentSettings } from "@/lib/types";
@@ -17,6 +18,29 @@ import ProblemCard from "./problem-card";
 import { Input } from "./ui/input";
 import AdCard from "./ad-card";
 import { ScrollArea } from "./ui/scroll-area";
+
+const containerVariants = {
+  hidden: { opacity: 1 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+    },
+  },
+};
+
 
 export default function ProblemList() {
     const [problems, setProblems] = useState<Problem[]>([]);
@@ -118,13 +142,16 @@ export default function ProblemList() {
     }, [problems, searchTerm]);
 
 
-    const problemCards = filteredProblems.map((problem) => (
-      <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} isUpvoting={upvotingId === problem.id} />
-    ));
+    const itemsToRender = useMemo(() => {
+        const cardItems: React.ReactNode[] = filteredProblems.map((problem) => (
+            <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} isUpvoting={upvotingId === problem.id} />
+        ));
 
-    if (ad && !userProfile?.isPremium && problemCards.length > 2) {
-      problemCards.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
-    }
+        if (ad && !userProfile?.isPremium && cardItems.length > 2) {
+          cardItems.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+        }
+        return cardItems;
+    }, [filteredProblems, ad, userProfile, handleUpvote, upvotingId]);
 
     return (
         <Card>
@@ -182,9 +209,18 @@ export default function ProblemList() {
                     </div>
                 ) : filteredProblems.length > 0 ? (
                     <ScrollArea className="h-[600px] w-full pr-4">
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                           {problemCards}
-                        </div>
+                        <motion.div 
+                            className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                        >
+                           {itemsToRender.map((item) => (
+                               <motion.div key={item.key} variants={itemVariants} whileHover={{ scale: 1.02 }}>
+                                   {item}
+                               </motion.div>
+                           ))}
+                        </motion.div>
                         {hasMore && !searchTerm && (
                             <div className="mt-8 text-center">
                                 <Button onClick={() => fetchProblems(false)} disabled={loadingMore}>
