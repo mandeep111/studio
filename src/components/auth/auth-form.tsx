@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock, User, Eye, EyeOff, CheckCircle2, Circle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { UserRole } from "@/lib/types";
 import { getRandomAvatar } from "@/lib/avatars";
@@ -26,6 +26,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" {...props}>
@@ -56,11 +57,20 @@ const signupSchema = z.object({
     expertise: z.string().min(2, { message: "Expertise must be at least 2 characters." }),
 });
 
+const PasswordPolicyItem = ({ isMet, text }: { isMet: boolean; text: string }) => (
+    <div className={cn("flex items-center text-xs transition-colors", isMet ? "text-green-500" : "text-muted-foreground")}>
+        {isMet ? <CheckCircle2 className="mr-2 h-4 w-4" /> : <Circle className="mr-2 h-4 w-4" />}
+        {text}
+    </div>
+);
+
 
 export function AuthForm() {
   const [activeTab, setActiveTab] = useState("login");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -73,6 +83,15 @@ export function AuthForm() {
     resolver: zodResolver(signupSchema),
     defaultValues: { name: "", email: "", password: "", role: "User", expertise: "" },
   });
+
+  const watchedPassword = signupForm.watch("password", "");
+  const passwordPolicies = {
+      length: watchedPassword.length >= 8,
+      uppercase: /[A-Z]/.test(watchedPassword),
+      lowercase: /[a-z]/.test(watchedPassword),
+      number: /[0-9]/.test(watchedPassword),
+      special: /[^A-Za-z0-9]/.test(watchedPassword),
+  };
   
   const [resetEmail, setResetEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
@@ -233,7 +252,10 @@ export function AuthForm() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="m@example.com" {...field} disabled={loading}/>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="m@example.com" {...field} disabled={loading} className="pl-10" />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -246,7 +268,13 @@ export function AuthForm() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} disabled={loading}/>
+                           <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input type={showLoginPassword ? "text" : "password"} {...field} disabled={loading} className="pl-10 pr-10" />
+                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowLoginPassword(prev => !prev)}>
+                                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                           </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -321,7 +349,10 @@ export function AuthForm() {
                       <FormItem>
                         <FormLabel>Full Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Your name" {...field} disabled={loading}/>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Your name" {...field} disabled={loading} className="pl-10" />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -334,7 +365,10 @@ export function AuthForm() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="m@example.com" {...field} disabled={loading}/>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="m@example.com" {...field} disabled={loading} className="pl-10" />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -347,8 +381,21 @@ export function AuthForm() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" {...field} disabled={loading}/>
+                           <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input type={showSignupPassword ? "text" : "password"} {...field} disabled={loading} className="pl-10 pr-10" />
+                                <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowSignupPassword(prev => !prev)}>
+                                    {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </Button>
+                           </div>
                         </FormControl>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 pt-2">
+                            <PasswordPolicyItem isMet={passwordPolicies.length} text="At least 8 characters" />
+                            <PasswordPolicyItem isMet={passwordPolicies.uppercase} text="One uppercase letter" />
+                            <PasswordPolicyItem isMet={passwordPolicies.lowercase} text="One lowercase letter" />
+                            <PasswordPolicyItem isMet={passwordPolicies.number} text="One number" />
+                            <PasswordPolicyItem isMet={passwordPolicies.special} text="One special character" />
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
