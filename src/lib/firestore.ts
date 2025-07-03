@@ -308,17 +308,6 @@ export async function createNotification(userId: string | "admins", message: str
     });
 }
 
-export async function addTagsToDb(tags: string[]) {
-    if (!tags || tags.length === 0) return;
-    const batch = writeBatch(db);
-    const tagsCol = collection(db, "tags");
-    tags.forEach(tag => {
-        const tagRef = doc(tagsCol, tag.toLowerCase().trim());
-        batch.set(tagRef, { name: tag.trim(), count: increment(1) }, { merge: true });
-    });
-    await batch.commit();
-}
-
 export async function getTags(): Promise<string[]> {
     const tagsCol = collection(db, "tags");
     const snapshot = await getDocs(tagsCol);
@@ -417,15 +406,19 @@ export async function markNotificationsAsRead(userId: string) {
 // --- Leaderboard & Admin ---
 const LEADERBOARD_PAGE_SIZE = 20;
 
-export async function getPaginatedLeaderboardData(options: { lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
+export async function getPaginatedLeaderboardData(options: { sortBy?: 'points' | 'name', lastVisible?: DocumentSnapshot | null }): Promise<{ users: UserProfile[], lastVisible: DocumentSnapshot | null }> {
     const usersCol = collection(db, "users");
-    const { lastVisible } = options;
+    const { sortBy = 'points', lastVisible } = options;
   
     const qConstraints = [
-        where("points", ">", 0), 
-        orderBy("points", "desc"), 
+        orderBy(sortBy, sortBy === 'name' ? 'asc' : 'desc'),
         limit(LEADERBOARD_PAGE_SIZE)
     ];
+
+    if (sortBy === 'points') {
+        qConstraints.unshift(where("points", ">", 0));
+    }
+    
     if(lastVisible) {
       qConstraints.push(startAfter(lastVisible));
     }

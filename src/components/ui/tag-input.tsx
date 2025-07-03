@@ -53,7 +53,7 @@ export function TagInput({ value, onChange, placeholder, disabled }: TagInputPro
             .slice(0, 5); // Limit suggestions
         setSuggestions(filteredSuggestions);
         setShowSuggestions(filteredSuggestions.length > 0);
-        setActiveIndex(-1);
+        setActiveIndex(filteredSuggestions.length > 0 ? 0 : -1); // Auto-select the first suggestion
     } else {
         setShowSuggestions(false);
     }

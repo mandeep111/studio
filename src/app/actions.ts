@@ -11,8 +11,7 @@ import {
     getDeal, 
     getUserProfile, 
     createNotification, 
-    getIdeas, 
-    addTagsToDb
+    getIdeas
 } from "@/lib/firestore";
 import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution } from "@/lib/types";
 import { revalidatePath } from "next/cache";
@@ -40,6 +39,20 @@ async function uploadAttachment(file: File): Promise<{ url: string; name: string
   await storageFile.makePublic();
   
   return { url: storageFile.publicUrl(), name: file.name };
+}
+
+async function addTagsToDb(tags: string[]) {
+    if (!tags || tags.length === 0) return;
+    const { adminDb } = await import('@/lib/firebase/admin');
+    const { FieldValue } = await import("firebase-admin/firestore");
+
+    const batch = adminDb.batch();
+    const tagsCol = adminDb.collection("tags");
+    tags.forEach(tag => {
+        const tagRef = tagsCol.doc(tag.toLowerCase().trim());
+        batch.set(tagRef, { name: tag.trim(), count: FieldValue.increment(1) }, { merge: true });
+    });
+    await batch.commit();
 }
 
 
@@ -252,8 +265,8 @@ export async function startDealAction(
         }
 
         // Paid deal creation path
-        if (isNaN(amount) || amount < 10) {
-            return { success: false, message: "Invalid contribution amount. Minimum is $10." };
+        if (isNaN(amount) || amount < 20) {
+            return { success: false, message: "Invalid contribution amount. Minimum is $20." };
         }
 
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
@@ -448,7 +461,6 @@ export async function deleteItemAction(formData: FormData) {
 
     try {
         if (type === 'problem') {
-            // Batch delete problem and its solutions
             const problemRef = adminDb.collection('problems').doc(id);
             const solutionsQuery = adminDb.collection('solutions').where('problemId', '==', id);
             
@@ -463,7 +475,6 @@ export async function deleteItemAction(formData: FormData) {
             await batch.commit();
 
         } else if (type === 'solution') {
-            // Transactional delete to update problem's solution count
             const solutionRef = adminDb.collection('solutions').doc(id);
             await adminDb.runTransaction(async (transaction) => {
                 const solutionDoc = await transaction.get(solutionRef);
@@ -479,7 +490,6 @@ export async function deleteItemAction(formData: FormData) {
             });
 
         } else {
-            // Simple delete for other types
             const collectionName = type === 'user' ? 'users' : `${type}s`;
             await adminDb.collection(collectionName).doc(id).delete();
         }
@@ -889,13 +899,11 @@ export async function upvoteItemAction(
             const pointValues: Record<string, number> = { 'problem': 20, 'solution': 20, 'idea': 10, 'business': 10 };
             const pointChange = itemType !== 'investor' ? (pointValues[itemType] * (isUpvoted ? -1 : 1)) : 0;
             
-            // Update item
             transaction.update(itemRef, {
                 upvotes: FieldValue.increment(isUpvoted ? -1 : 1),
                 upvotedBy: isUpvoted ? FieldValue.arrayRemove(userId) : FieldValue.arrayUnion(userId)
             });
 
-            // Update creator points
             if (pointChange !== 0) {
                 const creatorRef = adminDb.collection('users').doc(creatorId);
                 transaction.update(creatorRef, { points: FieldValue.increment(pointChange) });
