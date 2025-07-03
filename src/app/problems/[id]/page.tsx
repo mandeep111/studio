@@ -1,19 +1,26 @@
-import { getProblem, getSolutionsForProblem, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import { getProblem, getSolutionsForProblem, getPaymentSettings, getUserProfile } from "@/lib/firestore";
 import Header from "@/components/header";
 import { notFound } from "next/navigation";
 import ProblemClientPage from "@/components/problem-client-page";
+import AdDisplay from "@/components/ad-display";
+import { auth } from "@/lib/firebase/config";
 
 export default async function ProblemPage({ params }: { params: { id: string } }) {
-  const [problem, solutions, ad, paymentSettings] = await Promise.all([
+  const [problem, solutions, paymentSettings] = await Promise.all([
     getProblem(params.id),
     getSolutionsForProblem(params.id),
-    getActiveAdForPlacement('problem-detail'),
     getPaymentSettings()
   ]);
 
   if (!problem) {
     notFound();
   }
+
+  // We need to know if the current user is premium to decide whether to show an ad.
+  // This avoids showing ads to paying members.
+  const currentUser = auth.currentUser;
+  const userProfile = currentUser ? await getUserProfile(currentUser.uid) : null;
+  const showAd = !userProfile?.isPremium;
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
 
@@ -25,9 +32,9 @@ export default async function ProblemPage({ params }: { params: { id: string } }
             <ProblemClientPage 
               initialProblem={serializable(problem)} 
               initialSolutions={serializable(solutions)} 
-              ad={serializable(ad)}
               isPaymentEnabled={paymentSettings.isEnabled}
             />
+            {showAd && <AdDisplay />}
         </div>
       </main>
     </div>

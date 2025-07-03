@@ -1,10 +1,9 @@
-
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { getProblem, getSolutionsForProblem, upvoteProblem, upvoteSolution } from "@/lib/firestore";
-import type { Problem, Solution, Ad } from "@/lib/types";
+import type { Problem, Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -17,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
 import { Button } from "./ui/button";
-import AdDisplay from "./ad-display";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { motion } from "framer-motion";
@@ -26,7 +24,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 interface ProblemClientPageProps {
   initialProblem: Problem;
   initialSolutions: Solution[];
-  ad: Ad | null;
   isPaymentEnabled: boolean;
 }
 
@@ -52,7 +49,7 @@ const itemVariants = {
   },
 };
 
-export default function ProblemClientPage({ initialProblem, initialSolutions, ad, isPaymentEnabled }: ProblemClientPageProps) {
+export default function ProblemClientPage({ initialProblem, initialSolutions, isPaymentEnabled }: ProblemClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -412,8 +409,6 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           )}
         </CardFooter>
       </Card>
-
-      {ad && !userProfile?.isPremium && <AdDisplay ad={ad} />}
 
       <section className="mt-8">
         <h2 className="text-2xl font-bold mb-4">Proposed Solutions ({solutions.length})</h2>
