@@ -1,3 +1,4 @@
+
 // To run this script, use: npm run db:seed
 // Make sure you have a .env.local file with your Firebase project's credentials.
 
@@ -397,3 +398,5 @@ main().catch(e => {
   console.error(e);
   process.exit(1);
 });
+
+    

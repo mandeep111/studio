@@ -1,3 +1,4 @@
+
 import type { Timestamp } from "firebase/firestore";
 
 // Allow Timestamps to be serialized for client components
@@ -135,3 +136,5 @@ export interface Ad {
 export interface PaymentSettings {
   isEnabled: boolean;
 }
+
+    

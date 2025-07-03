@@ -3,78 +3,122 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+  
+    // --- Helper Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
-
-    function isOwner(ownerId) {
-      return request.auth.uid == ownerId;
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
 
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
-    }
-
-    function isNewUser() {
-      return !exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      return isSignedIn() && getUserData(request.auth.uid).role == 'Admin';
     }
     
+    function isInvestor() {
+        return isSignedIn() && (getUserData(request.auth.uid).role == 'Investor' || isAdmin());
+    }
+
     function isDealParticipant(dealId) {
-        return isSignedIn() && get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds.hasAny([request.auth.uid]);
-    }
-
-    // Rules for 'users' collection
-    match /users/{userId} {
-      allow read: if true; // Public read for avatars, names etc.
-      allow create: if request.auth.uid == userId && isNewUser();
-      allow update: if isOwner(userId) && !isUpdatingRestrictedFields();
-      allow delete: if false; // Users should be deleted by admins
-
-      function isUpdatingRestrictedFields() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasAny(['points', 'role', 'isPremium', 'dealsCount', 'dealsCompletedCount', 'dealsCancelledCount', 'unreadDealMessages']);
-      }
-    }
-
-    // Rules for content collections (problems, solutions, ideas, businesses)
-    match /{collectionName}/{itemId}
-      where collectionName in ['problems', 'solutions', 'ideas', 'businesses'] {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.creator.userId == request.auth.uid;
-      allow update: if isSignedIn() && resource.data.creator.userId == request.auth.uid && !isUpdatingRestrictedContentFields();
-      allow delete: if isSignedIn() && (isAdmin() || resource.data.creator.userId == request.auth.uid);
-
-      function isUpdatingRestrictedContentFields() {
-        return request.resource.data.diff(resource.data).affectedKeys().hasAny(['creator', 'upvotes', 'upvotedBy', 'solutionsCount', 'interestedInvestorsCount', 'priceApproved', 'isClosed', 'createdAt']);
-      }
-    }
-
-    // Rules for 'deals' collection and its subcollections
-    match /deals/{dealId} {
-      allow read: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow create: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      
-      match /messages/{messageId} {
-        allow read, write: if isDealParticipant(dealId);
-      }
+        let deal = get(/databases/$(database)/documents/deals/$(dealId)).data;
+        return request.auth.uid in deal.participantIds;
     }
     
-    // Rules for notifications
-    match /notifications/{notificationId} {
-      // A user can read their own notification
-      allow read: if resource.data.userId == request.auth.uid;
-      // An admin can read notifications for 'admins'
-      allow read: if isAdmin() && resource.data.userId == 'admins';
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      // Anyone can read basic profile info (for avatars, names, etc.)
+      allow read: if true;
       
-      allow write: if false; // Only server can write
+      // Only the user themselves can update their profile.
+      // Roles, points, and premium status cannot be changed by the user.
+      allow update: if isOwner(userId) && 
+                      request.resource.data.diff(resource.data).affectedKeys()
+                        .hasOnly(['name', 'expertise', 'avatarUrl']);
+      
+      // Creating a user profile is handled by the server during signup.
+      // Deny direct client creation.
+      allow create: if false;
+
+      // Only admins can delete users.
+      allow delete: if isAdmin();
+    }
+    
+    // Generic rules for content types: problems, solutions, ideas, businesses
+    match /{collection}/{itemId} where collection in ['problems', 'solutions', 'ideas', 'businesses'] {
+      // Anyone can read content
+      allow read: if true;
+      
+      // Creation is handled by a secure server action
+      allow create: if false;
+
+      // Only the creator can update their content
+      allow update: if isSignedIn() && isOwner(resource.data.creator.userId);
+      
+      // Only the creator or an admin can delete content
+      allow delete: if isSignedIn() && (isOwner(resource.data.creator.userId) || isAdmin());
     }
 
-    // Rules for admin-only collections
-    match /{collectionName}/{docId}
-      where collectionName in ['settings', 'tags', 'payments', 'ads'] {
-      allow read: if true; // Some settings might need to be public
-      allow write: if isAdmin();
+    match /deals/{dealId} {
+      // Only participants in the deal can read it.
+      // Using `resource.data` here is crucial for list queries to work.
+      allow read: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      
+      // Creation is handled by a server action.
+      allow create: if false;
+      
+      // Status can only be updated by the investor participant.
+      allow update: if isInvestor() && isOwner(resource.data.investor.userId);
+      
+      // No one can delete a deal record directly.
+      allow delete: if false;
+    }
+    
+    match /deals/{dealId}/messages/{messageId} {
+        // Only deal participants can read or write messages.
+        allow read, create: if isSignedIn() && isDealParticipant(dealId);
+    }
+    
+    match /notifications/{notificationId} {
+        // Only the target user (or an admin) can read their notifications.
+        allow read: if isSignedIn() && 
+                    (isOwner(resource.data.userId) || (resource.data.userId == 'admins' && isAdmin()));
+        
+        // Creation and updates are handled by the server.
+        allow create, update: if false;
+    }
+    
+    match /settings/{settingId} {
+        // Publicly readable for client-side logic
+        allow read: if true;
+        // Only admins can change settings
+        allow write: if isAdmin();
+    }
+
+    // --- Write-only or Server-Only Collections ---
+    match /tags/{tagId} {
+        // Nobody needs to read the tag list directly.
+        allow read: if false;
+        // Writing handled by server action.
+        allow write: if false;
+    }
+    
+    match /payments/{paymentId} {
+      allow read: if isAdmin(); // Only admins can see payment history.
+      allow write: if false; // Handled by server (Stripe webhook).
+    }
+    
+    match /ads/{adId} {
+        allow read: if true; // Ads are public
+        allow write: if isAdmin(); // Only admins can manage ads
     }
   }
 }
+
+    

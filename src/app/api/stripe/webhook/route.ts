@@ -1,3 +1,4 @@
+
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
@@ -106,3 +107,5 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
     // The success_url on the checkout session handles the client-side redirect.
     // The webhook's job is just to create the deal in the DB.
 }
+
+    
