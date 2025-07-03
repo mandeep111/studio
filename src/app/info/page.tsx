@@ -19,18 +19,17 @@ export default function InfoPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Lightbulb className="h-6 w-6 text-primary" />
-                            For Creators (Problem & Solution Providers)
+                            For Creators (That's You!)
                         </CardTitle>
-                        <CardDescription>Protecting your intellectual property.</CardDescription>
+                        <CardDescription>Your Idea Deserves a Stage.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm text-muted-foreground">
-                        <p>Your ideas are valuable. Here’s how to share them safely before a formal deal is in place:</p>
+                        <p>At Problem2Profit, you don’t need a polished pitch or a three-piece suit. All you need is an idea that solves a problem. Here's how to share it safely:</p>
                         <ul className="list-disc pl-5 space-y-2">
-                            <li><strong>Don't Reveal Everything:</strong> Think of your public problem or solution description as a "teaser." Provide enough detail to generate interest, but hold back the core "secret sauce," proprietary algorithms, or detailed implementation plans.</li>
-                            <li><strong>Use Attachments Wisely:</strong> You can upload detailed documents (business plans, technical specifications) as attachments. These attachments are <strong>only visible to investors who start a deal with you</strong>, creating a secure second layer of information sharing.</li>
-                            <li><strong>Focus on the "What" and "Why":</strong> Describe what the problem is and why it's important, or what your solution does and the value it provides. Save the "how" for private conversations within a deal.</li>
-                            <li><strong>Negotiate Directly:</strong> All financial agreements and payouts are negotiated and handled directly with the investor via the private deal chat. Problem2Profit facilitates the connection but does not process payments between users.</li>
-                            <li><strong>Build Your Reputation:</strong> A strong reputation, built by earning points through popular content, signals credibility to investors and makes them more likely to engage in a deal to learn more.</li>
+                            <li><strong>Don't Spill the Secret Sauce:</strong> Share just enough to spark curiosity. Think of your public description as a teaser, but keep your core intellectual property private.</li>
+                            <li><strong>Use Private Attachments:</strong> You can upload business plans or prototypes privately. These are only visible to investors who express serious interest and start a deal with you.</li>
+                            <li><strong>Control the Conversation:</strong> You control the pace and the pitch. If an investor's offer doesn’t feel right, you get to say “no thanks” like a boss.</li>
+                            <li><strong>Report Suspicious Activity:</strong> If you ever feel an investor is acting in bad faith, please report it to our admin team immediately.</li>
                         </ul>
                     </CardContent>
                 </Card>
@@ -40,17 +39,16 @@ export default function InfoPage() {
                             <ShieldCheck className="h-6 w-6 text-primary" />
                             For Investors
                         </CardTitle>
-                         <CardDescription>Making informed investment decisions.</CardDescription>
+                         <CardDescription>We Didn’t Forget You.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm text-muted-foreground">
-                        <p>Our platform connects you with innovators, but due diligence is key. Here's how to protect yourself:</p>
+                        <p>Tired of recycled startup pitches? Problem2Profit gives you access to a fresh pipeline of problems, solutions, and scalable businesses from creators all over the world.</p>
                         <ul className="list-disc pl-5 space-y-2">
-                            <li><strong>Check the Creator's Profile:</strong> Review their reputation points, expertise, and history of submissions. A long-standing, active user is generally more reliable.</li>
-                            <li><strong>Use the AI Matchmaker:</strong> Our AI tool analyzes reputation and expertise to suggest promising pairings, providing an initial layer of vetting.</li>
-                            <li><strong>Start a Deal to Vet:</strong> The deal-making process is your opportunity for due diligence. Use the private chat to ask detailed questions, request more information, and assess the creator's knowledge and seriousness.</li>
-                             <li><strong>Platform Facilitation:</strong> The $10 deal contribution fee helps maintain the platform and ensures creators are connected with serious investors. All further financial transactions must be handled through external, legally-binding agreements.</li>
-                             <li><strong>Start Small:</strong> Do not transfer significant funds outside of a formal, legally-binding agreement managed outside of this platform. This platform is for discovery and initial contact.</li>
-                             <li><strong>Report Suspicious Activity:</strong> If you suspect a creator is misrepresenting themselves or their idea, please report it to our admin team immediately.</li>
+                            <li><strong>Use the AI Matchmaker:</strong> Our AI tool helps you discover ideas aligned with your interests by analyzing creator reputation and expertise.</li>
+                             <li><strong>Platform Facilitation Fee:</strong> The $20 deal contribution fee helps maintain the platform and ensures creators are connected with serious investors. All further financial transactions must be handled through external, legally-binding agreements. We don't take a cut of your deals.</li>
+                             <li><strong>Vet in Private Chats:</strong> Use the secure, private deal chat to ask detailed questions, assess the creator's knowledge, and perform your due diligence before making any moves.</li>
+                             <li><strong>Review Reputation:</strong> Check a creator's profile for their reputation points, expertise, and submission history. An active, long-standing user is generally more reliable.</li>
+                             <li><strong>Start Small:</strong> Do not transfer significant funds outside of a formal, legally-binding agreement. This platform is for discovery and initial contact.</li>
                         </ul>
                     </CardContent>
                 </Card>

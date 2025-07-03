@@ -17,7 +17,7 @@ export default async function InvestorsPage() {
                         <div className="space-y-2">
                             <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">Investor Hub</h1>
                             <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                                Discover and connect with the strategic investors funding the future of innovation on Problem2Profit.
+                                Tired of the same recycled startup pitches? Discover a fresh pipeline of problems, solutions, and scalable businesses from creators all over the world.
                             </p>
                         </div>
                         </div>

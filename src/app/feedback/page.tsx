@@ -4,7 +4,7 @@ import { Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function FeedbackPage() {
-  const adminEmail = "admin@problem2profit.com";
+  const adminEmail = "admin@prob2profit.com";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">

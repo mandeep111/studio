@@ -13,8 +13,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
 export const metadata: Metadata = {
-  title: "Problem2Profit",
-  description: "Where every problem is a link to an opportunity.",
+  title: "Problem2Profit: The Online Shark Tank",
+  description: "Where your crazy idea might actually work. Submit problems, pitch solutions, and get funded.",
   icons: {
     icon: [{ url: '/logo.png', type: 'image/png', sizes: 'any' }],
     apple: [{ url: '/logo.png', type: 'image/png' }],
@@ -66,5 +66,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    

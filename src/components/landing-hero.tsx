@@ -56,10 +56,10 @@ export default function LandingHero() {
                 <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
                     <h1 className="font-heading text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                    Where Every Problem is a Link to an Opportunity
+                      The Online Shark Tank
                     </h1>
                     <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Problem2Profit is the marketplace for innovation. Connect with a community of thinkers, creators, and investors to turn brilliant ideas into reality.
+                      Where your crazy idea might actually work. A platform where your ideas, no matter how wild, genius, or half-baked, can finally find their people.
                     </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">

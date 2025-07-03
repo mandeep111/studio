@@ -18,7 +18,7 @@ import { ADMIN_AVATARS, INVESTOR_AVATARS, USER_AVATARS } from '../src/lib/avatar
 
 const USERS: Omit<UserProfile, 'uid'>[] = [
   {
-    email: 'admin@problem2profit.com',
+    email: 'admin@prob2profit.com',
     name: 'Admin User',
     role: 'Admin',
     avatarUrl: ADMIN_AVATARS[0],
@@ -398,5 +398,3 @@ main().catch(e => {
   console.error(e);
   process.exit(1);
 });
-
-    

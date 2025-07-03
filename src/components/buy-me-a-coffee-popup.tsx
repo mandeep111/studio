@@ -23,15 +23,15 @@ interface BuyMeACoffeePopupProps {
 }
 
 export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: BuyMeACoffeePopupProps) {
-  const [amount, setAmount] = useState(10);
+  const [amount, setAmount] = useState(20);
   const { toast } = useToast();
   
   const handleConfirm = () => {
-    if (amount < 10) {
+    if (amount < 20) {
       toast({
         variant: "destructive",
         title: "Invalid Amount",
-        description: "The minimum contribution is $10."
+        description: "The minimum contribution is $20."
       });
       return;
     }
@@ -60,13 +60,13 @@ export default function BuyMeACoffeePopup({ isOpen, onOpenChange, onConfirm }: B
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
-                min="10"
+                min="20"
                 step="1"
                 className="pl-8"
               />
             </div>
              <p className="text-xs text-muted-foreground">
-                Minimum contribution is $10 to filter for genuine investors.
+                Minimum contribution is $20 to filter for genuine investors.
             </p>
         </div>
         <DialogFooter>

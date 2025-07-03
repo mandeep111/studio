@@ -30,7 +30,7 @@ export default async function MembershipPage() {
                 <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Membership</div>
                 <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl">Become an Investor</h1>
                 <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Unlock the full potential of Problem2Profit with our lifetime Investor membership. Get exclusive access to AI-powered tools, direct messaging, and premium content to find and fund the next big thing.
+                  Unlock the full potential of Problem2Profit with our lifetime Investor membership. Get exclusive access to AI-powered tools, direct messaging, and premium content to find and fund the next big thing. We don't take a cut of your deals; we just facilitate brilliance.
                   { !isPaymentEnabled && <span className="block mt-2 font-semibold text-primary">Payments are currently disabled. All upgrades are free!</span> }
                 </p>
               </div>
