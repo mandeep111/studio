@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "./ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
-import { Lightbulb, DollarSign, Gem } from "lucide-react";
+import { Lightbulb, DollarSign, Gem, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { TagInput } from "./ui/tag-input";
 import Link from "next/link";
@@ -47,6 +47,8 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
   const [open, setOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const form = useForm<z.infer<typeof ideaFormSchema>>({
     resolver: zodResolver(ideaFormSchema),
@@ -58,6 +60,18 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
 
   const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
   const showPriceInput = !isPaymentEnabled || canSetPrice;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAttachment(e.target.files?.[0] || null);
+  };
+
+  const handleRemoveAttachment = () => {
+      setAttachment(null);
+      if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+      }
+  };
+
 
   const onSubmit = async (values: z.infer<typeof ideaFormSchema>) => {
     if (!userProfile) {
@@ -72,9 +86,8 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
     if(values.price) formData.append('price', values.price);
     tags.forEach(tag => formData.append('tags', tag));
     
-    const fileInput = document.getElementById('attachment-idea-dialog') as HTMLInputElement;
-    if (fileInput?.files?.[0]) {
-        formData.append('attachment', fileInput.files[0]);
+    if (attachment) {
+        formData.append('attachment', attachment);
     }
     
     const result = await createIdeaAction(userProfile, formData);
@@ -83,7 +96,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
         toast({ title: "Success!", description: result.message });
         form.reset();
         setTags([]);
-        if (fileInput) fileInput.value = "";
+        handleRemoveAttachment();
         onIdeaCreated();
         setOpen(false);
     } else {
@@ -179,7 +192,23 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
             </div>
             <div className="space-y-2">
                 <Label htmlFor="attachment-idea-dialog">Attachment (Optional)</Label>
-                <Input id="attachment-idea-dialog" name="attachment" type="file" disabled={isFieldsDisabled} />
+                 {!attachment ? (
+                    <Input
+                        id="attachment-idea-dialog"
+                        name="attachment"
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        disabled={isFieldsDisabled}
+                    />
+                ) : (
+                    <div className="flex items-center justify-between p-2 text-sm border rounded-md">
+                        <span className="truncate max-w-xs">{attachment.name}</span>
+                        <Button variant="ghost" size="icon" onClick={handleRemoveAttachment} type="button" disabled={isFieldsDisabled}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )}
                 <p className="text-xs text-muted-foreground">
                     Investors will be able to see this attachment.
                 </p>

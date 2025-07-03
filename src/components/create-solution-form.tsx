@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardFooter } from './ui/card';
@@ -9,13 +9,14 @@ import { Textarea } from './ui/textarea';
 import { SubmitButton } from './submit-button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
-import { DollarSign, Gem } from 'lucide-react';
+import { DollarSign, Gem, X } from 'lucide-react';
 import Link from 'next/link';
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { createSolutionAction } from '@/app/actions';
+import { Button } from './ui/button';
 
 
 interface CreateSolutionFormProps {
@@ -34,6 +35,8 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<z.infer<typeof solutionFormSchema>>({
     resolver: zodResolver(solutionFormSchema),
@@ -45,6 +48,17 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
 
   const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
   const showPriceInput = !isPaymentEnabled || canSetPrice;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setAttachment(e.target.files?.[0] || null);
+  };
+
+  const handleRemoveAttachment = () => {
+      setAttachment(null);
+      if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+      }
+  };
 
   const onSubmit = async (values: z.infer<typeof solutionFormSchema>) => {
     if (!userProfile) {
@@ -59,9 +73,8 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
     formData.append('problemId', problemId);
     formData.append('problemTitle', problemTitle);
     
-    const fileInput = document.getElementById('attachment-solution') as HTMLInputElement;
-    if (fileInput?.files?.[0]) {
-        formData.append('attachment', fileInput.files[0]);
+    if (attachment) {
+        formData.append('attachment', attachment);
     }
     
     const result = await createSolutionAction(userProfile, formData);
@@ -69,7 +82,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
     if (result.success) {
         toast({ title: "Success!", description: result.message });
         form.reset();
-        if (fileInput) fileInput.value = "";
+        handleRemoveAttachment();
         onSolutionCreated();
     } else {
         toast({ variant: "destructive", title: "Error", description: result.message });
@@ -131,7 +144,23 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
             </div>
             <div className="space-y-2">
               <Label htmlFor="attachment-solution">Attachment (Optional)</Label>
-              <Input id="attachment-solution" name="attachment" type="file" disabled={isFieldsDisabled} />
+                {!attachment ? (
+                    <Input
+                        id="attachment-solution"
+                        name="attachment"
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        disabled={isFieldsDisabled}
+                    />
+                ) : (
+                    <div className="flex items-center justify-between p-2 text-sm border rounded-md">
+                        <span className="truncate max-w-xs">{attachment.name}</span>
+                        <Button variant="ghost" size="icon" onClick={handleRemoveAttachment} type="button" disabled={isFieldsDisabled}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )}
               <p className="text-xs text-muted-foreground">
                   Investors will be able to see this attachment.
               </p>
