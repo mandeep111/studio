@@ -549,9 +549,17 @@ async function createItemAction(
     }
 }
 
-export const createProblemAction = (formData: FormData) => createItemAction('problem', formData, 50);
-export const createIdeaAction = (formData: FormData) => createItemAction('idea', formData, 10);
-export const createBusinessAction = (formData: FormData) => createItemAction('business', formData, 30);
+export async function createProblemAction(formData: FormData) {
+    return createItemAction('problem', formData, 50);
+}
+
+export async function createIdeaAction(formData: FormData) {
+    return createItemAction('idea', formData, 10);
+}
+
+export async function createBusinessAction(formData: FormData) {
+    return createItemAction('business', formData, 30);
+}
 
 
 export async function createSolutionAction(formData: FormData) {
