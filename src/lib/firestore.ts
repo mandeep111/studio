@@ -1,4 +1,5 @@
 
+
 import {
   addDoc,
   arrayRemove,
@@ -182,8 +183,8 @@ export async function getUpvotedItems(userId: string) {
     
     // Sort by creation date descending
     allItems.sort((a, b) => {
-        const dateA = a.createdAt?.toDate() || new Date(0);
-        const dateB = b.createdAt?.toDate() || new Date(0);
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return dateB.getTime() - dateA.getTime();
     });
 
@@ -558,94 +559,29 @@ export async function createBusiness(title: string, description: string, tags: s
 
 // --- Upvote & Points ---
 
+// This function is deprecated in favor of the upvoteItemAction in actions.ts
+// to be called from the client with a user object.
+// We leave it here in case it's called from other places but it should be removed.
 async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" | "businesses", docId: string, userId: string) {
-    let creatorId: string | null = null;
-    let isAlreadyUpvoted = false;
-    let itemTitle = "";
-
-    await runTransaction(db, async (transaction) => {
-        const docRef = doc(db, collectionName, docId);
-        const docSnap = await transaction.get(docRef);
-        if (!docSnap.exists()) {
-            throw new Error("Document does not exist!");
-        }
-
-        const data = docSnap.data();
-        creatorId = data.creator.userId;
-        itemTitle = data.title || data.problemTitle;
-
-        if (creatorId === userId) {
-            throw new Error("You cannot upvote your own content.");
-        }
-
-        isAlreadyUpvoted = (data.upvotedBy as string[]).includes(userId);
-
-        const creatorRef = doc(db, "users", creatorId!);
-        
-        const pointValues = { problems: 20, solutions: 20, businesses: 10, ideas: 10 };
-        const pointChange = pointValues[collectionName] * (isAlreadyUpvoted ? -1 : 1);
-        
-        transaction.update(docRef, {
-            upvotes: increment(isAlreadyUpvoted ? -1 : 1),
-            upvotedBy: isAlreadyUpvoted ? arrayRemove(userId) : arrayUnion(userId)
-        });
-
-        if (pointChange !== 0) {
-            transaction.update(creatorRef, { points: increment(pointChange) });
-        }
-    });
-
-    if (!isAlreadyUpvoted && creatorId && creatorId !== userId) {
-        const upvoterSnap = await getDoc(doc(db, "users", userId));
-        const upvoterName = upvoterSnap.exists() ? upvoterSnap.data().name : "Someone";
-        
-        let message = `${upvoterName} upvoted your ${collectionName.slice(0, -1)}`;
-        if (itemTitle) {
-            message += `: "${itemTitle}"`;
-        }
-        
-        await createNotification(
-            creatorId,
-            message,
-            `/${collectionName}/${docId}`
-        );
-    }
+    // This logic has been moved to a server action for security.
 }
 
 
 export async function upvoteProblem(docId: string, userId: string) {
-    await toggleUpvote("problems", docId, userId);
+    // Deprecated. Use upvoteItemAction.
 }
 export async function upvoteSolution(docId: string, userId: string) {
-    await toggleUpvote("solutions", docId, userId);
+    // Deprecated. Use upvoteItemAction.
 }
 export async function upvoteIdea(docId: string, userId: string) {
-    await toggleUpvote("ideas", docId, userId);
+    // Deprecated. Use upvoteItemAction.
 }
 export async function upvoteBusiness(docId: string, userId: string) {
-    await toggleUpvote("businesses", docId, userId);
+    // Deprecated. Use upvoteItemAction.
 }
 
 export async function upvoteInvestor(investorId: string, voterId: string) {
-    await runTransaction(db, async (transaction) => {
-        const investorRef = doc(db, "users", investorId);
-        const investorSnap = await transaction.get(investorRef);
-
-        if (!investorSnap.exists() || investorSnap.data().role !== 'Investor') {
-            throw new Error("Investor profile not found.");
-        }
-        if (investorId === voterId) {
-            throw new Error("You cannot upvote yourself.");
-        }
-
-        const data = investorSnap.data();
-        const isAlreadyUpvoted = (data.upvotedBy || []).includes(voterId);
-
-        transaction.update(investorRef, {
-            upvotes: increment(isAlreadyUpvoted ? -1 : 1),
-            upvotedBy: isAlreadyUpvoted ? arrayRemove(voterId) : arrayUnion(voterId)
-        });
-    });
+    // Deprecated. Use upvoteItemAction.
 }
 
 
@@ -683,6 +619,7 @@ export async function findDealByUserAndItem(itemId: string, investorId: string):
     return { id: dealDoc.id, ...dealDoc.data() } as Deal;
 }
 
+// Deprecated in favor of server action
 export async function createDeal(
     investorProfile: UserProfile, 
     primaryCreatorId: string, 
@@ -692,81 +629,8 @@ export async function createDeal(
     amount: number,
     solutionCreatorId?: string
 ): Promise<string> {
-    
-    const newDealRef = doc(collection(db, "deals"));
-
-    await runTransaction(db, async (transaction) => {
-        const itemRef = doc(db, `${itemType}s`, itemId);
-        const itemSnap = await transaction.get(itemRef);
-        if (!itemSnap.exists()) throw new Error("Item to start deal on not found.");
-        if (itemSnap.data().isClosed) {
-            throw new Error("This item is already part of a completed deal and is closed to new deals.");
-        }
-    
-        const participantsMap = new Map<string, CreatorReference>();
-
-        participantsMap.set(investorProfile.uid, { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise });
-
-        const primaryCreatorSnap = await transaction.get(doc(db, "users", primaryCreatorId));
-        if (!primaryCreatorSnap.exists()) throw new Error("Primary creator not found");
-        const primaryCreator = {uid: primaryCreatorSnap.id, ...primaryCreatorSnap.data()} as UserProfile;
-        participantsMap.set(primaryCreator.uid, { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise });
-
-        let solutionCreator: UserProfile | null = null;
-        if (solutionCreatorId) {
-            const solutionCreatorSnap = await transaction.get(doc(db, "users", solutionCreatorId));
-            if (solutionCreatorSnap.exists()) {
-                solutionCreator = {uid: solutionCreatorSnap.id, ...solutionCreatorSnap.data()} as UserProfile;
-                participantsMap.set(solutionCreator.uid, { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise });
-            }
-        }
-        
-        const dealData: Omit<Deal, 'id'> = {
-            investor: { userId: investorProfile.uid, name: investorProfile.name, avatarUrl: investorProfile.avatarUrl, expertise: investorProfile.expertise },
-            primaryCreator: { userId: primaryCreator.uid, name: primaryCreator.name, avatarUrl: primaryCreator.avatarUrl, expertise: primaryCreator.expertise },
-            relatedItemId: itemId,
-            title: itemTitle,
-            type: itemType,
-            createdAt: serverTimestamp(),
-            participantIds: Array.from(participantsMap.keys()),
-            status: 'active',
-        };
-
-        if (solutionCreator) {
-            dealData.solutionCreator = { userId: solutionCreator.uid, name: solutionCreator.name, avatarUrl: solutionCreator.avatarUrl, expertise: solutionCreator.expertise };
-        }
-        
-        transaction.set(newDealRef, dealData);
-        transaction.update(itemRef, { interestedInvestorsCount: increment(1) });
-        
-        const investorRef = doc(db, "users", investorProfile.uid);
-        transaction.update(investorRef, { dealsCount: increment(1) });
-    });
-    
-    const dealLink = `/deals/${newDealRef.id}`;
-    
-    const dealDoc = await getDoc(newDealRef);
-    if (!dealDoc.exists()) throw new Error("Could not create deal.");
-    const dealData = dealDoc.data() as Deal;
-
-    const participantsToNotify = (dealData.participantIds || []).filter(id => id !== investorProfile.uid);
-    for (const participantId of participantsToNotify) {
-        const message = `${investorProfile.name} wants to start a deal about "${itemTitle}"!`;
-        await createNotification(participantId, message, dealLink);
-    }
-    
-    await logPayment({
-        userId: investorProfile.uid,
-        userName: investorProfile.name,
-        userAvatarUrl: investorProfile.avatarUrl,
-        type: 'deal_creation',
-        amount,
-        relatedDealId: newDealRef.id,
-        relatedDealTitle: itemTitle,
-        details: amount === 0 ? 'Free deal (payments disabled)' : undefined,
-    });
-
-    return newDealRef.id;
+    // This logic has been moved to a server action for security.
+    return "";
 }
 
 
@@ -798,38 +662,9 @@ export async function getMessages(dealId: string): Promise<Message[]> {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
 }
 
+// Deprecated in favor of server action
 export async function sendMessage(dealId: string, text: string, sender: UserProfile) {
-    const batch = writeBatch(db);
-
-    const messagesCol = collection(db, `deals/${dealId}/messages`);
-    batch.set(doc(messagesCol), {
-        dealId,
-        text,
-        sender: {
-            userId: sender.uid,
-            name: sender.name,
-            avatarUrl: sender.avatarUrl,
-            expertise: sender.expertise
-        },
-        createdAt: serverTimestamp(),
-    });
-
-    const dealRef = doc(db, "deals", dealId);
-    const dealSnap = await getDoc(dealRef);
-    if (dealSnap.exists()) {
-        const deal = dealSnap.data() as Deal;
-        const participantIds = deal.participantIds || [];
-
-        for (const participantId of participantIds) {
-            if (participantId !== sender.uid) {
-                const userRef = doc(db, "users", participantId);
-                const fieldPath = `unreadDealMessages.${dealId}`;
-                batch.update(userRef, { [fieldPath]: increment(1) });
-            }
-        }
-    }
-    
-    await batch.commit();
+    // This logic has been moved to a server action for security.
 }
 
 export async function addSystemMessage(dealId: string, text: string) {
@@ -860,68 +695,33 @@ export async function markDealAsRead(userId: string, dealId: string) {
     }
 }
 
+// Deprecated in favor of server action
 export async function updateDealStatus(
     dealId: string,
     investorId: string,
     status: 'completed' | 'cancelled'
 ): Promise<{ success: boolean; message: string }> {
-    return await runTransaction(db, async (transaction) => {
-        const dealRef = doc(db, "deals", dealId);
-        const dealSnap = await transaction.get(dealRef);
-
-        if (!dealSnap.exists()) {
-            return { success: false, message: "Deal not found." };
-        }
-
-        const deal = dealSnap.data() as Deal;
-
-        if (deal.investor.userId !== investorId) {
-            return { success: false, message: "Only the investor can update the deal status." };
-        }
-
-        if (deal.status !== 'active') {
-            return { success: false, message: "This deal is already closed." };
-        }
-
-        transaction.update(dealRef, { status: status });
-        
-        const investorRef = doc(db, "users", investorId);
-
-        if (status === 'completed') {
-            const itemRef = doc(db, `${deal.type}s`, deal.relatedItemId);
-            transaction.update(itemRef, { isClosed: true });
-            transaction.update(investorRef, { dealsCompletedCount: increment(1) });
-        } else if (status === 'cancelled') {
-            transaction.update(investorRef, { dealsCancelledCount: increment(1) });
-        }
-
-        // Add a system message to the chat
-        const messagesCol = collection(db, `deals/${dealId}/messages`);
-        const systemMessage = {
-            dealId,
-            text: `The deal has been marked as ${status} by the investor.`,
-            sender: {
-                userId: 'system',
-                name: 'System',
-                avatarUrl: '',
-                expertise: 'System Message'
-            },
-            createdAt: serverTimestamp(),
-        };
-        transaction.set(doc(messagesCol), systemMessage);
-
-        return { success: true, message: `Deal successfully marked as ${status}.` };
-    });
+    // This logic has been moved to a server action for security.
+    return { success: false, message: 'This function is deprecated.' };
 }
 
 
 // --- Notifications ---
 export async function getNotifications(userId: string): Promise<Notification[]> {
-    const col = collection(db, "notifications");
-    const q = query(col, where("userId", "in", [userId, "admins"]), orderBy("createdAt", "desc"), limit(50));
+    const userProfile = await getUserProfile(userId);
+    if (!userProfile) return [];
+
+    let q;
+    if (userProfile.role === 'Admin') {
+        q = query(collection(db, "notifications"), where("userId", "in", [userId, "admins"]), orderBy("createdAt", "desc"), limit(50));
+    } else {
+        q = query(collection(db, "notifications"), where("userId", "==", userId), orderBy("createdAt", "desc"), limit(50));
+    }
+    
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
 }
+
 
 export async function markNotificationsAsRead(userId: string) {
     const notificationsRef = collection(db, "notifications");
@@ -991,39 +791,14 @@ export async function getUnapprovedItems() {
     return [...problems, ...solutions, ...businesses, ...ideas];
 }
 
+// Deprecated in favor of server action
 export async function approveItem(type: 'problem' | 'solution' | 'business' | 'idea', id: string) {
-    const collectionName = `${type}s`;
-    const docRef = doc(db, collectionName, id);
-    await updateDoc(docRef, { priceApproved: true });
+    // This logic has been moved to a server action for security.
 }
 
+// Deprecated in favor of server action
 export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad', id: string) {
-    if (type === 'ad') {
-        await deleteDoc(doc(db, 'ads', id));
-        return;
-    }
-
-    const batch = writeBatch(db);
-    const collectionName = type === 'user' ? 'users' : `${type}s`;
-    const itemRef = doc(db, collectionName, id);
-
-    if (type === 'solution') {
-        const solutionDoc = await getDoc(itemRef);
-        if (solutionDoc.exists()) {
-            const problemId = solutionDoc.data().problemId;
-            const problemRef = doc(db, 'problems', problemId);
-            batch.update(problemRef, { solutionsCount: increment(-1) });
-        }
-    } else if (type === 'problem') {
-        const solutionsQuery = query(collection(db, 'solutions'), where('problemId', '==', id));
-        const solutionsSnapshot = await getDocs(solutionsQuery);
-        solutionsSnapshot.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-    }
-
-    batch.delete(itemRef);
-    await batch.commit();
+    // This logic has been moved to a server action for security.
 }
 
 
@@ -1047,18 +822,14 @@ export async function getActiveAdForPlacement(placement: Ad['placement']): Promi
     return { id: adDoc.id, ...adDoc.data() } as Ad;
 }
 
+// Deprecated in favor of server action
 export async function createAd(data: Omit<Ad, 'id' | 'createdAt' | 'isActive'>) {
-    const col = collection(db, "ads");
-    await addDoc(col, {
-        ...data,
-        isActive: true,
-        createdAt: serverTimestamp(),
-    });
+    // This logic has been moved to a server action for security.
 }
 
+// Deprecated in favor of server action
 export async function toggleAdStatus(id: string, isActive: boolean) {
-    const docRef = doc(db, "ads", id);
-    await updateDoc(docRef, { isActive });
+    // This logic has been moved to a server action for security.
 }
 
 // --- Platform Settings ---
@@ -1073,67 +844,14 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     return { isEnabled: true };
 }
 
+// Deprecated in favor of server action
 export async function updatePaymentSettings(isEnabled: boolean) {
-    const docRef = doc(db, 'settings', 'payment');
-    await setDoc(docRef, { isEnabled });
+    // This logic has been moved to a server action for security.
 }
 
+// Deprecated in favor of server action
 export async function updateUserProfile(userId: string, data: { name: string; expertise: string }, avatarFile?: File) {
-    const batch = writeBatch(db);
-    const userRef = doc(db, "users", userId);
-
-    const updateData: { name: string; expertise: string; avatarUrl?: string } = {
-        name: data.name,
-        expertise: data.expertise,
-    };
-    
-    let newAvatarUrl: string | undefined = undefined;
-    if (avatarFile) {
-        const { url } = await uploadAvatar(userId, avatarFile);
-        updateData.avatarUrl = url;
-        newAvatarUrl = url;
-    }
-
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) throw new Error("User not found");
-    const existingProfile = userSnap.data() as UserProfile;
-    
-    const newCreatorRef: CreatorReference = {
-        userId: userId,
-        name: data.name,
-        avatarUrl: newAvatarUrl || existingProfile.avatarUrl,
-        expertise: data.expertise,
-    };
-
-    // 1. Update User Profile
-    batch.update(userRef, updateData);
-
-    // 2. Update denormalized creator fields in items
-    const collectionsToUpdate = ['problems', 'solutions', 'ideas', 'businesses'];
-    for (const collectionName of collectionsToUpdate) {
-        const q = query(collection(db, collectionName), where("creator.userId", "==", userId));
-        const snapshot = await getDocs(q);
-        snapshot.forEach(doc => batch.update(doc.ref, { creator: newCreatorRef }));
-    }
-
-    // 3. Update denormalized fields in deals
-    const dealsAsInvestorQuery = query(collection(db, "deals"), where("investor.userId", "==", userId));
-    const dealsAsPrimaryCreatorQuery = query(collection(db, "deals"), where("primaryCreator.userId", "==", userId));
-    const dealsAsSolutionCreatorQuery = query(collection(db, "deals"), where("solutionCreator.userId", "==", userId));
-    
-    const [dealsAsInvestorSnap, dealsAsPrimaryCreatorSnap, dealsAsSolutionCreatorSnap] = await Promise.all([
-        getDocs(dealsAsInvestorQuery),
-        getDocs(dealsAsPrimaryCreatorQuery),
-        getDocs(dealsAsSolutionCreatorQuery)
-    ]);
-    
-    dealsAsInvestorSnap.forEach(doc => batch.update(doc.ref, { investor: newCreatorRef }));
-    dealsAsPrimaryCreatorSnap.forEach(doc => batch.update(doc.ref, { primaryCreator: newCreatorRef }));
-    dealsAsSolutionCreatorSnap.forEach(doc => batch.update(doc.ref, { solutionCreator: newCreatorRef }));
-
-    // Messages will not be updated to avoid performance issues. The sender info is a snapshot.
-    
-    await batch.commit();
+    // This logic has been moved to a server action for security.
 }
 
 // --- Counts for Stats ---
@@ -1173,36 +891,28 @@ export async function getCounts() {
 
 // --- Content Editing ---
 
+// Deprecated in favor of server action
 async function handleItemUpdate(
     id: string,
     collectionName: 'problems' | 'solutions' | 'ideas' | 'businesses',
     data: { title?: string; description: string; tags?: string[]; stage?: string; },
     attachment?: File
 ) {
-    const itemRef = doc(db, collectionName, id);
-
-    const updateData: any = { ...data };
-
-    if (attachment) {
-        const attachmentData = await uploadAttachment(attachment);
-        updateData.attachmentUrl = attachmentData.url;
-        updateData.attachmentFileName = attachmentData.name;
-    }
-
-    await updateDoc(itemRef, updateData);
-    if (data.tags) {
-        await addTags(data.tags);
-    }
+    // This logic has been moved to a server action for security.
 }
 
-export const updateProblem = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => 
-    handleItemUpdate(id, 'problems', data, attachment);
+export const updateProblem = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => {
+    // This logic has been moved to a server action for security.
+}
 
-export const updateSolution = (id: string, data: { description: string }, attachment?: File) => 
-    handleItemUpdate(id, 'solutions', data, attachment);
+export const updateSolution = (id: string, data: { description: string }, attachment?: File) => {
+    // This logic has been moved to a server action for security.
+}
 
-export const updateIdea = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => 
-    handleItemUpdate(id, 'ideas', data, attachment);
+export const updateIdea = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => {
+    // This logic has been moved to a server action for security.
+}
 
-export const updateBusiness = (id: string, data: { title: string; description: string; tags: string[]; stage: string }, attachment?: File) => 
-    handleItemUpdate(id, 'businesses', data, attachment);
+export const updateBusiness = (id: string, data: { title: string; description: string; tags: string[]; stage: string }, attachment?: File) => {
+    // This logic has been moved to a server action for security.
+}

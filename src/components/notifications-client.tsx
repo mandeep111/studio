@@ -1,9 +1,10 @@
+
 "use client";
 
 import type { Notification } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -22,15 +23,28 @@ export default function NotificationsClient({ initialNotifications }: Notificati
     useEffect(() => {
         if (!userProfile) return;
 
-        const q = query(
-            collection(db, "notifications"), 
-            where("userId", "in", [userProfile.uid, "admins"]), 
-            orderBy("createdAt", "desc")
-        );
+        let q;
+        if (userProfile.role === "Admin") {
+            q = query(
+                collection(db, "notifications"), 
+                where("userId", "in", [userProfile.uid, "admins"]), 
+                orderBy("createdAt", "desc"),
+                limit(50)
+            );
+        } else {
+             q = query(
+                collection(db, "notifications"), 
+                where("userId", "==", userProfile.uid), 
+                orderBy("createdAt", "desc"),
+                limit(50)
+            );
+        }
         
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const newNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
             setNotifications(newNotifications);
+        }, (error) => {
+            console.error("Firestore snapshot error in notifications:", error);
         });
 
         return () => unsubscribe();
