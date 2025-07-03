@@ -290,8 +290,8 @@ export function AuthForm() {
         unreadDealMessages: {},
       });
       
-      toast({ title: "Verification Email Sent", description: `A verification link has been sent to ${values.email}. Please check your inbox and verify your account before logging in.` });
-      setActiveTab("login");
+      router.push('/auth/verify-email');
+
     } catch (error: any) {
       toast({
         variant: "destructive",
