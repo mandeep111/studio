@@ -78,7 +78,6 @@ export default function BusinessList() {
             setLastVisible(newLastVisible);
             setHasMore(!!newLastVisible);
         } catch (error) {
-            console.error(error);
             toast({ variant: "destructive", title: "Error", description: "Could not fetch businesses." });
         } finally {
             setLoading(false);

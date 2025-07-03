@@ -31,7 +31,6 @@ export default function LeaderboardClient({ initialUsers, initialLastVisible }: 
             setLastVisible(JSON.parse(JSON.stringify(newLastVisible)));
             setHasMore(!!newLastVisible);
         } catch (error) {
-            console.error(error);
             toast({ variant: "destructive", title: "Error", description: "Could not fetch more users." });
         } finally {
             setLoadingMore(false);

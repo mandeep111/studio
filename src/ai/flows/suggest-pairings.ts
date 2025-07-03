@@ -91,7 +91,6 @@ const suggestPairingsFlow = ai.defineFlow(
   async input => {
     const {output} = await prompt(input);
     if (!output) {
-      console.error('AI output was null or undefined.');
       return { suggestedPairings: [] };
     }
     return output;

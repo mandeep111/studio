@@ -13,7 +13,7 @@ export default function AdDisplay() {
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
     } catch (err) {
-      console.error("AdSense error:", err);
+      // AdSense errors are common in dev environments, so we can ignore them.
     }
   }, []);
 

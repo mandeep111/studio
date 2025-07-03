@@ -76,7 +76,6 @@ export default function SolutionList() {
             setLastVisible(newLastVisible);
             setHasMore(!!newLastVisible);
         } catch (error) {
-            console.error(error);
             toast({ variant: "destructive", title: "Error", description: "Could not fetch solutions." });
         } finally {
             setLoading(false);

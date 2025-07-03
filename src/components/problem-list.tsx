@@ -80,7 +80,6 @@ export default function ProblemList() {
             setLastVisible(newLastVisible);
             setHasMore(!!newLastVisible);
         } catch (error) {
-            console.error(error);
             toast({ variant: "destructive", title: "Error", description: "Could not fetch problems." });
         } finally {
             setLoading(false);

@@ -33,7 +33,7 @@ export default function NotificationsClient({ initialNotifications }: Notificati
         };
         
         const handleError = (error: Error) => {
-             console.error("Firestore snapshot error in notifications:", error);
+             // console.error("Firestore snapshot error in notifications:", error);
         };
 
         const unsubscribes: (() => void)[] = [];

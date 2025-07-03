@@ -10,15 +10,18 @@ export default function Footer() {
             <Image src="/logo.png" alt="Problem2Profit Logo" width={28} height={28} />
             <span className="font-semibold text-foreground">Problem2Profit</span>
           </div>
-          <nav className="flex gap-4 sm:gap-6">
+          <nav className="flex flex-wrap justify-center gap-4 sm:gap-6">
             <Link href="/info" className="text-sm hover:underline underline-offset-4">
               Info & Safety
+            </Link>
+            <Link href="/feedback" className="text-sm hover:underline underline-offset-4">
+              Feedback
             </Link>
             <Link href="/privacy-policy" className="text-sm hover:underline underline-offset-4">
               Privacy Policy
             </Link>
           </nav>
-          <div className="text-sm">
+          <div className="text-sm text-center md:text-right">
             © {new Date().getFullYear()} Problem2Profit. All Rights Reserved.
           </div>
         </div>
