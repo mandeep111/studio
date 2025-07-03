@@ -10,7 +10,14 @@ import { db } from '../src/lib/firebase/config';
 import { suggestPairings } from '../src/ai/flows/suggest-pairings';
 import type { UserProfile } from '../src/lib/types';
 import { USER_AVATARS, INVESTOR_AVATARS } from '../src/lib/avatars';
-import { startDealAction, updateUserProfileAction, updateDealStatusAction, upvoteItemAction } from '../src/app/actions';
+import { 
+    startDealAction, 
+    updateUserProfileAction, 
+    updateDealStatusAction, 
+    upvoteItemAction,
+    createProblemAction,
+    createSolutionAction
+} from '../src/app/actions';
 
 const now = Date.now();
 // A temporary object to hold IDs of created documents for cleanup
@@ -31,7 +38,7 @@ const testProfiles = {
         avatarUrl: USER_AVATARS[5],
         expertise: 'Testing',
         points: 0,
-        isPremium: true, // Give premium for testing features
+        isPremium: true,
     } as UserProfile,
     investor: {
         uid: testData.investorId,
@@ -105,42 +112,39 @@ async function testFirestoreConnection() {
 async function testProblemAndSolutionLifecycle() {
     console.log('- Testing Problem & Solution Lifecycle...');
     
-    // Mocking auth for server actions is complex, so we're testing the DB logic that actions call.
-    // A full E2E test with authenticated users would be the next step.
-    
-    // 1. Create a problem
-    const problemRef = await addDoc(collection(db, 'problems'), {
-        title: 'Test Problem: Lifecycle',
-        description: 'A test problem.',
-        creator: { userId: testData.creatorId, name: testProfiles.creator.name, avatarUrl: '', expertise: 'Testing' },
-        upvotes: 0,
-        upvotedBy: [],
-        solutionsCount: 0,
-        createdAt: Timestamp.now(),
-        isClosed: false,
-    });
-    testData.problemId = problemRef.id;
+    // 1. Create a problem using the server action
+    const problemFormData = new FormData();
+    problemFormData.append('title', 'Test Problem: Lifecycle');
+    problemFormData.append('description', 'A test problem.');
+    const createProblemResult = await createProblemAction(testProfiles.creator, problemFormData);
+    if (!createProblemResult.success || !createProblemResult.id) {
+        throw new Error(`Problem creation failed: ${createProblemResult.message}`);
+    }
+    testData.problemId = createProblemResult.id;
+    const problemRef = doc(db, 'problems', testData.problemId);
     console.log('  ✅ Temporary problem created.');
 
-    // 2. Upvote the problem
-    await upvoteItemAction(testData.investorId, testData.problemId, 'problem');
+    // 2. Upvote the problem using the server action
+    const upvoteResult = await upvoteItemAction(testProfiles.investor, testData.problemId, 'problem');
+    if (!upvoteResult.success) {
+        throw new Error(`Problem upvote failed: ${upvoteResult.message}`);
+    }
     let problemDoc = await getDoc(problemRef);
     if (!problemDoc.exists() || problemDoc.data().upvotes !== 1) {
-        throw new Error('Problem upvote failed.');
+        throw new Error('Problem upvote count did not update correctly.');
     }
     console.log('  ✅ Problem upvoted successfully.');
 
-    // 3. Create a solution
-    const solutionRef = await addDoc(collection(db, 'solutions'), {
-        description: 'A test solution',
-        problemId: testData.problemId,
-        problemTitle: 'Test Problem: Lifecycle',
-        creator: testProfiles.creator,
-        createdAt: Timestamp.now(),
-        isClosed: false,
-    });
-    testData.solutionId = solutionRef.id;
-    await updateDoc(problemRef, { solutionsCount: 1 }); // Manually update count for test
+    // 3. Create a solution using the server action
+    const solutionFormData = new FormData();
+    solutionFormData.append('description', 'A test solution');
+    solutionFormData.append('problemId', testData.problemId);
+    solutionFormData.append('problemTitle', 'Test Problem: Lifecycle');
+    const createSolutionResult = await createSolutionAction(testProfiles.creator, solutionFormData);
+     if (!createSolutionResult.success) {
+        throw new Error(`Solution creation failed: ${createSolutionResult.message}`);
+    }
+    
     problemDoc = await getDoc(problemRef);
     if (!problemDoc.exists() || problemDoc.data().solutionsCount !== 1) {
         throw new Error('Solution creation or problem counter update failed.');
@@ -247,7 +251,14 @@ async function cleanup() {
     console.log('\n- 🧹 Cleaning up test data...');
     const promises = [];
     if (testData.problemId) promises.push(deleteDoc(doc(db, 'problems', testData.problemId)));
-    if (testData.solutionId) promises.push(deleteDoc(doc(db, 'solutions', testData.solutionId)));
+    
+    // Clean up any solutions created for the test problem
+    if (testData.problemId) {
+        const solutionsQuery = query(collection(db, 'solutions'), where('problemId', '==', testData.problemId));
+        const solutionSnapshot = await getDocs(solutionsQuery);
+        solutionSnapshot.forEach(doc => promises.push(deleteDoc(doc.ref)));
+    }
+
     if (testData.dealId) promises.push(deleteDoc(doc(db, 'deals', testData.dealId)));
     
     promises.push(deleteDoc(doc(db, 'users', testData.creatorId)));
