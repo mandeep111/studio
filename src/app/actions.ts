@@ -12,7 +12,7 @@ import {
     getUserProfile, 
     createNotification, 
     getIdeas, 
-    addTags as addTagsToDb,
+    addTagsToDb,
     uploadAttachment
 } from "@/lib/firestore";
 import type { UserProfile, Ad, PaymentSettings, Deal, Problem, Solution, Idea, Business, CreatorReference } from "@/lib/types";
@@ -805,7 +805,6 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
   if (!siteKey || !projectId || !apiKey) {
-    console.warn("reCAPTCHA environment variables not set. Skipping verification.");
     return { success: true, message: "reCAPTCHA not configured, skipping." };
   }
 

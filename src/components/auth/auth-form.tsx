@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -290,6 +289,11 @@ export function AuthForm() {
         unreadDealMessages: {},
       });
       
+      toast({
+        title: "Account Created!",
+        description: "Please check your email to verify your account.",
+      });
+
       router.push('/auth/verify-email');
 
     } catch (error: any) {

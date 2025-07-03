@@ -75,6 +75,7 @@ export default function LandingHero() {
                     alt="An animated flow from a problem to a solution and investment"
                     className="mx-auto aspect-[3/2] overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
                     unoptimized
+                    priority={true}
                 />
             </div>
             </section>
