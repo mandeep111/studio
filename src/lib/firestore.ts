@@ -1,3 +1,4 @@
+
 import {
   addDoc,
   arrayRemove,
@@ -21,9 +22,9 @@ import {
   deleteDoc,
   setDoc,
 } from "firebase/firestore";
-import { db, storage } from "./firebase/config";
+import { db } from "./firebase/config";
 import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad, PaymentSettings } from "./types";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { adminStorage } from "./firebase/admin";
 import { v4 as uuidv4 } from "uuid";
 
 export async function uploadAttachment(file: File): Promise<{ url: string; name: string }> {
@@ -31,11 +32,22 @@ export async function uploadAttachment(file: File): Promise<{ url: string; name:
     throw new Error("No file provided for upload.");
   }
   const fileId = uuidv4();
-  const storageRef = ref(storage, `attachments/${fileId}-${file.name}`);
-  const snapshot = await uploadBytes(storageRef, file);
-  const url = await getDownloadURL(snapshot.ref);
-  return { url, name: file.name };
+  const filePath = `attachments/${fileId}-${file.name}`;
+  const storageFile = adminStorage.file(filePath);
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  await storageFile.save(buffer, {
+    metadata: {
+      contentType: file.type,
+    },
+  });
+  
+  await storageFile.makePublic();
+  
+  return { url: storageFile.publicUrl(), name: file.name };
 }
+
 
 // --- Data Fetching ---
 

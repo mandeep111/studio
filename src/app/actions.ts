@@ -15,7 +15,7 @@ import {
     addTagsToDb,
     uploadAttachment
 } from "@/lib/firestore";
-import type { UserProfile, Ad, PaymentSettings, Deal, Problem, Solution, Idea, Business, CreatorReference } from "@/lib/types";
+import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
@@ -522,15 +522,19 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
 
 
 async function createItemAction(
-    creator: UserProfile,
     type: 'problem' | 'idea' | 'business',
     formData: FormData,
     points: number
 ) {
-    if (!creator) return { success: false, message: "User profile not found." };
-    
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
+
+    const userId = formData.get('userId') as string;
+    if (!userId) return { success: false, message: "User not authenticated." };
+    
+    const userSnap = await adminDb.collection('users').doc(userId).get();
+    if (!userSnap.exists) return { success: false, message: "User profile not found." };
+    const creator = userSnap.data() as UserProfile;
 
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
@@ -598,24 +602,29 @@ async function createItemAction(
     }
 }
 
-export async function createProblemAction(creator: UserProfile, formData: FormData) {
-    return createItemAction(creator, 'problem', formData, 50);
+export async function createProblemAction(formData: FormData) {
+    return createItemAction('problem', formData, 50);
 }
 
-export async function createIdeaAction(creator: UserProfile, formData: FormData) {
-    return createItemAction(creator, 'idea', formData, 10);
+export async function createIdeaAction(formData: FormData) {
+    return createItemAction('idea', formData, 10);
 }
 
-export async function createBusinessAction(creator: UserProfile, formData: FormData) {
-    return createItemAction(creator, 'business', formData, 30);
+export async function createBusinessAction(formData: FormData) {
+    return createItemAction('business', formData, 30);
 }
 
 
-export async function createSolutionAction(creator: UserProfile, formData: FormData) {
-    if (!creator) return { success: false, message: "User profile not found." };
-    
+export async function createSolutionAction(formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
+
+    const userId = formData.get('userId') as string;
+    if (!userId) return { success: false, message: "User not authenticated." };
+    
+    const userSnap = await adminDb.collection('users').doc(userId).get();
+    if (!userSnap.exists) return { success: false, message: "User profile not found." };
+    const creator = userSnap.data() as UserProfile;
 
     const description = formData.get('description') as string;
     const priceStr = formData.get('price') as string;

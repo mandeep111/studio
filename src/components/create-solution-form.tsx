@@ -61,13 +61,14 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
   };
 
   const onSubmit = async (values: z.infer<typeof solutionFormSchema>) => {
-    if (!userProfile) {
+    if (!user) {
         toast({ variant: "destructive", title: "Error", description: "You must be logged in to submit a solution." });
         return;
     }
     setFormLoading(true);
 
     const formData = new FormData();
+    formData.append('userId', user.uid);
     formData.append('description', values.description);
     if (values.price) formData.append('price', values.price);
     formData.append('problemId', problemId);
@@ -77,7 +78,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
         formData.append('attachment', attachment);
     }
     
-    const result = await createSolutionAction(userProfile, formData);
+    const result = await createSolutionAction(formData);
     
     if (result.success) {
         toast({ title: "Success!", description: result.message });
