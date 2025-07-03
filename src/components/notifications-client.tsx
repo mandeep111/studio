@@ -4,7 +4,7 @@
 import type { Notification } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase/config";
-import { collection, query, where, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, limit, type QuerySnapshot } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -23,31 +23,46 @@ export default function NotificationsClient({ initialNotifications }: Notificati
     useEffect(() => {
         if (!userProfile) return;
 
-        let q;
-        if (userProfile.role === "Admin") {
-            q = query(
-                collection(db, "notifications"), 
-                where("userId", "in", [userProfile.uid, "admins"]), 
-                orderBy("createdAt", "desc"),
-                limit(50)
-            );
-        } else {
-             q = query(
-                collection(db, "notifications"), 
-                where("userId", "==", userProfile.uid), 
-                orderBy("createdAt", "desc"),
-                limit(50)
-            );
-        }
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const newNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
-            setNotifications(newNotifications);
-        }, (error) => {
-            console.error("Firestore snapshot error in notifications:", error);
-        });
+        const notificationMap = new Map<string, Notification>();
 
-        return () => unsubscribe();
+        const updateState = () => {
+            const sorted = Array.from(notificationMap.values()).sort(
+                (a, b) => getDateFromTimestamp(b.createdAt).getTime() - getDateFromTimestamp(a.createdAt).getTime()
+            );
+            setNotifications(sorted);
+        };
+        
+        const handleError = (error: Error) => {
+             console.error("Firestore snapshot error in notifications:", error);
+        };
+
+        const unsubscribes: (() => void)[] = [];
+
+        // Listener for personal notifications
+        const personalQuery = query(collection(db, "notifications"), where("userId", "==", userProfile.uid), orderBy("createdAt", "desc"), limit(50));
+        const unsubPersonal = onSnapshot(personalQuery, (snapshot) => {
+            snapshot.docs.forEach(doc => {
+                notificationMap.set(doc.id, { id: doc.id, ...doc.data() } as Notification);
+            });
+            updateState();
+        }, handleError);
+        unsubscribes.push(unsubPersonal);
+
+        // Additional listener for admins
+        if (userProfile.role === 'Admin') {
+            const adminQuery = query(collection(db, "notifications"), where("userId", "==", "admins"), orderBy("createdAt", "desc"), limit(50));
+            const unsubAdmin = onSnapshot(adminQuery, (snapshot) => {
+                snapshot.docs.forEach(doc => {
+                    notificationMap.set(doc.id, { id: doc.id, ...doc.data() } as Notification);
+                });
+                updateState();
+            }, handleError);
+            unsubscribes.push(unsubAdmin);
+        }
+
+        return () => {
+            unsubscribes.forEach(unsub => unsub());
+        };
     }, [userProfile]);
 
     return (

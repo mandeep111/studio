@@ -1,9 +1,7 @@
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
-import { createDeal, logPayment, updateUserMembership, getUserProfile } from '@/lib/firestore';
-import type { UserProfile } from '@/lib/types';
-import { redirect } from 'next/navigation';
+import { createDealInDb } from '@/lib/deal-utils.server';
 
 export async function POST(req: Request) {
     const body = await req.text();
@@ -51,14 +49,17 @@ export async function POST(req: Request) {
 }
 
 async function handleMembership(metadata: Stripe.Metadata) {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const { userId, userName, userAvatarUrl, plan, paymentFrequency, amount } = metadata;
     
     if (!userId || !plan || !paymentFrequency || !amount || !userName || !userAvatarUrl) {
         throw new Error('Incomplete metadata for membership purchase.');
     }
 
-    await updateUserMembership(userId, plan as 'investor');
-    await logPayment({
+    const userRef = adminDb.collection("users").doc(userId);
+    await userRef.update({ isPremium: true, role: 'Investor' });
+
+    await adminDb.collection("payments").add({
         userId,
         userName,
         userAvatarUrl,
@@ -66,10 +67,12 @@ async function handleMembership(metadata: Stripe.Metadata) {
         amount: Number(amount),
         plan: plan as 'investor',
         paymentFrequency: paymentFrequency as 'lifetime',
+        createdAt: new Date(),
     });
 }
 
 async function handleDealCreation(metadata: Stripe.Metadata) {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const { 
         primaryCreatorId, 
         itemId, 
@@ -84,13 +87,14 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
         throw new Error('Incomplete metadata for deal creation.');
     }
 
-    const investorProfile = await getUserProfile(investorId);
-    if (!investorProfile) {
+    const investorSnap = await adminDb.collection('users').doc(investorId).get();
+    if (!investorSnap.exists) {
         throw new Error(`Investor profile not found for ID: ${investorId}`);
     }
+    const investorProfile = investorSnap.data();
 
-    await createDeal(
-        investorProfile,
+    await createDealInDb(
+        investorProfile as any,
         primaryCreatorId,
         itemId,
         itemTitle,

@@ -3,31 +3,15 @@
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
 import { 
-    createDeal, 
     getAllUsers, 
-    approveItem as approveItemInDb, 
-    deleteItem as deleteItemInDb, 
     getBusinesses, 
     getProblems, 
-    sendMessage, 
-    updateUserMembership, 
-    logPayment, 
     findDealByUserAndItem, 
-    createAd, 
-    toggleAdStatus, 
-    getPaymentSettings, 
-    updatePaymentSettings, 
-    addSystemMessage, 
-    updateDealStatusInDb, 
+    getPaymentSettings,
     getDeal, 
     getUserProfile, 
     createNotification, 
     getIdeas, 
-    updateUserProfile as updateUserProfileInDb,
-    updateProblem as updateProblemInDb,
-    updateSolution as updateSolutionInDb,
-    updateIdea as updateIdeaInDb,
-    updateBusiness as updateBusinessInDb,
     addTags as addTagsToDb,
     uploadAttachment
 } from "@/lib/firestore";
@@ -140,13 +124,17 @@ export async function upgradeMembershipAction(
     if (!userProfile) {
         return { success: false, message: 'User not authenticated.' };
     }
+    
+    const { adminDb } = await import("@/lib/firebase/admin");
 
     const { isEnabled } = await getPaymentSettings();
 
     if (!isEnabled) {
         try {
-            await updateUserMembership(userProfile.uid, plan);
-            await logPayment({
+            const userRef = adminDb.collection("users").doc(userProfile.uid);
+            await userRef.update({ isPremium: true, role: 'Investor' });
+            
+            await adminDb.collection("payments").add({
                 userId: userProfile.uid,
                 userName: userProfile.name,
                 userAvatarUrl: userProfile.avatarUrl,
@@ -154,8 +142,10 @@ export async function upgradeMembershipAction(
                 amount: 0,
                 plan,
                 paymentFrequency,
-                details: 'Free upgrade (payments disabled)'
+                details: 'Free upgrade (payments disabled)',
+                createdAt: new Date(),
             });
+
             revalidatePath('/membership');
             revalidatePath('/investors');
             revalidatePath(`/users/${userProfile.uid}`);
@@ -225,12 +215,15 @@ export async function startDealAction(
         return { success: false, message: "Only investors can start deals." };
     }
     
+    const { adminDb } = await import('@/lib/firebase/admin');
+
     const { isEnabled } = await getPaymentSettings();
     
     try {
         // Free deal creation path
         if (!isEnabled) {
-            const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
+             const { createDealInDb } = await import('@/lib/deal-utils.server');
+            const dealId = await createDealInDb(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
             revalidatePath(`/${itemType}s/${itemId}`);
             return { success: true, dealId };
         }
@@ -305,6 +298,9 @@ export async function findExistingDealAction(itemId: string, investorId: string)
 
 
 export async function postMessageAction(formData: FormData) {
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+
     const dealId = formData.get('dealId') as string;
     const message = formData.get('message') as string;
     const sender = JSON.parse(formData.get('sender') as string) as UserProfile;
@@ -312,7 +308,35 @@ export async function postMessageAction(formData: FormData) {
     if (!message.trim()) return;
 
     try {
-        await sendMessage(dealId, message, sender);
+        const messagesCol = adminDb.collection(`deals/${dealId}/messages`);
+        const messageData = {
+            dealId,
+            text: message,
+            sender: {
+                userId: sender.uid,
+                name: sender.name,
+                avatarUrl: sender.avatarUrl,
+                expertise: sender.expertise
+            },
+            createdAt: FieldValue.serverTimestamp(),
+        };
+        await messagesCol.add(messageData);
+
+        const dealRef = adminDb.collection('deals').doc(dealId);
+        const dealSnap = await dealRef.get();
+        if (!dealSnap.exists) return;
+        const deal = dealSnap.data() as Deal;
+
+        const batch = adminDb.batch();
+        deal.participantIds.forEach(participantId => {
+            if (participantId !== sender.uid) {
+                const userRef = adminDb.collection('users').doc(participantId);
+                const fieldPath = `unreadDealMessages.${dealId}`;
+                batch.update(userRef, { [fieldPath]: FieldValue.increment(1) });
+            }
+        });
+        await batch.commit();
+
         revalidatePath(`/deals/${dealId}`);
     } catch (error) {
         console.error("Failed to send message:", error);
@@ -320,6 +344,9 @@ export async function postMessageAction(formData: FormData) {
 }
 
 export async function updateDealStatusAction(formData: FormData) {
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+
     const dealId = formData.get('dealId') as string;
     const status = formData.get('status') as 'completed' | 'cancelled';
     const investorId = formData.get('investorId') as string;
@@ -333,24 +360,36 @@ export async function updateDealStatusAction(formData: FormData) {
     }
   
     try {
-        const result = await updateDealStatusInDb(dealId, investorId, status);
-        if (result.success) {
-            revalidatePath(`/deals/${dealId}`);
-            
-            // Send notifications to other participants
-            const deal = await getDeal(dealId);
-            const investor = await getUserProfile(investorId);
-            if (deal && investor) {
-                const dealLink = `/deals/${deal.id}`;
-                const message = `${investor.name} has ${status} the deal: "${deal.title}"`;
-                for (const participantId of deal.participantIds) {
-                    if (participantId !== investorId) {
-                        await createNotification(participantId, message, dealLink);
-                    }
+        const dealRef = adminDb.collection('deals').doc(dealId);
+        const deal = (await dealRef.get()).data() as Deal;
+        const itemRef = adminDb.collection(`${deal.type}s`).doc(deal.relatedItemId);
+
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.update(dealRef, { status: status });
+            transaction.update(itemRef, { isClosed: true });
+
+            const investorRef = adminDb.collection('users').doc(investorId);
+            if (status === 'completed') {
+                transaction.update(investorRef, { dealsCompletedCount: FieldValue.increment(1) });
+            } else {
+                 transaction.update(investorRef, { dealsCancelledCount: FieldValue.increment(1) });
+            }
+        });
+
+        revalidatePath(`/deals/${dealId}`);
+        
+        const investor = await getUserProfile(investorId);
+        if (deal && investor) {
+            const dealLink = `/deals/${deal.id}`;
+            const message = `${investor.name} has ${status} the deal: "${deal.title}"`;
+            for (const participantId of deal.participantIds) {
+                if (participantId !== investorId) {
+                    await createNotification(participantId, message, dealLink);
                 }
             }
         }
-        return result;
+        
+        return { success: true, message: `Deal marked as ${status}.` };
     } catch (error) {
         console.error("Failed to update deal status:", error);
         return { success: false, message: 'An unexpected error occurred while updating the deal.' };
@@ -359,11 +398,13 @@ export async function updateDealStatusAction(formData: FormData) {
 
 
 export async function approveItemAction(formData: FormData) {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const type = formData.get('type') as 'problem' | 'solution' | 'business' | 'idea';
     const id = formData.get('id') as string;
 
     try {
-        await approveItemInDb(type, id);
+        const itemRef = adminDb.collection(`${type}s`).doc(id);
+        await itemRef.update({ priceApproved: true });
         revalidatePath('/admin');
         return { success: true, message: 'Item approved!' };
     } catch (error) {
@@ -373,11 +414,13 @@ export async function approveItemAction(formData: FormData) {
 }
 
 export async function deleteItemAction(formData: FormData) {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const type = formData.get('type') as 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad';
     const id = formData.get('id') as string;
 
     try {
-        await deleteItemInDb(type, id);
+        const collectionName = type === 'user' ? 'users' : `${type}s`;
+        await adminDb.collection(collectionName).doc(id).delete();
         revalidatePath('/admin');
         revalidatePath('/');
         return { success: true, message: 'Item deleted successfully!' };
@@ -389,20 +432,21 @@ export async function deleteItemAction(formData: FormData) {
 
 
 export async function createAdAction(formData: FormData) {
+    const { adminDb } = await import("@/lib/firebase/admin");
     try {
-        const adData = {
+        const adData: Omit<Ad, 'id' | 'createdAt'> = {
             title: formData.get('title') as string,
             imageUrl: formData.get('imageUrl') as string,
             linkUrl: formData.get('linkUrl') as string,
             placement: formData.get('placement') as Ad['placement'],
+            isActive: true,
         };
         
-        // Basic server-side validation
         if (!adData.title || !adData.imageUrl || !adData.linkUrl || !adData.placement) {
             return { success: false, message: "All fields are required." };
         }
 
-        await createAd(adData);
+        await adminDb.collection('ads').add({ ...adData, createdAt: new Date() });
         revalidatePath('/admin');
         return { success: true, message: 'Ad created successfully!' };
     } catch (error) {
@@ -412,6 +456,7 @@ export async function createAdAction(formData: FormData) {
 }
 
 export async function toggleAdStatusAction(formData: FormData) {
+    const { adminDb } = await import("@/lib/firebase/admin");
     try {
         const id = formData.get('id') as string;
         const isActive = formData.get('isActive') === 'true';
@@ -420,7 +465,7 @@ export async function toggleAdStatusAction(formData: FormData) {
             return { success: false, message: "Ad ID is missing." };
         }
 
-        await toggleAdStatus(id, isActive);
+        await adminDb.collection('ads').doc(id).update({ isActive });
         revalidatePath('/admin');
         return { success: true, message: `Ad status updated.` };
     } catch (error) {
@@ -430,9 +475,10 @@ export async function toggleAdStatusAction(formData: FormData) {
 }
 
 export async function updatePaymentSettingsAction(formData: FormData) {
+    const { adminDb } = await import("@/lib/firebase/admin");
     try {
         const isEnabled = formData.get('isEnabled') === 'true';
-        await updatePaymentSettings(isEnabled);
+        await adminDb.collection('settings').doc('payment').set({ isEnabled });
         revalidatePath('/admin');
         return { success: true, message: 'Payment settings updated.' };
     } catch (error) {
@@ -442,6 +488,7 @@ export async function updatePaymentSettingsAction(formData: FormData) {
 }
 
 export async function updateUserProfileAction(formData: FormData): Promise<{success: boolean; message: string;}> {
+    const { adminDb } = await import("@/lib/firebase/admin");
     const userId = formData.get('userId') as string;
     const name = formData.get('name') as string;
     const expertise = formData.get('expertise') as string;
@@ -452,7 +499,15 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
     }
 
     try {
-        await updateUserProfileInDb(userId, { name, expertise }, avatarFile ?? undefined);
+        const updateData: { name: string; expertise: string; avatarUrl?: string } = { name, expertise };
+
+        if (avatarFile && avatarFile.size > 0) {
+            const { url: avatarUrl } = await uploadAttachment(avatarFile);
+            updateData.avatarUrl = avatarUrl;
+        }
+
+        await adminDb.collection('users').doc(userId).update(updateData);
+        
         revalidatePath(`/users/${userId}`);
         revalidatePath(`/`); // For header
         return { success: true, message: "Profile updated successfully." };
@@ -465,8 +520,6 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
     }
 }
 
-
-// --- Secure Content Creation & Update Actions ---
 
 async function createItemAction(
     creator: UserProfile,
@@ -690,27 +743,33 @@ export async function upvoteItemAction(
 }
 
 
-// --- Content Edit Actions (Unchanged, already use FormData) ---
-
 async function handleContentUpdate(
     id: string,
     type: 'problem' | 'solution' | 'idea' | 'business',
-    updateFunction: (id: string, data: any, attachment?: File) => Promise<void>,
     formData: FormData
 ) {
-    const data: any = {
-        title: formData.get('title') as string,
-        description: formData.get('description') as string,
-        tags: formData.getAll('tags') as string[],
-    };
-    if (type === 'business') {
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const data: any = {};
+    if (formData.has('title')) data.title = formData.get('title');
+    if (formData.has('description')) data.description = formData.get('description');
+    if (formData.has('tags')) data.tags = formData.getAll('tags');
+    if (type === 'business' && formData.has('stage')) {
         data.stage = formData.get('stage') as string;
     }
     
     const attachment = formData.get('attachment') as File | null;
+    if (attachment && attachment.size > 0) {
+        const { url, name } = await uploadAttachment(attachment);
+        data.attachmentUrl = url;
+        data.attachmentFileName = name;
+    }
 
     try {
-        await updateFunction(id, data, attachment && attachment.size > 0 ? attachment : undefined);
+        await adminDb.collection(`${type}s`).doc(id).update(data);
+        if (data.tags) {
+            await addTagsToDb(data.tags);
+        }
+
         revalidatePath(`/${type}s/${id}`);
         revalidatePath(`/${type}s/${id}/edit`);
         return { success: true, message: `${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully.` };
@@ -722,22 +781,22 @@ async function handleContentUpdate(
 
 export async function updateProblemAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'problem', updateProblemInDb, formData);
+    return handleContentUpdate(id, 'problem', formData);
 }
 
 export async function updateSolutionAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'solution', updateSolutionInDb, formData);
+    return handleContentUpdate(id, 'solution', formData);
 }
 
 export async function updateIdeaAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'idea', updateIdeaInDb, formData);
+    return handleContentUpdate(id, 'idea', formData);
 }
 
 export async function updateBusinessAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'business', updateBusinessInDb, formData);
+    return handleContentUpdate(id, 'business', formData);
 }
 
 export async function verifyRecaptcha(token: string, action: string): Promise<{ success: boolean; message: string }> {
@@ -747,8 +806,6 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
 
   if (!siteKey || !projectId || !apiKey) {
     console.warn("reCAPTCHA environment variables not set. Skipping verification.");
-    // In a real production environment, you might want to fail this check.
-    // For development convenience, we can allow it to pass.
     return { success: true, message: "reCAPTCHA not configured, skipping." };
   }
 
@@ -777,7 +834,6 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
 
     const data = await response.json();
     
-    // Check for a valid token and a risk score below a threshold (e.g., 0.5 is a common starting point)
     if (data.tokenProperties?.valid && data.riskAnalysis?.score >= 0.5) {
       return { success: true, message: "reCAPTCHA verification successful." };
     } else {
