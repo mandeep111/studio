@@ -1,93 +1,9 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // By default, deny all reads and writes
     match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // --- Helper Functions ---
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    function isCreator(docData) {
-        return isOwner(docData.creator.userId);
-    }
-    
-    function isAdmin() {
-        return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
-    }
-
-    // --- Collection Rules ---
-
-    // Public read, specific writes
-    match /problems/{problemId} {
       allow read: if true;
-      allow create: if isCreator(request.resource.data);
-      allow update: if isCreator(resource.data) || isAdmin();
-      allow delete: if isCreator(resource.data) || isAdmin();
-    }
-
-    match /solutions/{solutionId} {
-      allow read: if true;
-      allow create: if isCreator(request.resource.data);
-      allow update: if isCreator(resource.data) || isAdmin();
-      allow delete: if isCreator(resource.data) || isAdmin();
-    }
-    
-    match /ideas/{ideaId} {
-      allow read: if true;
-      allow create: if isCreator(request.resource.data);
-      allow update: if isCreator(resource.data) || isAdmin();
-      allow delete: if isCreator(resource.data) || isAdmin();
-    }
-    
-    match /businesses/{businessId} {
-      allow read: if true;
-      allow create: if isCreator(request.resource.data);
-      allow update: if isCreator(resource.data) || isAdmin();
-      allow delete: if isCreator(resource.data) || isAdmin();
-    }
-
-    // User profiles
-    match /users/{userId} {
-      allow read: if true;
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // Deals and Messages
-    match /deals/{dealId} {
-      allow read, write: if request.auth != null && request.auth.uid in resource.data.participantIds;
-    }
-    match /deals/{dealId}/messages/{messageId} {
-      allow read, create: if request.auth != null && get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds.hasAny([request.auth.uid]);
-    }
-    
-    // Notifications
-    match /notifications/{notificationId} {
-        allow read: if request.auth != null && (isOwner(resource.data.userId) || (resource.data.userId == "admins" && isAdmin()));
-        allow update: if request.auth != null && isOwner(resource.data.userId);
-    }
-    
-    // Public, read-only data for guests
-    match /tags/{tagId} {
-      allow read: if true;
-    }
-    match /settings/{settingId} {
-      allow read: if true;
-    }
-    match /ads/{adId} {
-      allow read: if true;
-    }
-    
-    // Admin-only collections
-    match /payments/{paymentId} {
-      allow read, write: if isAdmin();
+      allow write: if request.auth != null;
     }
   }
 }
