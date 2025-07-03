@@ -3,11 +3,12 @@
 "use server";
 
 import type { UserProfile, Deal } from "./types";
-import { adminDb } from './firebase/admin';
-import { FieldValue } from 'firebase-admin/firestore';
 import { createNotification } from "./firestore";
 
 async function addSystemMessage(dealId: string, text: string) {
+    const { adminDb } = await import('./firebase/admin');
+    const { FieldValue } = await import('firebase-admin/firestore');
+
     const messagesCol = adminDb.collection(`deals/${dealId}/messages`);
     await messagesCol.add({
         dealId,
@@ -31,6 +32,9 @@ export async function createDealInDb(
     amount: number,
     solutionCreatorId?: string
 ): Promise<string> {
+    const { adminDb } = await import('./firebase/admin');
+    const { FieldValue } = await import('firebase-admin/firestore');
+
     const itemRef = adminDb.collection(`${itemType}s`).doc(itemId);
     const investorRef = adminDb.collection('users').doc(investorProfile.uid);
     const primaryCreatorRef = adminDb.collection('users').doc(primaryCreatorId);
