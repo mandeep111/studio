@@ -11,6 +11,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx scripts/seed.ts",
+    "db:clear": "tsx src/scripts/clear-db.ts",
     "test:integrity": "tsx scripts/test-integrity.ts"
   },
   "dependencies": {
