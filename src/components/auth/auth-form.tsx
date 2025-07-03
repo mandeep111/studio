@@ -30,6 +30,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { verifyRecaptcha } from "@/app/actions";
+import { AutocompleteInput } from "../ui/autocomplete-input";
+import { EXPERTISE_SUGGESTIONS } from "@/lib/suggestions";
 
 const executeRecaptcha = (action: string): Promise<string | null> => {
     return new Promise((resolve) => {
@@ -513,7 +515,13 @@ export function AuthForm() {
                       <FormItem>
                         <FormLabel>Area of Expertise</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g., Sustainable Tech" {...field} disabled={loading}/>
+                          <AutocompleteInput
+                            value={field.value}
+                            onChange={field.onChange}
+                            suggestions={EXPERTISE_SUGGESTIONS}
+                            placeholder="e.g., Sustainable Tech"
+                            disabled={isFieldsDisabled}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

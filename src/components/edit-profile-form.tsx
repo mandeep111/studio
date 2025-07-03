@@ -17,6 +17,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SubmitButton } from './submit-button';
 import { User as UserIcon } from 'lucide-react';
+import { AutocompleteInput } from './ui/autocomplete-input';
+import { EXPERTISE_SUGGESTIONS } from '@/lib/suggestions';
 
 const profileFormSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -79,6 +81,8 @@ export default function EditProfileForm({ userProfile }: EditProfileFormProps) {
         }
     };
 
+    const isSubmitting = form.formState.isSubmitting;
+
     return (
         <Card>
             <Form {...form}>
@@ -93,7 +97,7 @@ export default function EditProfileForm({ userProfile }: EditProfileFormProps) {
                                 <AvatarImage src={avatarPreview || userProfile.avatarUrl} />
                                 <AvatarFallback><UserIcon className="h-10 w-10" /></AvatarFallback>
                             </Avatar>
-                            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isSubmitting}>
                                 Change Photo
                             </Button>
                             <input
@@ -102,6 +106,7 @@ export default function EditProfileForm({ userProfile }: EditProfileFormProps) {
                                 className="hidden"
                                 accept="image/png, image/jpeg, image/gif"
                                 onChange={handleAvatarChange}
+                                disabled={isSubmitting}
                             />
                         </div>
                         <FormField
@@ -111,7 +116,7 @@ export default function EditProfileForm({ userProfile }: EditProfileFormProps) {
                                 <FormItem>
                                     <FormLabel>Name</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Your name" {...field} />
+                                        <Input placeholder="Your name" {...field} disabled={isSubmitting} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -124,7 +129,13 @@ export default function EditProfileForm({ userProfile }: EditProfileFormProps) {
                                 <FormItem>
                                     <FormLabel>Area of Expertise</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="e.g. Software Engineering" {...field} />
+                                        <AutocompleteInput 
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            suggestions={EXPERTISE_SUGGESTIONS}
+                                            placeholder="e.g. Software Engineering" 
+                                            disabled={isSubmitting}
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
