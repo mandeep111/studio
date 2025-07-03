@@ -151,7 +151,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
         }));
     }
 
-    const result = await upvoteItemAction(itemId, itemType);
+    const result = await upvoteItemAction(user.uid, itemId, itemType);
     if (!result.success) {
         toast({variant: "destructive", title: "Error", description: result.message});
         fetchProblemAndSolutions(); // Revert

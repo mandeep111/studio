@@ -112,7 +112,7 @@ export default function BusinessList() {
             })
         );
         
-        const result = await upvoteItemAction(businessId, 'business');
+        const result = await upvoteItemAction(user.uid, businessId, 'business');
 
         if (!result.success) {
             toast({ variant: "destructive", title: "Error", description: result.message });

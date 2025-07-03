@@ -35,8 +35,6 @@ import type { UserProfile, Ad, PaymentSettings, Deal, Problem, Solution, Idea, B
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
-import type Stripe from "stripe";
-import { auth } from "@/lib/firebase/config";
 import { adminDb } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 
@@ -473,14 +471,11 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
 // --- Secure Content Creation & Update Actions ---
 
 async function createItemAction(
+    creator: UserProfile,
     type: 'problem' | 'idea' | 'business',
     formData: FormData,
     points: number
 ) {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return { success: false, message: "You must be logged in." };
-
-    const creator = await getUserProfile(currentUser.uid);
     if (!creator) return { success: false, message: "User profile not found." };
     
     const title = formData.get('title') as string;
@@ -549,24 +544,20 @@ async function createItemAction(
     }
 }
 
-export async function createProblemAction(formData: FormData) {
-    return createItemAction('problem', formData, 50);
+export async function createProblemAction(creator: UserProfile, formData: FormData) {
+    return createItemAction(creator, 'problem', formData, 50);
 }
 
-export async function createIdeaAction(formData: FormData) {
-    return createItemAction('idea', formData, 10);
+export async function createIdeaAction(creator: UserProfile, formData: FormData) {
+    return createItemAction(creator, 'idea', formData, 10);
 }
 
-export async function createBusinessAction(formData: FormData) {
-    return createItemAction('business', formData, 30);
+export async function createBusinessAction(creator: UserProfile, formData: FormData) {
+    return createItemAction(creator, 'business', formData, 30);
 }
 
 
-export async function createSolutionAction(formData: FormData) {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return { success: false, message: "You must be logged in." };
-    
-    const creator = await getUserProfile(currentUser.uid);
+export async function createSolutionAction(creator: UserProfile, formData: FormData) {
     if (!creator) return { success: false, message: "User profile not found." };
     
     const description = formData.get('description') as string;
@@ -637,11 +628,11 @@ export async function createSolutionAction(formData: FormData) {
 
 
 export async function upvoteItemAction(
+    userId: string,
     itemId: string,
     itemType: 'problem' | 'solution' | 'idea' | 'business' | 'investor'
 ) {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return { success: false, message: "You must be logged in." };
+    if (!userId) return { success: false, message: "You must be logged in." };
     
     try {
         const collectionName = itemType === 'investor' ? 'users' : `${itemType}s`;
@@ -653,10 +644,10 @@ export async function upvoteItemAction(
             
             const data = itemDoc.data()!;
             const upvotedBy = (data.upvotedBy || []) as string[];
-            const isUpvoted = upvotedBy.includes(currentUser.uid);
+            const isUpvoted = upvotedBy.includes(userId);
             
             const creatorId = itemType === 'investor' ? itemId : data.creator.userId;
-            if (creatorId === currentUser.uid) throw new Error("You cannot upvote your own content.");
+            if (creatorId === userId) throw new Error("You cannot upvote your own content.");
 
             const pointValues: Record<string, number> = { 'problem': 20, 'solution': 20, 'idea': 10, 'business': 10 };
             const pointChange = itemType !== 'investor' ? (pointValues[itemType] * (isUpvoted ? -1 : 1)) : 0;
@@ -664,7 +655,7 @@ export async function upvoteItemAction(
             // Update item
             transaction.update(itemRef, {
                 upvotes: FieldValue.increment(isUpvoted ? -1 : 1),
-                upvotedBy: isUpvoted ? FieldValue.arrayRemove(currentUser.uid) : FieldValue.arrayUnion(currentUser.uid)
+                upvotedBy: isUpvoted ? FieldValue.arrayRemove(userId) : FieldValue.arrayUnion(userId)
             });
 
             // Update creator points
@@ -674,7 +665,7 @@ export async function upvoteItemAction(
             }
 
             if (!isUpvoted) {
-                 const upvoterSnap = await adminDb.collection('users').doc(currentUser.uid).get();
+                 const upvoterSnap = await adminDb.collection('users').doc(userId).get();
                  const upvoterName = upvoterSnap.data()?.name || "Someone";
                  const itemTitle = data.title || data.problemTitle || 'your content';
                  const message = `${upvoterName} upvoted your ${itemType}: "${itemTitle}"`;

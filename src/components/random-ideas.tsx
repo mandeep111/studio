@@ -112,7 +112,7 @@ export default function RandomIdeas() {
         })
     );
     
-    const result = await upvoteItemAction(ideaId, 'idea');
+    const result = await upvoteItemAction(user.uid, ideaId, 'idea');
     
     if (!result.success) {
         toast({ variant: "destructive", title: "Error", description: result.message });

@@ -60,6 +60,10 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
   const showPriceInput = !isPaymentEnabled || canSetPrice;
 
   const onSubmit = async (values: z.infer<typeof ideaFormSchema>) => {
+    if (!userProfile) {
+        toast({ variant: "destructive", title: "Error", description: "You must be logged in to submit an idea." });
+        return;
+    }
     setFormLoading(true);
 
     const formData = new FormData();
@@ -73,7 +77,7 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
         formData.append('attachment', fileInput.files[0]);
     }
     
-    const result = await createIdeaAction(formData);
+    const result = await createIdeaAction(userProfile, formData);
 
     if (result.success) {
         toast({ title: "Success!", description: result.message });

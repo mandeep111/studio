@@ -50,6 +50,10 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
 
 
   const onSubmit = async (values: z.infer<typeof businessFormSchema>) => {
+    if (!userProfile) {
+        toast({ variant: "destructive", title: "Error", description: "You must be logged in to submit a business." });
+        return;
+    }
     setFormLoading(true);
 
     const formData = new FormData();
@@ -64,7 +68,7 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
         formData.append('attachment', fileInput.files[0]);
     }
     
-    const result = await createBusinessAction(formData);
+    const result = await createBusinessAction(userProfile, formData);
 
     if (result.success) {
         toast({ title: "Success!", description: result.message });

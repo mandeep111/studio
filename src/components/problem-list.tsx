@@ -115,7 +115,7 @@ export default function ProblemList() {
             })
         );
 
-        const result = await upvoteItemAction(problemId, 'problem');
+        const result = await upvoteItemAction(user.uid, problemId, 'problem');
         
         if (!result.success) {
             toast({ variant: "destructive", title: "Error", description: result.message });

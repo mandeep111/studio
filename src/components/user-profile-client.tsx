@@ -144,7 +144,7 @@ export default function UserProfileClient({
                 : [...(prev.upvotedBy || []), user.uid]
         }));
 
-        const result = await upvoteItemAction(profile.uid, 'investor');
+        const result = await upvoteItemAction(user.uid, profile.uid, 'investor');
         if (!result.success) {
             toast({variant: "destructive", title: "Error", description: result.message});
             setProfile(profile); // Revert
@@ -172,7 +172,7 @@ export default function UserProfileClient({
         else if (itemType === 'idea') setIdeas(optimisticUpdate);
         else if (itemType === 'business') setBusinesses(optimisticUpdate);
 
-        const result = await upvoteItemAction(itemId, itemType);
+        const result = await upvoteItemAction(user.uid, itemId, itemType);
         if (!result.success) {
             toast({variant: "destructive", title: "Error", description: result.message});
             fetchData(); // Revert

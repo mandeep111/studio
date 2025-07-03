@@ -47,6 +47,10 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
   const showPriceInput = !isPaymentEnabled || canSetPrice;
 
   const onSubmit = async (values: z.infer<typeof solutionFormSchema>) => {
+    if (!userProfile) {
+        toast({ variant: "destructive", title: "Error", description: "You must be logged in to submit a solution." });
+        return;
+    }
     setFormLoading(true);
 
     const formData = new FormData();
@@ -60,7 +64,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
         formData.append('attachment', fileInput.files[0]);
     }
     
-    const result = await createSolutionAction(formData);
+    const result = await createSolutionAction(userProfile, formData);
     
     if (result.success) {
         toast({ title: "Success!", description: result.message });

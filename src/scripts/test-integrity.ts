@@ -122,10 +122,13 @@ async function testProblemAndSolutionLifecycle() {
     testData.problemId = problemRef.id;
     console.log('  ✅ Temporary problem created.');
 
-    // 2. Upvote the problem - Can't directly call server action from here without auth.
-    // Manual check: The logic was moved to upvoteItemAction. We trust this works if DB connection is ok.
-    console.log('  🟡 Upvote test skipped (requires authenticated server action).');
-
+    // 2. Upvote the problem
+    await upvoteItemAction(testData.investorId, testData.problemId, 'problem');
+    let problemDoc = await getDoc(problemRef);
+    if (!problemDoc.exists() || problemDoc.data().upvotes !== 1) {
+        throw new Error('Problem upvote failed.');
+    }
+    console.log('  ✅ Problem upvoted successfully.');
 
     // 3. Create a solution
     const solutionRef = await addDoc(collection(db, 'solutions'), {
@@ -138,7 +141,7 @@ async function testProblemAndSolutionLifecycle() {
     });
     testData.solutionId = solutionRef.id;
     await updateDoc(problemRef, { solutionsCount: 1 }); // Manually update count for test
-    const problemDoc = await getDoc(problemRef);
+    problemDoc = await getDoc(problemRef);
     if (!problemDoc.exists() || problemDoc.data().solutionsCount !== 1) {
         throw new Error('Solution creation or problem counter update failed.');
     }

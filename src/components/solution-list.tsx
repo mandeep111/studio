@@ -110,7 +110,7 @@ export default function SolutionList() {
             })
         );
 
-        const result = await upvoteItemAction(solutionId, 'solution');
+        const result = await upvoteItemAction(user.uid, solutionId, 'solution');
 
         if (!result.success) {
             toast({ variant: "destructive", title: "Error", description: result.message });
