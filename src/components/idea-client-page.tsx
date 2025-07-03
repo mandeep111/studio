@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getIdea, upvoteIdea } from "@/lib/firestore";
+import { getIdea } from "@/lib/firestore";
 import type { Idea } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle, MessageSquare, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction, upvoteItemAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -34,6 +34,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
   const [isDealLoading, setIsDealLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
+  const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (userProfile && userProfile.role === 'Investor') {
@@ -99,7 +100,9 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
 
 
   const handleIdeaUpvote = async () => {
-    if (!user || !idea || user.uid === idea.creator.userId) return;
+    if (!user || !idea || user.uid === idea.creator.userId || upvotingId) return;
+
+    setUpvotingId(idea.id);
 
     setIdea(prevIdea => {
         if (!prevIdea) return prevIdea;
@@ -111,12 +114,13 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
         };
     });
 
-    try {
-        await upvoteIdea(idea.id, user.uid);
-    } catch(e) {
-        toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+    const result = await upvoteItemAction(user.uid, idea.id, 'idea');
+    if (!result.success) {
+        toast({variant: "destructive", title: "Error", description: result.message})
         fetchIdea(); // Revert
     }
+
+    setUpvotingId(null);
   };
 
   const handleStartDealClick = async () => {
@@ -298,9 +302,9 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
                     variant={isIdeaUpvoted ? "default" : "outline"}
                     size="sm"
                     onClick={handleIdeaUpvote}
-                    disabled={!user || isCreator}
+                    disabled={!user || isCreator || !!upvotingId}
                 >
-                    <ThumbsUp className="h-4 w-4 mr-2" />
+                    {upvotingId === idea.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ThumbsUp className="h-4 w-4 mr-2" />}
                     <span>{idea.upvotes.toLocaleString()} Upvotes</span>
                 </Button>
                  <div className="flex items-center gap-1">
