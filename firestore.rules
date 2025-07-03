@@ -1,139 +1,108 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Helper Functions ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+      return request.auth.uid == userId;
     }
 
-    function isUserRole(userId, role) {
-      return isSignedIn() && getUserData(userId).role == role;
-    }
-    
-    function isChangingRole() {
-      return request.resource.data.role != resource.data.role;
-    }
-    
-    function isUpdatingAllowedProfileFields() {
-      // Only these fields can be updated by a user on their own profile.
-      let allowedFields = ['name', 'expertise', 'avatarUrl'];
-      // This ensures no other fields are being maliciously added.
-      return request.resource.data.keys().hasOnly(allowedFields);
-    }
-    
-    function isDealStatusUpdate(dealId) {
-      let deal = get(/databases/$(database)/documents/deals/$(dealId)).data;
-      return request.resource.data.status != deal.status && request.resource.data.keys().hasAny(['status', 'updatedAt']);
+    function isAdmin() {
+      // Check the user's role from their profile in the 'users' collection.
+      // Use this for single-document reads or writes, NOT for collection queries.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
     }
 
-    // --- Collections ---
+    function isIncomingDataValid(validFields, incomingData) {
+      // Ensures no extra fields are being written.
+      return incomingData.keys().hasOnly(validFields);
+    }
+
+    // --- User Profiles ---
     match /users/{userId} {
-      // Anyone can view a user's profile for leaderboards, cards, etc.
-      allow read: if true;
-
-      // Users can only update their own name, expertise, and avatarUrl.
-      allow update: if isOwner(userId) && isUpdatingAllowedProfileFields();
-
-      // Users can create their own profile upon signup.
-      allow create: if isOwner(userId);
-    }
-
-    match /problems/{problemId} {
-      allow read: if true;
-      
-      // The creator must be the signed-in user.
-      allow create: if isSignedIn() && isOwner(request.resource.data.creator.userId);
-      // Only the original creator can update their problem.
-      allow update: if isSignedIn() && isOwner(resource.data.creator.userId);
-      
-      // Only Admins can delete a problem.
-      allow delete: if isUserRole(request.auth.uid, 'Admin');
-    }
-
-    match /solutions/{solutionId} {
-      allow read: if true;
-
-      allow create: if isSignedIn() && isOwner(request.resource.data.creator.userId);
-      allow update: if isSignedIn() && isOwner(resource.data.creator.userId);
-      
-      allow delete: if isUserRole(request.auth.uid, 'Admin');
+      // Anyone can read user profiles for display purposes (avatars, names).
+      allow read: if request.auth != null;
+      // Only the owner can update their profile.
+      allow update: if isOwner(userId);
+      // Users can only be created with a specific set of fields.
+      allow create: if request.resource.data.uid == request.auth.uid &&
+                      isIncomingDataValid(['uid', 'email', 'name', 'role', 'expertise', 'avatarUrl', 'points', 'isPremium', 'unreadDealMessages', 'dealsCount', 'dealsCompletedCount', 'dealsCancelledCount', 'upvotes', 'upvotedBy'], request.resource.data);
     }
     
-    match /ideas/{ideaId} {
-      allow read: if true;
-
-      allow create: if isSignedIn() && isOwner(request.resource.data.creator.userId);
-      allow update: if isSignedIn() && isOwner(resource.data.creator.userId);
-
-      allow delete: if isUserRole(request.auth.uid, 'Admin');
-    }
-    
-    match /businesses/{businessId} {
-       allow read: if true;
-
-      allow create: if isSignedIn() && isOwner(request.resource.data.creator.userId);
-      allow update: if isSignedIn() && isOwner(resource.data.creator.userId);
-
-      allow delete: if isUserRole(request.auth.uid, 'Admin');
-    }
-
+    // --- Deals and Messages ---
     match /deals/{dealId} {
-      // Only participants can read the deal info or create it.
-      allow read, create: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      // Only the investor can update the status of the deal.
-      allow update: if isSignedIn() && request.auth.uid == resource.data.investor.userId;
+      // isParticipant() uses get() and is only safe for subcollection rules where we check the parent.
+      function isParticipant() {
+        return request.auth.uid in get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds;
+      }
+      
+      // For collection queries and single reads, use resource.data.
+      // This is the CRITICAL FIX. `resource.data` works for queries, `get()` does not.
+      allow read: if request.auth.uid in resource.data.participantIds;
+
+      // Only the investor can create a deal.
+      allow create: if request.auth.uid == request.resource.data.investor.userId;
+      
+      // Only a participant can update a deal's status.
+      allow update: if request.auth.uid in resource.data.participantIds &&
+                      request.resource.data.status != resource.data.status;
+
+      match /messages/{messageId} {
+        // Here, using the isParticipant() function with get() is correct and necessary.
+        allow read, create: if isParticipant();
+      }
     }
 
-    match /deals/{dealId}/messages/{messageId} {
-      // Only participants can read or create messages.
-      allow read, create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds;
-    }
-
-    match /notifications/{notificationId} {
-      // A user can read a notification if it's theirs.
-      // An Admin can read a notification if it's for 'admins'.
-      allow read: if isOwner(resource.data.userId) || (isUserRole(request.auth.uid, 'Admin') && resource.data.userId == 'admins');
-      
-      // Notifications are created by the server (via actions), not directly by clients.
-      // However, we allow create here to let server actions work, but no client could pass this rule.
-      allow create: if false; 
-      
-      allow update, delete: if false;
-    }
-    
-    match /tags/{tagId} {
+    // --- Main Content (Problems, Solutions, Ideas, Businesses) ---
+    match /{collection}/{itemId} {
+      // Anyone can read content.
       allow read: if true;
-      // Tags are managed by server actions.
-      allow write: if false; 
+
+      // Users can only create content if they are the creator specified in the document.
+      allow create: if request.auth.uid == request.resource.data.creator.userId;
+
+      // Only the creator can update their own content. Admins can also update (e.g., for moderation).
+      allow update: if request.auth.uid == resource.data.creator.userId || isAdmin();
+
+      // Only the creator or an admin can delete content.
+      allow delete: if request.auth.uid == resource.data.creator.userId || isAdmin();
     }
     
-    match /settings/payment {
-        allow read: if true;
-        allow write: if isUserRole(request.auth.uid, 'Admin');
+    // --- Notifications ---
+    match /notifications/{notificationId} {
+      // Users can read their own notifications.
+      // Admins can also read system-wide 'admins' notifications.
+      // This rule structure is safe for the separate queries being made on the client.
+      allow read: if request.auth != null && 
+                  (resource.data.userId == request.auth.uid || 
+                  (isAdmin() && resource.data.userId == 'admins'));
+
+      // Server-only writes.
+      allow create, update, delete: if false;
     }
     
-    match /ads/{adId} {
-        allow read: if true;
-        allow write: if isUserRole(request.auth.uid, 'Admin');
+    // --- Tags ---
+    match /tags/{tag} {
+      // Anyone can read the tag list.
+      allow read: if true;
+      // Only authenticated users can add to the tag counts (via server actions).
+      allow write: if request.auth != null;
     }
 
+    // --- Admin-Only Collections ---
+    match /settings/{docId} {
+      allow read: if true; // Settings might be needed client-side.
+      allow write: if isAdmin(); // Only admins can change settings.
+    }
+
+    match /ads/{adId} {
+      allow read: if true; // Ads need to be readable by everyone.
+      allow write: if isAdmin(); // Only admins can create/edit ads.
+    }
+    
     match /payments/{paymentId} {
-      // Only admins can see the full payment history.
-      allow read: if isUserRole(request.auth.uid, 'Admin');
-      // Payments are only written from the backend webhook.
-      allow write: if false; 
+      allow read, write: if isAdmin(); // Only admins can view payment history.
     }
   }
 }
-    
