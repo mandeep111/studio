@@ -1,6 +1,3 @@
-
-
-
 import {
   addDoc,
   arrayRemove,
@@ -72,7 +69,7 @@ export async function getBusinesses(): Promise<Business[]> {
 
 export async function getAllUsers(): Promise<UserProfile[]> {
   const col = collection(db, "users");
-  const snapshot = await getDocs(q);
+  const snapshot = await getDocs(col);
   return snapshot.docs.map((doc) => ({ ...doc.data(), uid: doc.id } as UserProfile));
 }
 
@@ -322,7 +319,7 @@ export async function createNotification(userId: string | "admins", message: str
     });
 }
 
-export async function addTags(tags: string[]) {
+export async function addTagsToDb(tags: string[]) {
     if (!tags || tags.length === 0) return;
     const batch = writeBatch(db);
     const tagsCol = collection(db, "tags");
