@@ -117,15 +117,23 @@ async function testProblemAndSolutionLifecycle() {
     problemFormData.append('title', 'Test Problem: Lifecycle');
     problemFormData.append('description', 'A test problem.');
     const createProblemResult = await createProblemAction(testProfiles.creator, problemFormData);
-    if (!createProblemResult.success || !createProblemResult.id) {
+    if (!createProblemResult.success) {
         throw new Error(`Problem creation failed: ${createProblemResult.message}`);
     }
-    testData.problemId = createProblemResult.id;
+    
+    // Find the created problem to get its ID
+    const problemsCol = collection(db, 'problems');
+    const q = query(problemsCol, where("title", "==", 'Test Problem: Lifecycle'), where("creator.userId", "==", testData.creatorId));
+    const problemSnapshot = await getDocs(q);
+    if (problemSnapshot.empty) {
+        throw new Error('Could not find the created test problem.');
+    }
+    testData.problemId = problemSnapshot.docs[0].id;
     const problemRef = doc(db, 'problems', testData.problemId);
     console.log('  ✅ Temporary problem created.');
 
     // 2. Upvote the problem using the server action
-    const upvoteResult = await upvoteItemAction(testProfiles.investor, testData.problemId, 'problem');
+    const upvoteResult = await upvoteItemAction(testData.investorId, testData.problemId, 'problem');
     if (!upvoteResult.success) {
         throw new Error(`Problem upvote failed: ${upvoteResult.message}`);
     }
