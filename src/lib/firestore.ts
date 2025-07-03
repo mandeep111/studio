@@ -24,30 +24,6 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase/config";
 import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad, PaymentSettings } from "./types";
-import { adminStorage } from "./firebase/admin";
-import { v4 as uuidv4 } from "uuid";
-
-export async function uploadAttachment(file: File): Promise<{ url: string; name: string }> {
-  if (!file) {
-    throw new Error("No file provided for upload.");
-  }
-  const fileId = uuidv4();
-  const filePath = `attachments/${fileId}-${file.name}`;
-  const storageFile = adminStorage.file(filePath);
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  await storageFile.save(buffer, {
-    metadata: {
-      contentType: file.type,
-    },
-  });
-  
-  await storageFile.makePublic();
-  
-  return { url: storageFile.publicUrl(), name: file.name };
-}
-
 
 // --- Data Fetching ---
 
@@ -196,6 +172,7 @@ export async function getPaginatedProblems(options: { sortBy: 'createdAt' | 'upv
     const { sortBy, lastVisible } = options;
 
     const qConstraints = [
+        where("isClosed", "==", false),
         orderBy(sortBy, "desc"), 
         limit(PAGE_SIZE)
     ];

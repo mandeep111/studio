@@ -66,19 +66,15 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
         return;
     }
     setFormLoading(true);
-
-    const formData = new FormData();
-    formData.append('userId', user.uid);
-    formData.append('description', values.description);
-    if (values.price) formData.append('price', values.price);
-    formData.append('problemId', problemId);
-    formData.append('problemTitle', problemTitle);
     
-    if (attachment) {
-        formData.append('attachment', attachment);
-    }
-    
-    const result = await createSolutionAction(formData);
+    const result = await createSolutionAction({
+      userId: user.uid,
+      description: values.description,
+      price: values.price,
+      problemId,
+      problemTitle,
+      attachment,
+    });
     
     if (result.success) {
         toast({ title: "Success!", description: result.message });

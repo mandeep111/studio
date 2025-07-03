@@ -12,13 +12,36 @@ import {
     getUserProfile, 
     createNotification, 
     getIdeas, 
-    addTagsToDb,
-    uploadAttachment
+    addTagsToDb
 } from "@/lib/firestore";
 import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
+import { adminStorage } from "@/lib/firebase/admin";
+import { v4 as uuidv4 } from "uuid";
+
+async function uploadAttachment(file: File): Promise<{ url: string; name: string }> {
+  if (!file) {
+    throw new Error("No file provided for upload.");
+  }
+  const fileId = uuidv4();
+  const filePath = `attachments/${fileId}-${file.name}`;
+  const storageFile = adminStorage.file(filePath);
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  await storageFile.save(buffer, {
+    metadata: {
+      contentType: file.type,
+    },
+  });
+  
+  await storageFile.makePublic();
+  
+  return { url: storageFile.publicUrl(), name: file.name };
+}
+
 
 const SuggestPairingsSchema = z.object({
   investorProfile: z.string().min(10, { message: "Investor profile must be at least 10 characters long." }),
@@ -520,33 +543,28 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
     }
 }
 
-
-async function createItemAction(
-    type: 'problem' | 'idea' | 'business',
-    formData: FormData,
-    points: number
-) {
+export async function createProblemAction(payload: {
+    userId: string;
+    title: string;
+    description: string;
+    price: string | undefined;
+    tags: string[];
+    attachment: File | null;
+}) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
 
-    const userId = formData.get('userId') as string;
-    if (!userId) return { success: false, message: "User not authenticated." };
+    const { userId, title, description, price: priceStr, tags, attachment } = payload;
     
-    const userSnap = await adminDb.collection('users').doc(userId).get();
-    if (!userSnap.exists) return { success: false, message: "User profile not found." };
-    const creator = userSnap.data() as UserProfile;
-
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const priceStr = formData.get('price') as string;
-    const tags = formData.getAll('tags') as string[];
-    const attachment = formData.get('attachment') as File | null;
-    
-    const price = priceStr ? parseFloat(priceStr) : null;
-    const priceApproved = price ? price <= 1000 : true;
-
     try {
-        const itemRef = adminDb.collection(`${type}s`).doc();
+        const userSnap = await adminDb.collection('users').doc(userId).get();
+        if (!userSnap.exists) return { success: false, message: "User profile not found." };
+        const creator = userSnap.data() as UserProfile;
+
+        const price = priceStr ? parseFloat(priceStr) : null;
+        const priceApproved = price ? price <= 1000 : true;
+
+        const itemRef = adminDb.collection('problems').doc();
         const userRef = adminDb.collection('users').doc(creator.uid);
         
         const creatorRef: CreatorReference = {
@@ -557,23 +575,12 @@ async function createItemAction(
         };
 
         const itemData: any = {
-            title,
-            description,
-            tags,
-            creator: creatorRef,
-            upvotes: 0,
-            upvotedBy: [],
-            solutionsCount: 0,
+            title, description, tags, creator: creatorRef,
+            upvotes: 0, upvotedBy: [], solutionsCount: 0,
             createdAt: FieldValue.serverTimestamp(),
-            price: price || null,
-            priceApproved,
-            interestedInvestorsCount: 0,
-            isClosed: false,
+            price: price || null, priceApproved,
+            interestedInvestorsCount: 0, isClosed: false,
         };
-
-        if (type === 'business') {
-            itemData.stage = formData.get('stage') as string;
-        }
 
         if (attachment && attachment.size > 0) {
             const { url, name } = await uploadAttachment(attachment);
@@ -583,59 +590,180 @@ async function createItemAction(
 
         await adminDb.runTransaction(async (transaction) => {
             transaction.set(itemRef, itemData);
-            transaction.update(userRef, { points: FieldValue.increment(points) });
+            transaction.update(userRef, { points: FieldValue.increment(50) });
         });
         
         await addTagsToDb(tags);
 
         if (!priceApproved) {
-            await createNotification("admins", `${creator.name} submitted a ${type} "${title}" with a price of $${price}, which requires approval.`, `/${type}s/${itemRef.id}`);
+            await createNotification("admins", `${creator.name} submitted a problem "${title}" with a price of $${price}, which requires approval.`, `/problems/${itemRef.id}`);
         }
         
         revalidatePath('/marketplace');
         revalidatePath(`/users/${creator.uid}`);
-        return { success: true, message: `${type.charAt(0).toUpperCase() + type.slice(1)} submitted successfully!` };
+        return { success: true, message: `Problem submitted successfully!` };
 
     } catch (error) {
-        console.error(`Error creating ${type}:`, error);
-        return { success: false, message: `Failed to create ${type}.` };
+        console.error(`Error creating problem:`, error);
+        return { success: false, message: `Failed to create problem.` };
     }
 }
 
-export async function createProblemAction(formData: FormData) {
-    return createItemAction('problem', formData, 50);
+export async function createIdeaAction(payload: {
+    userId: string;
+    title: string;
+    description: string;
+    price: string | undefined;
+    tags: string[];
+    attachment: File | null;
+}) {
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+    
+    const { userId, title, description, price: priceStr, tags, attachment } = payload;
+
+    try {
+        const userSnap = await adminDb.collection('users').doc(userId).get();
+        if (!userSnap.exists) return { success: false, message: "User profile not found." };
+        const creator = userSnap.data() as UserProfile;
+
+        const price = priceStr ? parseFloat(priceStr) : null;
+        const priceApproved = price ? price <= 1000 : true;
+
+        const itemRef = adminDb.collection('ideas').doc();
+        const userRef = adminDb.collection('users').doc(creator.uid);
+        
+        const creatorRef: CreatorReference = {
+            userId: creator.uid,
+            name: creator.name,
+            avatarUrl: creator.avatarUrl,
+            expertise: creator.expertise,
+        };
+
+        const itemData: any = {
+            title, description, tags, creator: creatorRef,
+            upvotes: 0, upvotedBy: [],
+            createdAt: FieldValue.serverTimestamp(),
+            price: price || null, priceApproved,
+            interestedInvestorsCount: 0, isClosed: false,
+        };
+
+        if (attachment && attachment.size > 0) {
+            const { url, name } = await uploadAttachment(attachment);
+            itemData.attachmentUrl = url;
+            itemData.attachmentFileName = name;
+        }
+
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.set(itemRef, itemData);
+            transaction.update(userRef, { points: FieldValue.increment(10) });
+        });
+        
+        await addTagsToDb(tags);
+
+        if (!priceApproved) {
+            await createNotification("admins", `${creator.name} submitted an idea "${title}" with a price of $${price}, which requires approval.`, `/ideas/${itemRef.id}`);
+        }
+        
+        revalidatePath('/marketplace');
+        revalidatePath(`/users/${creator.uid}`);
+        return { success: true, message: `Idea submitted successfully!` };
+
+    } catch (error) {
+        console.error(`Error creating idea:`, error);
+        return { success: false, message: `Failed to create idea.` };
+    }
 }
 
-export async function createIdeaAction(formData: FormData) {
-    return createItemAction('idea', formData, 10);
-}
-
-export async function createBusinessAction(formData: FormData) {
-    return createItemAction('business', formData, 30);
-}
-
-
-export async function createSolutionAction(formData: FormData) {
+export async function createBusinessAction(payload: {
+    userId: string;
+    title: string;
+    description: string;
+    stage: string;
+    price: string | undefined;
+    tags: string[];
+    attachment: File | null;
+}) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
 
-    const userId = formData.get('userId') as string;
-    if (!userId) return { success: false, message: "User not authenticated." };
-    
-    const userSnap = await adminDb.collection('users').doc(userId).get();
-    if (!userSnap.exists) return { success: false, message: "User profile not found." };
-    const creator = userSnap.data() as UserProfile;
-
-    const description = formData.get('description') as string;
-    const priceStr = formData.get('price') as string;
-    const attachment = formData.get('attachment') as File | null;
-    const problemId = formData.get('problemId') as string;
-    const problemTitle = formData.get('problemTitle') as string;
-
-    const price = priceStr ? parseFloat(priceStr) : null;
-    const priceApproved = price ? price <= 1000 : true;
+    const { userId, title, description, stage, price: priceStr, tags, attachment } = payload;
     
     try {
+        const userSnap = await adminDb.collection('users').doc(userId).get();
+        if (!userSnap.exists) return { success: false, message: "User profile not found." };
+        const creator = userSnap.data() as UserProfile;
+
+        const price = priceStr ? parseFloat(priceStr) : null;
+        const priceApproved = price ? price <= 1000 : true;
+
+        const itemRef = adminDb.collection('businesses').doc();
+        const userRef = adminDb.collection('users').doc(creator.uid);
+        
+        const creatorRef: CreatorReference = {
+            userId: creator.uid,
+            name: creator.name,
+            avatarUrl: creator.avatarUrl,
+            expertise: creator.expertise,
+        };
+
+        const itemData: any = {
+            title, description, stage, tags, creator: creatorRef,
+            upvotes: 0, upvotedBy: [],
+            createdAt: FieldValue.serverTimestamp(),
+            price: price || null, priceApproved,
+            interestedInvestorsCount: 0, isClosed: false,
+        };
+
+        if (attachment && attachment.size > 0) {
+            const { url, name } = await uploadAttachment(attachment);
+            itemData.attachmentUrl = url;
+            itemData.attachmentFileName = name;
+        }
+
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.set(itemRef, itemData);
+            transaction.update(userRef, { points: FieldValue.increment(30) });
+        });
+        
+        await addTagsToDb(tags);
+
+        if (!priceApproved) {
+            await createNotification("admins", `${creator.name} submitted a business "${title}" with a price of $${price}, which requires approval.`, `/businesses/${itemRef.id}`);
+        }
+        
+        revalidatePath('/marketplace');
+        revalidatePath(`/users/${creator.uid}`);
+        return { success: true, message: `Business submitted successfully!` };
+
+    } catch (error) {
+        console.error(`Error creating business:`, error);
+        return { success: false, message: `Failed to create business.` };
+    }
+}
+
+
+export async function createSolutionAction(payload: {
+    userId: string;
+    description: string;
+    price: string | undefined;
+    attachment: File | null;
+    problemId: string;
+    problemTitle: string;
+}) {
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+
+    const { userId, description, price: priceStr, attachment, problemId, problemTitle } = payload;
+    
+    try {
+        const userSnap = await adminDb.collection('users').doc(userId).get();
+        if (!userSnap.exists) return { success: false, message: "User profile not found." };
+        const creator = userSnap.data() as UserProfile;
+
+        const price = priceStr ? parseFloat(priceStr) : null;
+        const priceApproved = price ? price <= 1000 : true;
+        
         const solutionRef = adminDb.collection('solutions').doc();
         const problemRef = adminDb.collection('problems').doc(problemId);
         
