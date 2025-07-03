@@ -15,7 +15,8 @@ export const metadata: Metadata = {
   title: "Problem2Profit",
   description: "Where every problem is a link to an opportunity.",
   icons: {
-    icon: '/logo.png',
+    icon: [{ url: '/logo.png', type: 'image/png', sizes: 'any' }],
+    apple: [{ url: '/logo.png', type: 'image/png' }],
   },
   verification: {
     other: {
