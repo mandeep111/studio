@@ -1,134 +1,161 @@
+
 rules_version = '2';
 
 service cloud.firestore {
-  match /databases/{database}/documents {
   
-    // --- Helper Functions ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
+  // --- Helper Functions ---
+  function isSignedIn() {
+    return request.auth != null;
+  }
+  
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
 
-    function isAdmin() {
-      return isSignedIn() && getUserData().role == 'Admin';
-    }
+  function getUserRole(uid) {
+    // Allows reading a user's role for rule evaluation.
+    return get(/databases/$(database)/documents/users/$(uid)).data.role;
+  }
 
-    function isCreatingOwnDocument() {
-        return request.auth.uid == request.resource.id;
-    }
+  function isAdmin() {
+    return isSignedIn() && getUserRole(request.auth.uid) == 'Admin';
+  }
+  
+  function isInvestor() {
+    return isSignedIn() && getUserRole(request.auth.uid) == 'Investor';
+  }
+
+  function isContentOwner() {
+    // Checks if the user is the owner of an existing document.
+    return isOwner(resource.data.creator.userId);
+  }
+
+  function isIncomingContentOwner() {
+    // Checks if the user is the owner of a document being created.
+    return isOwner(request.resource.data.creator.userId);
+  }
+  
+  // --- Validation Functions ---
+  function isCreatingValidContent() {
+    let data = request.resource.data;
+    // Base fields that must be set correctly on creation.
+    return isIncomingContentOwner()
+           && data.upvotes == 0
+           && data.interestedInvestorsCount == 0
+           && data.isClosed == false;
+  }
+  
+  function isUpdatingValidContent() {
+    let incoming = request.resource.data;
+    let existing = resource.data;
+    // Fields a user cannot change themselves.
+    return incoming.creator.userId == existing.creator.userId
+           // Price approval and closing a deal can only be done by an Admin or through a server process (which an Admin rule covers).
+           && (isAdmin() || (incoming.priceApproved == existing.priceApproved && incoming.isClosed == existing.isClosed));
+  }
+  
+  function isUpvoting() {
+      let incoming = request.resource.data;
+      let existing = resource.data;
+      // You can't upvote your own content.
+      return request.auth.uid != existing.creator.userId
+             // Only the 'upvotes' and 'upvotedBy' fields can be changed in this transaction.
+             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'upvotedBy'])
+             && (
+                // Logic for adding an upvote.
+                (incoming.upvotes == existing.upvotes + 1 && incoming.upvotedBy == existing.upvotedBy.append(request.auth.uid))
+                ||
+                // Logic for removing an upvote.
+                (incoming.upvotes == existing.upvotes - 1 && incoming.upvotedBy == existing.upvotedBy.remove(request.auth.uid))
+             );
+  }
+
+  // --- Main Document Rules ---
+  match /databases/{database}/documents {
     
-    function isCreator() {
-      return request.auth.uid == request.resource.data.creator.userId;
-    }
-
-    function isImmutable(field) {
-      return request.resource.data[field] == resource.data[field];
-    }
-    
-    // --- Collection Rules ---
-
-    // Users can read any profile, but only update their own non-critical fields.
     match /users/{userId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isCreatingOwnDocument() && request.resource.data.role != 'Admin';
-      allow update: if isSignedIn() && isOwner(userId) 
-                      && isImmutable('role') 
-                      && isImmutable('points')
-                      && isImmutable('isPremium')
-                      && isImmutable('email')
-                      && isImmutable('dealsCount')
-                      && isImmutable('dealsCompletedCount')
-                      && isImmutable('dealsCancelledCount');
-      allow delete: if isAdmin(); 
+      allow create: if isOwner(userId);
+      // User can update their own profile, but cannot change immutable fields. Admin can change role.
+      allow update: if (isOwner(userId) 
+                      && request.resource.data.points == resource.data.points 
+                      && (isAdmin() || request.resource.data.role == resource.data.role))
+                    || isAdmin(); // Admin can update any user profile.
+      allow delete: if isAdmin();
     }
     
-    // Problems, Ideas, Businesses - Content that can be created
-    match /{collectionName}/{itemId} where collectionName in ['problems', 'ideas', 'businesses'] {
+    match /problems/{problemId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() 
-                    && isCreator()
-                    && request.resource.data.upvotes == 0
-                    && (request.resource.data.solutionsCount == 0 || !('solutionsCount' in request.resource.data))
-                    && request.resource.data.interestedInvestorsCount == 0
-                    && request.resource.data.upvotedBy == []
-                    && request.resource.data.isClosed == false;
-      allow update: if isSignedIn() && isOwner(resource.data.creator.userId)
-                      && isImmutable('creator')
-                      && isImmutable('upvotes')
-                      && isImmutable('upvotedBy')
-                      && isImmutable('solutionsCount')
-                      && isImmutable('interestedInvestorsCount')
-                      && isImmutable('isClosed');
-      allow delete: if isSignedIn() && (isOwner(resource.data.creator.userId) || isAdmin());
+      allow create: if isSignedIn() && isCreatingValidContent() && request.resource.data.solutionsCount == 0;
+      allow update: if isSignedIn() && (
+                      (isContentOwner() && isUpdatingValidContent())
+                      || isUpvoting()
+                    );
+      allow delete: if isSignedIn() && (isContentOwner() || isAdmin());
     }
-    
-    // Solutions are special as they relate to problems
+
     match /solutions/{solutionId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn()
-                    && isCreator()
-                    && request.resource.data.upvotes == 0
-                    && request.resource.data.interestedInvestorsCount == 0
-                    && request.resource.data.upvotedBy == []
-                    && request.resource.data.isClosed == false
-                    && get(/databases/$(database)/documents/problems/$(request.resource.data.problemId)).data.creator.userId != request.auth.uid;
-      allow update: if isSignedIn() && isOwner(resource.data.creator.userId)
-                      && isImmutable('creator')
-                      && isImmutable('problemId')
-                      && isImmutable('problemTitle')
-                      && isImmutable('upvotes')
-                      && isImmutable('upvotedBy')
-                      && isImmutable('interestedInvestorsCount')
-                      && isImmutable('isClosed');
-      allow delete: if isSignedIn() && (isOwner(resource.data.creator.userId) || isAdmin());
+      // On create, also check the problem it's attached to isn't closed.
+      allow create: if isSignedIn() 
+                      && isCreatingValidContent()
+                      && get(/databases/$(database)/documents/problems/$(request.resource.data.problemId)).data.isClosed == false;
+
+      allow update: if isSignedIn() && (
+                      (isContentOwner() && isUpdatingValidContent())
+                      || isUpvoting()
+                    );
+      allow delete: if isSignedIn() && (isContentOwner() || isAdmin());
     }
     
-    // Deals and Messages have stricter access controls
+    match /ideas/{ideaId} {
+       allow read: if isSignedIn();
+       allow create: if isSignedIn() && isCreatingValidContent();
+       allow update: if isSignedIn() && (
+                      (isContentOwner() && isUpdatingValidContent())
+                      || isUpvoting()
+                    );
+       allow delete: if isSignedIn() && (isContentOwner() || isAdmin());
+    }
+    
+    match /businesses/{businessId} {
+       allow read: if isSignedIn();
+       allow create: if isSignedIn() && isCreatingValidContent();
+       allow update: if isSignedIn() && (
+                      (isContentOwner() && isUpdatingValidContent())
+                      || isUpvoting()
+                    );
+       allow delete: if isSignedIn() && (isContentOwner() || isAdmin());
+    }
+    
     match /deals/{dealId} {
-      allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
-      allow create, delete: if false; // Handled by server actions
+      function isParticipant() {
+        return request.auth.uid in resource.data.participantIds;
+      }
+      
+      allow read: if isSignedIn() && isParticipant();
+      // Deal creation and updates are handled by secure backend actions, so we can be more restrictive here.
+      // We only allow an Investor to update a deal they own. Creation is denied from the client.
+      allow create: if false;
+      allow update: if isInvestor() && isOwner(resource.data.investor.userId);
+      allow delete: if isAdmin();
       
       match /messages/{messageId} {
-        allow read, create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds;
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds.hasAny([request.auth.uid]);
+        // Only participants can create messages for themselves.
+        allow create: if isSignedIn() 
+                      && get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds.hasAny([request.auth.uid])
+                      && isOwner(request.resource.data.sender.userId);
+        // Messages are immutable.
         allow update, delete: if false;
       }
     }
-
-    // Notifications can be read by their target user or admins.
-    match /notifications/{notificationId} {
-        allow read: if isSignedIn() && (isOwner(resource.data.userId) || (resource.data.userId == "admins" && isAdmin()));
-        allow update: if isSignedIn() && isOwner(resource.data.userId) && request.resource.data.read == true;
-        allow create, delete: if false;
-    }
-
-    // Settings are read-only for users, writeable by admins
-    match /settings/{settingId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
-    }
     
-    // Ads are read-only for users, writeable by admins
-    match /ads/{adId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
-    }
-
-    // Tags and Payments are handled by server actions
-    match /tags/{tagId} {
-        allow read: if isSignedIn();
-        allow write: if false;
-    }
-
-    match /payments/{paymentId} {
-        allow read: if isAdmin();
-        allow write: if false;
-    }
+    // --- Admin, Settings, & Backend-Only Collections ---
+    match /notifications/{notificationId} { allow read, write: if false; }
+    match /settings/{settingId} { allow read: if true; allow write: if isAdmin(); }
+    match /tags/{tagId} { allow read: if true; allow write: if false; }
+    match /ads/{adId} { allow read: if true; allow write: if isAdmin(); }
+    match /payments/{paymentId} { allow read, write: if false; }
   }
 }
