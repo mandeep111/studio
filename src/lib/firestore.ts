@@ -106,7 +106,7 @@ export async function getSolution(id: string): Promise<Solution | null> {
 export async function getIdea(id: string): Promise<Idea | null> {
     const docRef = doc(db, "ideas", id);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...doc.data() } as Idea : null;
+    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Idea : null;
 }
 
 export async function getBusiness(id: string): Promise<Business | null> {
@@ -350,213 +350,6 @@ export async function getTags(): Promise<string[]> {
     return snapshot.docs.map(doc => doc.data().name as string);
 }
 
-export async function createProblem(title: string, description: string, tags: string[], price: number | null, creator: UserProfile, attachment?: File) {
-    await runTransaction(db, async (transaction) => {
-        let attachmentData: { url: string; name: string } | null = null;
-        if (attachment) {
-            attachmentData = await uploadAttachment(attachment);
-        }
-
-        const problemsCol = collection(db, "problems");
-        const newProblemRef = doc(problemsCol);
-
-        const priceApproved = price ? price <= 1000 : true;
-        
-        const problemData: Omit<Problem, 'id'> = {
-            title,
-            description,
-            tags,
-            creator: {
-                userId: creator.uid,
-                name: creator.name,
-                avatarUrl: creator.avatarUrl,
-                expertise: creator.expertise,
-            },
-            upvotes: 0,
-            upvotedBy: [],
-            solutionsCount: 0,
-            createdAt: serverTimestamp(),
-            price: price || null,
-            priceApproved,
-            attachmentUrl: attachmentData?.url || null,
-            attachmentFileName: attachmentData?.name || null,
-            interestedInvestorsCount: 0,
-            isClosed: false,
-        };
-        
-        transaction.set(newProblemRef, problemData);
-
-        const userRef = doc(db, "users", creator.uid);
-        transaction.update(userRef, { points: increment(50) });
-
-        if (!priceApproved) {
-            await createNotification(
-                "admins", 
-                `${creator.name} submitted a problem "${title}" with a price of $${price}, which requires approval.`,
-                `/problems/${newProblemRef.id}`
-            );
-        }
-    });
-
-    await addTags(tags);
-}
-
-
-export async function createSolution(description: string, problemId: string, problemTitle: string, price: number | null, creator: UserProfile, attachment?: File) {
-    const batch = writeBatch(db);
-    
-    let attachmentData: { url: string; name: string } | null = null;
-    if (attachment) {
-        attachmentData = await uploadAttachment(attachment);
-    }
-    
-    const solutionRef = doc(collection(db, "solutions"));
-    const problemRef = doc(db, "problems", problemId);
-    
-    const priceApproved = price ? price <= 1000 : true;
-
-    const solutionData: Omit<Solution, 'id'> = {
-        problemId,
-        problemTitle,
-        description,
-        creator: {
-            userId: creator.uid,
-            name: creator.name,
-            avatarUrl: creator.avatarUrl,
-            expertise: creator.expertise,
-        },
-        upvotes: 0,
-        upvotedBy: [],
-        createdAt: serverTimestamp(),
-        price: price || null,
-        priceApproved,
-        attachmentUrl: attachmentData?.url || null,
-        attachmentFileName: attachmentData?.name || null,
-        interestedInvestorsCount: 0,
-        isClosed: false,
-    };
-    
-    batch.set(solutionRef, solutionData);
-
-    batch.update(problemRef, { solutionsCount: increment(1) });
-
-    const problemDoc = await getDoc(problemRef);
-    const problemCreatorId = problemDoc.data()?.creator.userId;
-
-    if (problemCreatorId && problemCreatorId !== creator.uid) {
-        await createNotification(
-            problemCreatorId,
-            `${creator.name} proposed a new solution for your problem: "${problemTitle}"`,
-            `/problems/${problemId}`
-        );
-    }
-    if (!priceApproved) {
-        await createNotification(
-            "admins",
-            `${creator.name} submitted a solution for "${problemTitle}" with a price of $${price}, which requires approval.`,
-            `/solutions/${solutionRef.id}`
-        );
-    }
-    
-    await batch.commit();
-}
-
-export async function createIdea(title: string, description: string, tags: string[], price: number | null, creator: UserProfile, attachment?: File) {
-  const ideasCol = collection(db, "ideas");
-  
-  let attachmentData: { url: string; name: string } | null = null;
-    if (attachment) {
-        attachmentData = await uploadAttachment(attachment);
-    }
-    
-    const priceApproved = price ? price <= 1000 : true;
-  
-  const newIdeaRef = doc(ideasCol);
-
-  await addDoc(ideasCol, {
-    title,
-    description,
-    tags,
-    creator: {
-        userId: creator.uid,
-        name: creator.name,
-        avatarUrl: creator.avatarUrl,
-        expertise: creator.expertise,
-    },
-    upvotes: 0,
-    upvotedBy: [],
-    createdAt: serverTimestamp(),
-    price: price || null,
-    priceApproved,
-    attachmentUrl: attachmentData?.url || null,
-    attachmentFileName: attachmentData?.name || null,
-    interestedInvestorsCount: 0,
-    isClosed: false,
-  });
-
-   if (!priceApproved) {
-        await createNotification(
-            "admins",
-            `${creator.name} submitted an idea "${title}" with a price of $${price}, which requires approval.`,
-            `/ideas/${newIdeaRef.id}`
-        );
-    }
-
-  await addTags(tags);
-}
-
-export async function createBusiness(title: string, description: string, tags: string[], stage: string, price: number | null, creator: UserProfile, attachment?: File) {
-    await runTransaction(db, async (transaction) => {
-        let attachmentData: { url: string; name: string } | null = null;
-        if (attachment) {
-            attachmentData = await uploadAttachment(attachment);
-        }
-
-        const businessesCol = collection(db, "businesses");
-        const newBusinessRef = doc(businessesCol);
-
-        const priceApproved = price ? price <= 1000 : true;
-        
-        const businessData: Omit<Business, 'id'> = {
-            title,
-            description,
-            tags,
-            stage,
-            creator: {
-                userId: creator.uid,
-                name: creator.name,
-                avatarUrl: creator.avatarUrl,
-                expertise: creator.expertise,
-            },
-            upvotes: 0,
-            upvotedBy: [],
-            createdAt: serverTimestamp(),
-            price: price || null, 
-            priceApproved,
-            attachmentUrl: attachmentData?.url || null,
-            attachmentFileName: attachmentData?.name || null,
-            interestedInvestorsCount: 0,
-            isClosed: false,
-        };
-
-        transaction.set(newBusinessRef, businessData);
-
-        const userRef = doc(db, "users", creator.uid);
-        transaction.update(userRef, { points: increment(30) });
-
-        if (!priceApproved) {
-            await createNotification(
-                "admins",
-                `${creator.name} submitted a business "${title}" with funding of $${price}, which requires approval.`,
-                `/businesses/${newBusinessRef.id}`
-            );
-        }
-    });
-    
-    await addTags(tags);
-}
-
-
 // --- Upvote & Points ---
 
 // This function is deprecated in favor of the upvoteItemAction in actions.ts
@@ -564,24 +357,6 @@ export async function createBusiness(title: string, description: string, tags: s
 // We leave it here in case it's called from other places but it should be removed.
 async function toggleUpvote(collectionName: "problems" | "solutions" | "ideas" | "businesses", docId: string, userId: string) {
     // This logic has been moved to a server action for security.
-}
-
-
-export async function upvoteProblem(docId: string, userId: string) {
-    // Deprecated. Use upvoteItemAction.
-}
-export async function upvoteSolution(docId: string, userId: string) {
-    // Deprecated. Use upvoteItemAction.
-}
-export async function upvoteIdea(docId: string, userId: string) {
-    // Deprecated. Use upvoteItemAction.
-}
-export async function upvoteBusiness(docId: string, userId: string) {
-    // Deprecated. Use upvoteItemAction.
-}
-
-export async function upvoteInvestor(investorId: string, voterId: string) {
-    // Deprecated. Use upvoteItemAction.
 }
 
 
@@ -619,18 +394,119 @@ export async function findDealByUserAndItem(itemId: string, investorId: string):
     return { id: dealDoc.id, ...dealDoc.data() } as Deal;
 }
 
-// Deprecated in favor of server action
 export async function createDeal(
-    investorProfile: UserProfile, 
-    primaryCreatorId: string, 
-    itemId: string, 
-    itemTitle: string, 
+    investorProfile: UserProfile,
+    primaryCreatorId: string,
+    itemId: string,
+    itemTitle: string,
     itemType: 'problem' | 'idea' | 'business',
     amount: number,
     solutionCreatorId?: string
 ): Promise<string> {
-    // This logic has been moved to a server action for security.
-    return "";
+    // Dynamically import admin-only modules to keep this file client-safe
+    const { adminDb } = await import('./firebase/admin');
+    const { FieldValue } = await import('firebase-admin/firestore');
+
+    const itemRef = adminDb.collection(`${itemType}s`).doc(itemId);
+    const investorRef = adminDb.collection('users').doc(investorProfile.uid);
+    const primaryCreatorRef = adminDb.collection('users').doc(primaryCreatorId);
+    
+    const primaryCreatorSnap = await primaryCreatorRef.get();
+    if (!primaryCreatorSnap.exists) {
+        throw new Error(`Primary creator with ID ${primaryCreatorId} not found.`);
+    }
+    const primaryCreator = primaryCreatorSnap.data() as UserProfile;
+
+    let solutionCreator: UserProfile | null = null;
+    if (solutionCreatorId) {
+        const solutionCreatorRef = adminDb.collection('users').doc(solutionCreatorId);
+        const solutionCreatorSnap = await solutionCreatorRef.get();
+        if (solutionCreatorSnap.exists) {
+            solutionCreator = solutionCreatorSnap.data() as UserProfile;
+        }
+    }
+    
+    const participantIds = [investorProfile.uid, primaryCreatorId];
+    if (solutionCreatorId && solutionCreatorId !== primaryCreatorId) {
+        participantIds.push(solutionCreatorId);
+    }
+    
+    const dealRef = adminDb.collection('deals').doc();
+
+    const dealData: Omit<Deal, 'id'> = {
+        investor: {
+            userId: investorProfile.uid,
+            name: investorProfile.name,
+            avatarUrl: investorProfile.avatarUrl,
+            expertise: investorProfile.expertise,
+        },
+        primaryCreator: {
+            userId: primaryCreator.uid,
+            name: primaryCreator.name,
+            avatarUrl: primaryCreator.avatarUrl,
+            expertise: primaryCreator.expertise,
+        },
+        solutionCreator: solutionCreator ? {
+            userId: solutionCreator.uid,
+            name: solutionCreator.name,
+            avatarUrl: solutionCreator.avatarUrl,
+            expertise: solutionCreator.expertise,
+        } : undefined,
+        relatedItemId: itemId,
+        title: itemTitle,
+        type: itemType,
+        createdAt: FieldValue.serverTimestamp() as any,
+        participantIds,
+        status: 'active',
+    };
+
+    const paymentRef = adminDb.collection('payments').doc();
+
+    await adminDb.runTransaction(async (transaction) => {
+        // Create the deal
+        transaction.set(dealRef, dealData);
+        // Update item interested count
+        transaction.update(itemRef, { interestedInvestorsCount: FieldValue.increment(1) });
+        // Update user deal counts
+        transaction.update(investorRef, { dealsCount: FieldValue.increment(1) });
+        transaction.update(primaryCreatorRef, { dealsCount: FieldValue.increment(1) });
+        if (solutionCreatorId && solutionCreatorId !== primaryCreatorId) {
+            transaction.update(adminDb.collection('users').doc(solutionCreatorId), { dealsCount: FieldValue.increment(1) });
+        }
+        
+        // Log payment record (even for free deals, with amount 0)
+        transaction.set(paymentRef, {
+            userId: investorProfile.uid,
+            userName: investorProfile.name,
+            userAvatarUrl: investorProfile.avatarUrl,
+            type: 'deal_creation',
+            amount: amount,
+            createdAt: FieldValue.serverTimestamp(),
+            relatedDealId: dealRef.id,
+            relatedDealTitle: itemTitle,
+        });
+    });
+
+    // Send notifications and initial message outside the transaction
+    const dealLink = `/deals/${dealRef.id}`;
+    const notificationMessage = `${investorProfile.name} has started a deal for your ${itemType}: "${itemTitle}"`;
+    await createNotification(primaryCreatorId, notificationMessage, dealLink);
+    if (solutionCreatorId && solutionCreatorId !== primaryCreatorId) {
+        await createNotification(solutionCreatorId, notificationMessage, dealLink);
+    }
+
+    await addSystemMessage(dealRef.id, 'Deal started! You can now chat securely.');
+
+    // Update unread message counts for participants (except the investor who started it)
+    const batch = adminDb.batch();
+    const unreadUpdate = { [`unreadDealMessages.${dealRef.id}`]: 1 };
+    batch.update(primaryCreatorRef, unreadUpdate);
+    if (solutionCreatorId && solutionCreatorId !== primaryCreatorId) {
+        batch.update(adminDb.collection('users').doc(solutionCreatorId), unreadUpdate);
+    }
+    await batch.commit();
+
+    return dealRef.id;
 }
 
 
@@ -660,11 +536,6 @@ export async function getMessages(dealId: string): Promise<Message[]> {
     const q = query(messagesCol, orderBy("createdAt", "asc"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-}
-
-// Deprecated in favor of server action
-export async function sendMessage(dealId: string, text: string, sender: UserProfile) {
-    // This logic has been moved to a server action for security.
 }
 
 export async function addSystemMessage(dealId: string, text: string) {
@@ -791,17 +662,6 @@ export async function getUnapprovedItems() {
     return [...problems, ...solutions, ...businesses, ...ideas];
 }
 
-// Deprecated in favor of server action
-export async function approveItem(type: 'problem' | 'solution' | 'business' | 'idea', id: string) {
-    // This logic has been moved to a server action for security.
-}
-
-// Deprecated in favor of server action
-export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad', id: string) {
-    // This logic has been moved to a server action for security.
-}
-
-
 // --- Ads ---
 
 export async function getAds(): Promise<Ad[]> {
@@ -822,16 +682,6 @@ export async function getActiveAdForPlacement(placement: Ad['placement']): Promi
     return { id: adDoc.id, ...adDoc.data() } as Ad;
 }
 
-// Deprecated in favor of server action
-export async function createAd(data: Omit<Ad, 'id' | 'createdAt' | 'isActive'>) {
-    // This logic has been moved to a server action for security.
-}
-
-// Deprecated in favor of server action
-export async function toggleAdStatus(id: string, isActive: boolean) {
-    // This logic has been moved to a server action for security.
-}
-
 // --- Platform Settings ---
 
 export async function getPaymentSettings(): Promise<PaymentSettings> {
@@ -842,16 +692,6 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     }
     // Default to enabled if not set
     return { isEnabled: true };
-}
-
-// Deprecated in favor of server action
-export async function updatePaymentSettings(isEnabled: boolean) {
-    // This logic has been moved to a server action for security.
-}
-
-// Deprecated in favor of server action
-export async function updateUserProfile(userId: string, data: { name: string; expertise: string }, avatarFile?: File) {
-    // This logic has been moved to a server action for security.
 }
 
 // --- Counts for Stats ---
@@ -889,30 +729,49 @@ export async function getCounts() {
 }
 
 
-// --- Content Editing ---
+// --- Functions below are deprecated and logic has moved to server actions ---
+// They are kept for reference or if any part of the app still calls them,
+// but they should be considered unsafe for direct client-side use for writes.
 
-// Deprecated in favor of server action
-async function handleItemUpdate(
-    id: string,
-    collectionName: 'problems' | 'solutions' | 'ideas' | 'businesses',
-    data: { title?: string; description: string; tags?: string[]; stage?: string; },
-    attachment?: File
-) {
-    // This logic has been moved to a server action for security.
+export async function approveItem(type: 'problem' | 'solution' | 'business' | 'idea', id: string) {
+    console.warn("DEPRECATED: approveItem called from firestore.ts. Use server action instead.");
+}
+
+export async function deleteItem(type: 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad', id: string) {
+    console.warn("DEPRECATED: deleteItem called from firestore.ts. Use server action instead.");
+}
+
+export async function createAd(data: Omit<Ad, 'id' | 'createdAt' | 'isActive'>) {
+    console.warn("DEPRECATED: createAd called from firestore.ts. Use server action instead.");
+}
+
+export async function toggleAdStatus(id: string, isActive: boolean) {
+     console.warn("DEPRECATED: toggleAdStatus called from firestore.ts. Use server action instead.");
+}
+
+export async function updatePaymentSettings(isEnabled: boolean) {
+     console.warn("DEPRECATED: updatePaymentSettings called from firestore.ts. Use server action instead.");
+}
+
+export async function updateUserProfile(userId: string, data: { name: string; expertise: string }, avatarFile?: File) {
+    console.warn("DEPRECATED: updateUserProfile called from firestore.ts. Use server action instead.");
 }
 
 export const updateProblem = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => {
-    // This logic has been moved to a server action for security.
+    console.warn("DEPRECATED: updateProblem called from firestore.ts. Use server action instead.");
 }
 
 export const updateSolution = (id: string, data: { description: string }, attachment?: File) => {
-    // This logic has been moved to a server action for security.
+    console.warn("DEPRECATED: updateSolution called from firestore.ts. Use server action instead.");
 }
 
 export const updateIdea = (id: string, data: { title: string; description: string; tags: string[] }, attachment?: File) => {
-    // This logic has been moved to a server action for security.
+    console.warn("DEPRECATED: updateIdea called from firestore.ts. Use server action instead.");
 }
 
 export const updateBusiness = (id: string, data: { title: string; description: string; tags: string[]; stage: string }, attachment?: File) => {
-    // This logic has been moved to a server action for security.
+    console.warn("DEPRECATED: updateBusiness called from firestore.ts. Use server action instead.");
+}
+export async function sendMessage(dealId: string, text: string, sender: UserProfile) {
+    console.warn("DEPRECATED: sendMessage called from firestore.ts. Use server action instead.");
 }

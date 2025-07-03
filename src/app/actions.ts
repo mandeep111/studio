@@ -3,7 +3,7 @@
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
 import { 
-    createDealInDb, 
+    createDeal, 
     getAllUsers, 
     approveItem as approveItemInDb, 
     deleteItem as deleteItemInDb, 
@@ -35,8 +35,6 @@ import type { UserProfile, Ad, PaymentSettings, Deal, Problem, Solution, Idea, B
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
-import { adminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
 
 const SuggestPairingsSchema = z.object({
   investorProfile: z.string().min(10, { message: "Investor profile must be at least 10 characters long." }),
@@ -232,7 +230,7 @@ export async function startDealAction(
     try {
         // Free deal creation path
         if (!isEnabled) {
-            const dealId = await createDealInDb(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
+            const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
             revalidatePath(`/${itemType}s/${itemId}`);
             return { success: true, dealId };
         }
@@ -478,6 +476,9 @@ async function createItemAction(
 ) {
     if (!creator) return { success: false, message: "User profile not found." };
     
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
     const priceStr = formData.get('price') as string;
@@ -560,6 +561,9 @@ export async function createBusinessAction(creator: UserProfile, formData: FormD
 export async function createSolutionAction(creator: UserProfile, formData: FormData) {
     if (!creator) return { success: false, message: "User profile not found." };
     
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+
     const description = formData.get('description') as string;
     const priceStr = formData.get('price') as string;
     const attachment = formData.get('attachment') as File | null;
@@ -634,6 +638,9 @@ export async function upvoteItemAction(
 ) {
     if (!userId) return { success: false, message: "You must be logged in." };
     
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
+
     try {
         const collectionName = itemType === 'investor' ? 'users' : `${itemType}s`;
         const itemRef = adminDb.collection(collectionName).doc(itemId);
