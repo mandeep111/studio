@@ -1,11 +1,134 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow reads and writes for any authenticated user.
-    // This is not recommended for production without further refinement,
-    // but it is a good starting point for a prototype.
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+  
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'Admin';
+    }
+
+    function isCreatingOwnDocument() {
+        return request.auth.uid == request.resource.id;
+    }
+    
+    function isCreator() {
+      return request.auth.uid == request.resource.data.creator.userId;
+    }
+
+    function isImmutable(field) {
+      return request.resource.data[field] == resource.data[field];
+    }
+    
+    // --- Collection Rules ---
+
+    // Users can read any profile, but only update their own non-critical fields.
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isCreatingOwnDocument() && request.resource.data.role != 'Admin';
+      allow update: if isSignedIn() && isOwner(userId) 
+                      && isImmutable('role') 
+                      && isImmutable('points')
+                      && isImmutable('isPremium')
+                      && isImmutable('email')
+                      && isImmutable('dealsCount')
+                      && isImmutable('dealsCompletedCount')
+                      && isImmutable('dealsCancelledCount');
+      allow delete: if isAdmin(); 
+    }
+    
+    // Problems, Ideas, Businesses - Content that can be created
+    match /{collectionName}/{itemId} where collectionName in ['problems', 'ideas', 'businesses'] {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+                    && isCreator()
+                    && request.resource.data.upvotes == 0
+                    && (request.resource.data.solutionsCount == 0 || !('solutionsCount' in request.resource.data))
+                    && request.resource.data.interestedInvestorsCount == 0
+                    && request.resource.data.upvotedBy == []
+                    && request.resource.data.isClosed == false;
+      allow update: if isSignedIn() && isOwner(resource.data.creator.userId)
+                      && isImmutable('creator')
+                      && isImmutable('upvotes')
+                      && isImmutable('upvotedBy')
+                      && isImmutable('solutionsCount')
+                      && isImmutable('interestedInvestorsCount')
+                      && isImmutable('isClosed');
+      allow delete: if isSignedIn() && (isOwner(resource.data.creator.userId) || isAdmin());
+    }
+    
+    // Solutions are special as they relate to problems
+    match /solutions/{solutionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && isCreator()
+                    && request.resource.data.upvotes == 0
+                    && request.resource.data.interestedInvestorsCount == 0
+                    && request.resource.data.upvotedBy == []
+                    && request.resource.data.isClosed == false
+                    && get(/databases/$(database)/documents/problems/$(request.resource.data.problemId)).data.creator.userId != request.auth.uid;
+      allow update: if isSignedIn() && isOwner(resource.data.creator.userId)
+                      && isImmutable('creator')
+                      && isImmutable('problemId')
+                      && isImmutable('problemTitle')
+                      && isImmutable('upvotes')
+                      && isImmutable('upvotedBy')
+                      && isImmutable('interestedInvestorsCount')
+                      && isImmutable('isClosed');
+      allow delete: if isSignedIn() && (isOwner(resource.data.creator.userId) || isAdmin());
+    }
+    
+    // Deals and Messages have stricter access controls
+    match /deals/{dealId} {
+      allow read, update: if isSignedIn() && request.auth.uid in resource.data.participantIds;
+      allow create, delete: if false; // Handled by server actions
+      
+      match /messages/{messageId} {
+        allow read, create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds;
+        allow update, delete: if false;
+      }
+    }
+
+    // Notifications can be read by their target user or admins.
+    match /notifications/{notificationId} {
+        allow read: if isSignedIn() && (isOwner(resource.data.userId) || (resource.data.userId == "admins" && isAdmin()));
+        allow update: if isSignedIn() && isOwner(resource.data.userId) && request.resource.data.read == true;
+        allow create, delete: if false;
+    }
+
+    // Settings are read-only for users, writeable by admins
+    match /settings/{settingId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+    
+    // Ads are read-only for users, writeable by admins
+    match /ads/{adId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+
+    // Tags and Payments are handled by server actions
+    match /tags/{tagId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+    }
+
+    match /payments/{paymentId} {
+        allow read: if isAdmin();
+        allow write: if false;
     }
   }
 }
