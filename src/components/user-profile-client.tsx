@@ -284,6 +284,9 @@ export default function UserProfileClient({
                         </Avatar>
                         <CardTitle className="text-2xl">{profile.name}</CardTitle>
                         <CardDescription>{profile.expertise}</CardDescription>
+                        {isOwnProfile && (
+                             <CardDescription className="text-xs text-muted-foreground pt-1">{profile.email}</CardDescription>
+                        )}
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="flex items-center gap-2 text-muted-foreground">

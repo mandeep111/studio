@@ -47,6 +47,7 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
   const isSubmitDisabled = authLoading || formLoading || !user;
 
   const canSetPrice = userProfile && (userProfile.isPremium || userProfile.points >= 10000);
+  const showPriceInput = !isPaymentEnabled || canSetPrice;
 
 
   const onSubmit = async (values: z.infer<typeof businessFormSchema>) => {
@@ -56,13 +57,8 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
     }
     setFormLoading(true);
 
-    const price = canSetPrice && values.price ? parseFloat(values.price) : null;
-    if (canSetPrice && !values.price) {
-        form.setError("price", { type: "manual", message: "Funding sought is required for premium users." });
-        setFormLoading(false);
-        return;
-    }
-     if (canSetPrice && values.price && isNaN(price)) {
+    const price = showPriceInput && values.price ? parseFloat(values.price) : null;
+     if (showPriceInput && values.price && isNaN(price)) {
          form.setError("price", { type: "manual", message: "Price must be a valid number." });
          setFormLoading(false);
          return;
@@ -153,7 +149,7 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
 
         <div className="space-y-2">
             <Label>Funding Sought</Label>
-            {canSetPrice ? (
+            {showPriceInput ? (
                 <FormField
                   control={form.control}
                   name="price"
@@ -172,12 +168,12 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
                     </FormItem>
                   )}
                 />
-            ) : isPaymentEnabled ? (
+            ) : (
             <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 rounded-md bg-muted border">
                     <Gem className="h-4 w-4 text-primary" />
                     <span>Become an <Link href="/membership" className="underline text-primary">Investor</Link> or earn 10,000 points to set a price.</span>
                 </div>
-            ) : null}
+            )}
         </div>
         <div className="space-y-2">
             <Label htmlFor="tags">Tags (Optional)</Label>
