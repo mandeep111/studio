@@ -30,6 +30,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
@@ -52,6 +54,13 @@ export default function RootLayout({
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />
+        {siteKey && (
+           <Script
+            id="recaptcha-script"
+            src={`https://www.google.com/recaptcha/enterprise.js?render=${siteKey}`}
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );

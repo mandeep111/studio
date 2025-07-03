@@ -29,6 +29,28 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { verifyRecaptcha } from "@/app/actions";
+
+const executeRecaptcha = (action: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+        const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+        if (!siteKey || typeof window === 'undefined' || !(window as any).grecaptcha?.enterprise) {
+            console.warn("reCAPTCHA not configured or not loaded. Skipping.");
+            resolve(null);
+            return;
+        }
+
+        (window as any).grecaptcha.enterprise.ready(async () => {
+            try {
+                const token = await (window as any).grecaptcha.enterprise.execute(siteKey, { action });
+                resolve(token);
+            } catch (error) {
+                console.error("reCAPTCHA execution error:", error);
+                resolve(null);
+            }
+        });
+    });
+};
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" {...props}>
@@ -117,6 +139,31 @@ export function AuthForm() {
 
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setLoading(true);
+
+    if (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
+        const token = await executeRecaptcha('LOGIN');
+        if (!token) {
+            toast({
+                variant: "destructive",
+                title: "Security Error",
+                description: "Could not initialize security check. Please refresh the page and try again.",
+            });
+            setLoading(false);
+            return;
+        }
+
+        const recaptchaResult = await verifyRecaptcha(token);
+        if (!recaptchaResult.success) {
+            toast({
+                variant: "destructive",
+                title: "Security Check Failed",
+                description: recaptchaResult.message,
+            });
+            setLoading(false);
+            return;
+        }
+    }
+
     try {
       const result = await signInWithEmailAndPassword(auth, values.email, values.password);
       if (!result.user.emailVerified) {
@@ -186,6 +233,31 @@ export function AuthForm() {
 
   const handleSignUp = async (values: z.infer<typeof signupSchema>) => {
     setLoading(true);
+    
+    if (process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) {
+        const token = await executeRecaptcha('SIGNUP');
+        if (!token) {
+            toast({
+                variant: "destructive",
+                title: "Security Error",
+                description: "Could not initialize security check. Please refresh the page and try again.",
+            });
+            setLoading(false);
+            return;
+        }
+
+        const recaptchaResult = await verifyRecaptcha(token);
+        if (!recaptchaResult.success) {
+            toast({
+                variant: "destructive",
+                title: "Security Check Failed",
+                description: recaptchaResult.message,
+            });
+            setLoading(false);
+            return;
+        }
+    }
+
     try {
       const usersCollectionRef = collection(db, "users");
       const q = query(usersCollectionRef, limit(1));

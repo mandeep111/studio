@@ -491,3 +491,49 @@ export async function updateBusinessAction(formData: FormData) {
     const id = formData.get('id') as string;
     return handleContentUpdate(id, 'business', updateBusiness, formData);
 }
+
+export async function verifyRecaptcha(token: string): Promise<{ success: boolean; message: string }> {
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+  if (!secretKey || !siteKey || !projectId) {
+    console.warn("reCAPTCHA environment variables not set. Skipping verification.");
+    return { success: true, message: "reCAPTCHA not configured, skipping." };
+  }
+
+  const verificationUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${projectId}/assessments`;
+  
+  try {
+    const response = await fetch(verificationUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      },
+      body: JSON.stringify({
+        event: {
+          token: token,
+          siteKey: siteKey,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.json();
+        console.error("reCAPTCHA API error:", errorBody);
+        return { success: false, message: "Could not communicate with reCAPTCHA service." };
+    }
+
+    const data = await response.json();
+    
+    if (data.tokenProperties?.valid && data.riskAnalysis?.score >= 0.5) {
+      return { success: true, message: "reCAPTCHA verification successful." };
+    } else {
+      console.warn("reCAPTCHA verification failed:", data.tokenProperties, data.riskAnalysis);
+      return { success: false, message: "reCAPTCHA verification failed. Please try again." };
+    }
+  } catch (error) {
+    console.error("Error during reCAPTCHA verification:", error);
+    return { success: false, message: "An unexpected error occurred during reCAPTCHA verification." };
+  }
+}
