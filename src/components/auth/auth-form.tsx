@@ -152,7 +152,7 @@ export function AuthForm() {
             return;
         }
 
-        const recaptchaResult = await verifyRecaptcha(token);
+        const recaptchaResult = await verifyRecaptcha(token, 'LOGIN');
         if (!recaptchaResult.success) {
             toast({
                 variant: "destructive",
@@ -246,7 +246,7 @@ export function AuthForm() {
             return;
         }
 
-        const recaptchaResult = await verifyRecaptcha(token);
+        const recaptchaResult = await verifyRecaptcha(token, 'SIGNUP');
         if (!recaptchaResult.success) {
             toast({
                 variant: "destructive",

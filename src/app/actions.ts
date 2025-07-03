@@ -86,8 +86,7 @@ export async function getAiPairings(
       investorProfile,
       problems: simplifiedProblems,
       problemCreators,
-      solutionCreators,
-      ideas: simplifiedIdeas
+      solutionCreators
     });
     
     if (
@@ -492,17 +491,19 @@ export async function updateBusinessAction(formData: FormData) {
     return handleContentUpdate(id, 'business', updateBusiness, formData);
 }
 
-export async function verifyRecaptcha(token: string): Promise<{ success: boolean; message: string }> {
-  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+export async function verifyRecaptcha(token: string, action: string): Promise<{ success: boolean; message: string }> {
   const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-  if (!secretKey || !siteKey || !projectId) {
+  if (!siteKey || !projectId || !apiKey) {
     console.warn("reCAPTCHA environment variables not set. Skipping verification.");
+    // In a real production environment, you might want to fail this check.
+    // For development convenience, we can allow it to pass.
     return { success: true, message: "reCAPTCHA not configured, skipping." };
   }
 
-  const verificationUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${projectId}/assessments`;
+  const verificationUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${projectId}/assessments?key=${apiKey}`;
   
   try {
     const response = await fetch(verificationUrl, {
@@ -514,6 +515,7 @@ export async function verifyRecaptcha(token: string): Promise<{ success: boolean
         event: {
           token: token,
           siteKey: siteKey,
+          expectedAction: action,
         },
       }),
     });
@@ -526,6 +528,7 @@ export async function verifyRecaptcha(token: string): Promise<{ success: boolean
 
     const data = await response.json();
     
+    // Check for a valid token and a risk score below a threshold (e.g., 0.5 is a common starting point)
     if (data.tokenProperties?.valid && data.riskAnalysis?.score >= 0.5) {
       return { success: true, message: "reCAPTCHA verification successful." };
     } else {
