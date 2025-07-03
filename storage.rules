@@ -1,37 +1,15 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-  
-    // Helper function to check if a user is authenticated
-    function isSignedIn() {
-      return request.auth != null;
+    // Allow public read on all files by default
+    match /{allPaths=**} {
+      allow read;
     }
-  
-    // Profile avatars: Any authenticated user can upload their own avatar.
-    // Publicly readable by anyone to display images.
-    match /avatars/{userId}/{fileName} {
-      allow read: if true;
-      allow write: if isSignedIn() && request.auth.uid == userId;
-    }
-    
-    // Attachments: Any authenticated user can upload an attachment.
-    // The filename will be a UUID, making it unguessable.
-    // Reading is controlled by the Firestore document that holds the URL.
+
+    // Allow authenticated users to write to the 'attachments' folder.
     match /attachments/{fileName} {
-      allow read: if true; // The URL is unguessable, so this is safe.
-      allow write: if isSignedIn();
-    }
-    
-    // Ad images: Only admins should manage these, but for simplicity,
-    // we'll allow any authenticated user to write. In a real production app
-    // with more granular admin roles, this would be locked down.
-    match /ads/{fileName} {
-        allow read: if true;
-        allow write: if isSignedIn();
+      allow write: if request.auth != null;
     }
   }
 }
-
-    

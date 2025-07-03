@@ -1,5 +1,4 @@
-import admin from 'firebase-admin';
-import { getApps, initializeApp, getApp, type App } from 'firebase-admin/app';
+import { getApps, initializeApp, getApp, type App, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
@@ -13,7 +12,7 @@ function getAdminApp(): App {
   // When running in a Google Cloud environment (like App Hosting),
   // the SDK will automatically find the service account credentials.
   return initializeApp({
-    credential: admin.credential.applicationDefault(),
+    credential: applicationDefault(),
     storageBucket: `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
   });
 }
