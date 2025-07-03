@@ -593,20 +593,17 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
     }
 }
 
-export async function createProblemAction(payload: {
-    userId: string;
-    title: string;
-    description: string;
-    price: string | undefined;
-    tags: string[];
-    attachment: File | null;
-}) {
-    const { adminDb } = await import("@/lib/firebase/admin");
+export async function createProblemAction(userId: string, formData: FormData) {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const { FieldValue } = await import("firebase-admin/firestore");
 
-    const { userId, title, description, price: priceStr, tags, attachment } = payload;
-    
     try {
+        const title = formData.get('title') as string;
+        const description = formData.get('description') as string;
+        const priceStr = formData.get('price') as string | null;
+        const tags = formData.getAll('tags') as string[];
+        const attachment = formData.get('attachment') as File | null;
+        
         const userSnap = await adminDb.collection('users').doc(userId).get();
         if (!userSnap.exists) return { success: false, message: "User profile not found." };
         const creator = userSnap.data() as UserProfile;
@@ -659,20 +656,17 @@ export async function createProblemAction(payload: {
     }
 }
 
-export async function createIdeaAction(payload: {
-    userId: string;
-    title: string;
-    description: string;
-    price: string | undefined;
-    tags: string[];
-    attachment: File | null;
-}) {
+export async function createIdeaAction(userId: string, formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
     
-    const { userId, title, description, price: priceStr, tags, attachment } = payload;
-
     try {
+        const title = formData.get('title') as string;
+        const description = formData.get('description') as string;
+        const priceStr = formData.get('price') as string | null;
+        const tags = formData.getAll('tags') as string[];
+        const attachment = formData.get('attachment') as File | null;
+
         const userSnap = await adminDb.collection('users').doc(userId).get();
         if (!userSnap.exists) return { success: false, message: "User profile not found." };
         const creator = userSnap.data() as UserProfile;
@@ -725,21 +719,18 @@ export async function createIdeaAction(payload: {
     }
 }
 
-export async function createBusinessAction(payload: {
-    userId: string;
-    title: string;
-    description: string;
-    stage: string;
-    price: string | undefined;
-    tags: string[];
-    attachment: File | null;
-}) {
+export async function createBusinessAction(userId: string, formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
-
-    const { userId, title, description, stage, price: priceStr, tags, attachment } = payload;
     
     try {
+        const title = formData.get('title') as string;
+        const description = formData.get('description') as string;
+        const stage = formData.get('stage') as string;
+        const priceStr = formData.get('price') as string | null;
+        const tags = formData.getAll('tags') as string[];
+        const attachment = formData.get('attachment') as File | null;
+
         const userSnap = await adminDb.collection('users').doc(userId).get();
         if (!userSnap.exists) return { success: false, message: "User profile not found." };
         const creator = userSnap.data() as UserProfile;
@@ -793,20 +784,17 @@ export async function createBusinessAction(payload: {
 }
 
 
-export async function createSolutionAction(payload: {
-    userId: string;
-    description: string;
-    price: string | undefined;
-    attachment: File | null;
-    problemId: string;
-    problemTitle: string;
-}) {
+export async function createSolutionAction(userId: string, formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
 
-    const { userId, description, price: priceStr, attachment, problemId, problemTitle } = payload;
-    
     try {
+        const description = formData.get('description') as string;
+        const priceStr = formData.get('price') as string | null;
+        const problemId = formData.get('problemId') as string;
+        const problemTitle = formData.get('problemTitle') as string;
+        const attachment = formData.get('attachment') as File | null;
+
         const userSnap = await adminDb.collection('users').doc(userId).get();
         if (!userSnap.exists) return { success: false, message: "User profile not found." };
         const creator = userSnap.data() as UserProfile;

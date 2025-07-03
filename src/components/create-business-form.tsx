@@ -69,18 +69,22 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
     }
     setFormLoading(true);
 
-    const result = await createBusinessAction({
-      userId: user.uid,
-      title: values.title,
-      description: values.description,
-      stage: values.stage,
-      price: values.price,
-      tags,
-      attachment,
-    });
+    const formData = new FormData();
+    formData.append('title', values.title);
+    formData.append('description', values.description);
+    formData.append('stage', values.stage);
+    if (values.price) {
+        formData.append('price', values.price);
+    }
+    tags.forEach(tag => formData.append('tags', tag));
+    if (attachment) {
+        formData.append('attachment', attachment);
+    }
+    
+    const result = await createBusinessAction(user.uid, formData);
 
     if (result.success) {
-        toast({ title: "Success!", description: result.message });
+        toast({ title: "Success!", description: "Business submitted successfully." });
         form.reset();
         setTags([]);
         handleRemoveAttachment();

@@ -67,17 +67,21 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
     }
     setFormLoading(true);
     
-    const result = await createSolutionAction({
-      userId: user.uid,
-      description: values.description,
-      price: values.price,
-      problemId,
-      problemTitle,
-      attachment,
-    });
+    const formData = new FormData();
+    formData.append('description', values.description);
+    if (values.price) {
+        formData.append('price', values.price);
+    }
+    formData.append('problemId', problemId);
+    formData.append('problemTitle', problemTitle);
+    if (attachment) {
+        formData.append('attachment', attachment);
+    }
+
+    const result = await createSolutionAction(user.uid, formData);
     
     if (result.success) {
-        toast({ title: "Success!", description: result.message });
+        toast({ title: "Success!", description: "Solution submitted successfully." });
         form.reset();
         handleRemoveAttachment();
         onSolutionCreated();
