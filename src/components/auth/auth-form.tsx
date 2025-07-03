@@ -100,6 +100,8 @@ export function AuthForm() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const isFieldsDisabled = loading || googleLoading;
+
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -318,7 +320,7 @@ export function AuthForm() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading || loading}>
+                  <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={isFieldsDisabled}>
                     {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
                     Login with Google
                   </Button>
@@ -341,7 +343,7 @@ export function AuthForm() {
                         <FormControl>
                           <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="m@example.com" {...field} disabled={loading} className="pl-10" />
+                            <Input placeholder="m@example.com" {...field} disabled={isFieldsDisabled} className="pl-10" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -357,7 +359,7 @@ export function AuthForm() {
                         <FormControl>
                            <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input type={showLoginPassword ? "text" : "password"} {...field} disabled={loading} className="pl-10 pr-10" />
+                                <Input type={showLoginPassword ? "text" : "password"} {...field} disabled={isFieldsDisabled} className="pl-10 pr-10" />
                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowLoginPassword(prev => !prev)}>
                                     {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </Button>
@@ -395,7 +397,7 @@ export function AuthForm() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button disabled={loading || googleLoading} className="w-full" type="submit">
+                  <Button disabled={isFieldsDisabled} className="w-full" type="submit">
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Login
                   </Button>
@@ -415,7 +417,7 @@ export function AuthForm() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                   <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={googleLoading || loading}>
+                   <Button variant="outline" type="button" className="w-full" onClick={handleGoogleSignIn} disabled={isFieldsDisabled}>
                      {googleLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-4 w-4" />}
                     Sign Up with Google
                   </Button>
@@ -438,7 +440,7 @@ export function AuthForm() {
                         <FormControl>
                           <div className="relative">
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Your name" {...field} disabled={loading} className="pl-10" />
+                            <Input placeholder="Your name" {...field} disabled={isFieldsDisabled} className="pl-10" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -454,7 +456,7 @@ export function AuthForm() {
                         <FormControl>
                           <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="m@example.com" {...field} disabled={loading} className="pl-10" />
+                            <Input placeholder="m@example.com" {...field} disabled={isFieldsDisabled} className="pl-10" />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -470,7 +472,7 @@ export function AuthForm() {
                         <FormControl>
                            <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input type={showSignupPassword ? "text" : "password"} {...field} disabled={loading} className="pl-10 pr-10" />
+                                <Input type={showSignupPassword ? "text" : "password"} {...field} disabled={isFieldsDisabled} className="pl-10 pr-10" />
                                 <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7" onClick={() => setShowSignupPassword(prev => !prev)}>
                                     {showSignupPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </Button>
@@ -493,7 +495,7 @@ export function AuthForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>I am a...</FormLabel>
-                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={loading}>
+                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isFieldsDisabled}>
                            <FormControl>
                             <SelectTrigger>
                                 <SelectValue placeholder="Select your role" />
@@ -529,7 +531,7 @@ export function AuthForm() {
                   />
                 </CardContent>
                 <CardFooter>
-                  <Button disabled={loading || googleLoading} className="w-full" type="submit">
+                  <Button disabled={isFieldsDisabled} className="w-full" type="submit">
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Create Account
                   </Button>
