@@ -438,12 +438,52 @@ export async function approveItemAction(formData: FormData) {
 
 export async function deleteItemAction(formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
+    const { FieldValue } = await import("firebase-admin/firestore");
     const type = formData.get('type') as 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad';
     const id = formData.get('id') as string;
 
+    if (!type || !id) {
+        return { success: false, message: 'Invalid request. Missing type or id.' };
+    }
+
     try {
-        const collectionName = type === 'user' ? 'users' : `${type}s`;
-        await adminDb.collection(collectionName).doc(id).delete();
+        if (type === 'problem') {
+            // Batch delete problem and its solutions
+            const problemRef = adminDb.collection('problems').doc(id);
+            const solutionsQuery = adminDb.collection('solutions').where('problemId', '==', id);
+            
+            const solutionsSnapshot = await solutionsQuery.get();
+            
+            const batch = adminDb.batch();
+            batch.delete(problemRef);
+            solutionsSnapshot.forEach(doc => {
+                batch.delete(doc.ref);
+            });
+
+            await batch.commit();
+
+        } else if (type === 'solution') {
+            // Transactional delete to update problem's solution count
+            const solutionRef = adminDb.collection('solutions').doc(id);
+            await adminDb.runTransaction(async (transaction) => {
+                const solutionDoc = await transaction.get(solutionRef);
+                if (!solutionDoc.exists) {
+                    throw new Error("Solution not found");
+                }
+                const problemId = solutionDoc.data()?.problemId;
+                if (problemId) {
+                    const problemRef = adminDb.collection('problems').doc(problemId);
+                    transaction.update(problemRef, { solutionsCount: FieldValue.increment(-1) });
+                }
+                transaction.delete(solutionRef);
+            });
+
+        } else {
+            // Simple delete for other types
+            const collectionName = type === 'user' ? 'users' : `${type}s`;
+            await adminDb.collection(collectionName).doc(id).delete();
+        }
+
         revalidatePath('/admin');
         revalidatePath('/');
         return { success: true, message: 'Item deleted successfully!' };
