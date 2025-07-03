@@ -9,18 +9,19 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users, Info, Loader2, Edit } from "lucide-react";
+import { ArrowLeft, MessageSquare, ThumbsUp, CheckCircle, DollarSign, Coffee, File, Gem, Users, Info, Loader2, Edit, Trash2 } from "lucide-react";
 import SolutionCard from "@/components/solution-card";
 import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { startDealAction, findExistingDealAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import AdDisplay from "./ad-display";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { motion } from "framer-motion";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
@@ -61,6 +62,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [dealConfig, setDealConfig] = useState<{ solution?: Solution } | null>(null);
   const [isDealLoading, setIsDealLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -237,6 +239,25 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
       }
   }
 
+  const handleDelete = async () => {
+    if (!user || user.uid !== problem.creator.userId) return;
+    setIsDeleting(true);
+
+    const formData = new FormData();
+    formData.append('type', 'problem');
+    formData.append('id', problem.id);
+
+    const result = await deleteItemAction(formData);
+
+    if(result.success) {
+      toast({ title: "Success", description: "Problem deleted successfully." });
+      router.push('/marketplace');
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.message });
+      setIsDeleting(false);
+    }
+  };
+
 
   const isProblemCreator = user?.uid === problem?.creator.userId;
   const isProblemUpvoted = user && problem ? problem.upvotedBy.includes(user.uid) : false;
@@ -259,12 +280,36 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
           Back to all problems
         </Link>
         {isProblemCreator && (
-            <Button asChild variant="outline">
-                <Link href={`/problems/${problem.id}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Problem
-                </Link>
-            </Button>
+            <div className="flex gap-2">
+                <Button asChild variant="outline" size="sm">
+                    <Link href={`/problems/${problem.id}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                    </Link>
+                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your problem "{problem.title}" and all its solutions.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Yes, delete it
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
         )}
       </div>
        {!isPaymentEnabled && (
@@ -279,17 +324,19 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, ad
       <Card>
         <CardHeader>
           <div className="flex items-start gap-4">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={problem.creator.avatarUrl} alt={problem.creator.name} />
-              <AvatarFallback>{problem.creator.name.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <Link href={`/users/${problem.creator.userId}`}>
+                <Avatar className="h-12 w-12">
+                    <AvatarImage src={problem.creator.avatarUrl} alt={problem.creator.name} />
+                    <AvatarFallback>{problem.creator.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+            </Link>
             <div>
                 <div className="flex items-center gap-4">
                     <CardTitle className="text-2xl lg:text-3xl">{problem.title}</CardTitle>
                     {problem.isClosed && <Badge variant="destructive">Closed</Badge>}
                 </div>
               <CardDescription className="mt-1">
-                Problem by {problem.creator.name} &bull; Expertise: {problem.creator.expertise}
+                Problem by <Link href={`/users/${problem.creator.userId}`} className="hover:underline font-medium text-foreground">{problem.creator.name}</Link> &bull; Expertise: {problem.creator.expertise}
               </CardDescription>
             </div>
           </div>

@@ -9,14 +9,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle, MessageSquare, Edit } from "lucide-react";
+import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle, MessageSquare, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { startDealAction, findExistingDealAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertTitle, AlertDescription } from "./ui/alert";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 
 interface IdeaClientPageProps {
   initialIdea: Idea;
@@ -31,6 +32,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
   const [idea, setIdea] = useState<Idea>(initialIdea);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [isDealLoading, setIsDealLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -160,6 +162,25 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
     }
   };
 
+  const handleDelete = async () => {
+    if (!user || user.uid !== idea.creator.userId) return;
+    setIsDeleting(true);
+
+    const formData = new FormData();
+    formData.append('type', 'idea');
+    formData.append('id', idea.id);
+
+    const result = await deleteItemAction(formData);
+
+    if(result.success) {
+      toast({ title: "Success", description: "Idea deleted successfully." });
+      router.push('/marketplace');
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.message });
+      setIsDeleting(false);
+    }
+  };
+
 
   const isIdeaUpvoted = user && idea ? idea.upvotedBy.includes(user.uid) : false;
   const isCreator = user?.uid === idea?.creator.userId;
@@ -179,12 +200,36 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
           Back to all ideas
         </Link>
         {isCreator && (
-            <Button asChild variant="outline">
-                <Link href={`/ideas/${idea.id}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Idea
-                </Link>
-            </Button>
+            <div className="flex gap-2">
+                <Button asChild variant="outline" size="sm">
+                    <Link href={`/ideas/${idea.id}/edit`}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                    </Link>
+                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" disabled={isDeleting}>
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                            Delete
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete your idea "{idea.title}".
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Yes, delete it
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
         )}
       </div>
       {!isPaymentEnabled && (
@@ -199,14 +244,16 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
       <Card>
         <CardHeader>
           <div className="flex items-start gap-4">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={idea.creator.avatarUrl} alt={idea.creator.name} />
-              <AvatarFallback>{idea.creator.name.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <Link href={`/users/${idea.creator.userId}`}>
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={idea.creator.avatarUrl} alt={idea.creator.name} />
+                <AvatarFallback>{idea.creator.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+            </Link>
             <div>
               <CardTitle className="text-2xl lg:text-3xl">{idea.title}</CardTitle>
               <CardDescription className="mt-1">
-                Idea by {idea.creator.name} &bull; Expertise: {idea.creator.expertise}
+                Idea by <Link href={`/users/${idea.creator.userId}`} className="hover:underline font-medium text-foreground">{idea.creator.name}</Link> &bull; Expertise: {idea.creator.expertise}
               </CardDescription>
             </div>
           </div>

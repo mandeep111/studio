@@ -4,15 +4,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSolution, upvoteSolution } from "@/lib/firestore";
-import { findExistingDealAction } from "@/app/actions";
+import { findExistingDealAction, deleteItemAction } from "@/app/actions";
 import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, ExternalLink, ThumbsUp, File, Loader2, Edit } from "lucide-react";
+import { ArrowLeft, ExternalLink, ThumbsUp, File, Loader2, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "./ui/badge";
+import { useRouter } from "next/navigation";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 
 interface SolutionClientPageProps {
   initialSolution: Solution;
@@ -21,9 +23,11 @@ interface SolutionClientPageProps {
 export default function SolutionClientPage({ initialSolution }: SolutionClientPageProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [solution, setSolution] = useState<Solution>(initialSolution);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
   const [loadingDeal, setLoadingDeal] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   
   useEffect(() => {
@@ -64,6 +68,25 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
         }
     }
   };
+  
+  const handleDelete = async () => {
+    if (!user || user.uid !== solution.creator.userId) return;
+    setIsDeleting(true);
+
+    const formData = new FormData();
+    formData.append('type', 'solution');
+    formData.append('id', solution.id);
+
+    const result = await deleteItemAction(formData);
+
+    if(result.success) {
+      toast({ title: "Success", description: "Solution deleted successfully." });
+      router.push(`/problems/${solution.problemId}`);
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.message });
+      setIsDeleting(false);
+    }
+  };
 
   if (!solution) return null;
 
@@ -80,12 +103,36 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
             Back to problem
         </Link>
         {isCreator && (
-            <Button asChild variant="outline">
-                <Link href={`/solutions/${solution.id}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Solution
-                </Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm">
+                  <Link href={`/solutions/${solution.id}/edit`}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                  </Link>
+              </Button>
+              <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm" disabled={isDeleting}>
+                          {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                          Delete
+                      </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete your solution.
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Yes, delete it
+                          </AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
+            </div>
         )}
       </div>
       <Card>
@@ -95,14 +142,16 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
               {solution.isClosed && <Badge variant="destructive">Closed</Badge>}
             </div>
           <div className="flex items-start gap-4 pt-2">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={solution.creator.avatarUrl} alt={solution.creator.name} />
-              <AvatarFallback>{solution.creator.name.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <Link href={`/users/${solution.creator.userId}`}>
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={solution.creator.avatarUrl} alt={solution.creator.name} />
+                <AvatarFallback>{solution.creator.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+            </Link>
             <div>
               <CardTitle className="text-2xl lg:text-3xl">Solution by {solution.creator.name}</CardTitle>
               <CardDescription className="mt-1">
-                Expertise: {solution.creator.expertise}
+                Expertise: <Link href={`/users/${solution.creator.userId}`} className="hover:underline font-medium text-foreground">{solution.creator.name}</Link>
               </CardDescription>
             </div>
           </div>

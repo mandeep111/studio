@@ -23,10 +23,12 @@ export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCa
   return (
     <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", problem.isClosed && "opacity-60 bg-muted/50")}>
       <CardHeader className="flex-row items-start gap-4 space-y-0">
-        <Avatar>
-          <AvatarImage src={problem.creator.avatarUrl} alt={problem.creator.name} />
-          <AvatarFallback>{problem.creator.name.charAt(0)}</AvatarFallback>
-        </Avatar>
+        <Link href={`/users/${problem.creator.userId}`} onClick={(e) => e.stopPropagation()}>
+          <Avatar>
+            <AvatarImage src={problem.creator.avatarUrl} alt={problem.creator.name} />
+            <AvatarFallback>{problem.creator.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+        </Link>
         <div>
           <CardTitle className="text-lg">
             <Link href={`/problems/${problem.id}`} className="hover:underline">
@@ -34,7 +36,7 @@ export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCa
             </Link>
           </CardTitle>
           <div className="flex items-center gap-2">
-            <CardDescription>by {problem.creator.name}</CardDescription>
+            <CardDescription>by <Link href={`/users/${problem.creator.userId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{problem.creator.name}</Link></CardDescription>
             {problem.isClosed && <Badge variant="destructive">Closed</Badge>}
           </div>
         </div>

@@ -33,14 +33,18 @@ export default function SolutionCard({ solution, onUpvote, onStartDeal, isPaymen
             <CardDescription>Solution for: <Link href={`/problems/${solution.problemId}`} className="text-primary hover:underline">{solution.problemTitle}</Link></CardDescription>
             {solution.isClosed && <Badge variant="destructive">Closed</Badge>}
         </div>
-        <CardTitle className="text-lg">Solution by {solution.creator.name}</CardTitle>
+        <CardTitle className="text-lg">
+            Solution by <Link href={`/users/${solution.creator.userId}`} className="hover:underline">{solution.creator.name}</Link>
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex-grow">
         <div className="flex items-start gap-4">
-          <Avatar>
-            <AvatarImage src={solution.creator.avatarUrl} alt={solution.creator.name} />
-            <AvatarFallback>{solution.creator.name.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <Link href={`/users/${solution.creator.userId}`}>
+            <Avatar>
+              <AvatarImage src={solution.creator.avatarUrl} alt={solution.creator.name} />
+              <AvatarFallback>{solution.creator.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+          </Link>
           <div className="flex-1">
             <p className="text-sm text-muted-foreground">{isProtected ? `${solution.description.substring(0, 150)}...` : solution.description}</p>
              {isProtected && !isInvestor ? (

@@ -69,11 +69,12 @@ export default function LandingHero() {
                 </div>
                 </div>
                 <Image
-                    src="/banner.png"
+                    src="/banner.gif"
                     width="600"
                     height="400"
-                    alt="A clear visual flow from a 'Problem' icon (like a question mark in a gear), to a 'Solution' icon (a lightbulb), to an 'Investment' icon (a growing chart with a dollar sign), and finally to a 'Profit' icon (a trophy or a bag of money), illustrating the core concept of the app."
+                    alt="An animated flow from a problem to a solution and investment"
                     className="mx-auto aspect-[3/2] overflow-hidden rounded-xl object-cover sm:w-full lg:order-last"
+                    unoptimized
                 />
             </div>
             </section>

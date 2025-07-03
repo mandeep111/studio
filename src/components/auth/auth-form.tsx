@@ -8,6 +8,7 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
+  sendEmailVerification,
 } from "firebase/auth";
 import { collection, doc, getDoc, getDocs, limit, query, setDoc } from "firebase/firestore";
 import { auth, db, googleProvider } from "@/lib/firebase/config";
@@ -27,6 +28,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg role="img" viewBox="0 0 24 24" {...props}>
@@ -116,7 +118,16 @@ export function AuthForm() {
   const handleLogin = async (values: z.infer<typeof loginSchema>) => {
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const result = await signInWithEmailAndPassword(auth, values.email, values.password);
+      if (!result.user.emailVerified) {
+          toast({
+            variant: "destructive",
+            title: "Email Not Verified",
+            description: "Please verify your email address before logging in. Check your inbox for the verification link.",
+          });
+          setLoading(false);
+          return;
+      }
       toast({ title: "Success", description: "Logged in successfully." });
       router.push("/marketplace");
     } catch (error: any) {
@@ -188,6 +199,8 @@ export function AuthForm() {
         values.password
       );
       const user = userCredential.user;
+      
+      await sendEmailVerification(user);
 
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
@@ -201,8 +214,8 @@ export function AuthForm() {
         unreadDealMessages: {},
       });
       
-      toast({ title: "Success", description: `Account created successfully. ${isFirstUser ? 'You are the Admin!' : ''}` });
-      router.push("/marketplace");
+      toast({ title: "Verification Email Sent", description: `A verification link has been sent to ${values.email}. Please check your inbox and verify your account before logging in.` });
+      setActiveTab("login");
     } catch (error: any) {
       toast({
         variant: "destructive",

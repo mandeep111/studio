@@ -24,10 +24,12 @@ export default function IdeaCard({ idea, onUpvote, isUpvoting }: IdeaCardProps) 
     <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", idea.isClosed && "opacity-60 bg-muted/50")}>
       <CardHeader>
         <div className="flex items-center gap-4">
-          <Avatar>
-            <AvatarImage src={idea.creator.avatarUrl} alt={idea.creator.name} />
-            <AvatarFallback>{idea.creator.name.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <Link href={`/users/${idea.creator.userId}`} onClick={(e) => e.stopPropagation()}>
+            <Avatar>
+              <AvatarImage src={idea.creator.avatarUrl} alt={idea.creator.name} />
+              <AvatarFallback>{idea.creator.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+          </Link>
           <div>
             <CardTitle className="text-lg">
               <Link href={`/ideas/${idea.id}`} className="hover:underline">
@@ -35,7 +37,7 @@ export default function IdeaCard({ idea, onUpvote, isUpvoting }: IdeaCardProps) 
               </Link>
             </CardTitle>
             <div className="flex items-center gap-2">
-                <CardDescription>by {idea.creator.name}</CardDescription>
+                <CardDescription>by <Link href={`/users/${idea.creator.userId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{idea.creator.name}</Link></CardDescription>
                 {idea.isClosed && <Badge variant="destructive">Closed</Badge>}
             </div>
           </div>

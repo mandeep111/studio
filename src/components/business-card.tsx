@@ -23,10 +23,12 @@ export default function BusinessCard({ business, onUpvote, isUpvoting }: Busines
   return (
     <Card className={cn("flex flex-col overflow-hidden transition-all hover:shadow-lg", business.isClosed && "opacity-60 bg-muted/50")}>
       <CardHeader className="flex-row items-start gap-4 space-y-0">
-        <Avatar>
-          <AvatarImage src={business.creator.avatarUrl} alt={business.creator.name} />
-          <AvatarFallback>{business.creator.name.charAt(0)}</AvatarFallback>
-        </Avatar>
+        <Link href={`/users/${business.creator.userId}`} onClick={(e) => e.stopPropagation()}>
+          <Avatar>
+            <AvatarImage src={business.creator.avatarUrl} alt={business.creator.name} />
+            <AvatarFallback>{business.creator.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+        </Link>
         <div>
           <CardTitle className="text-lg">
             <Link href={`/businesses/${business.id}`} className="hover:underline">
@@ -34,7 +36,7 @@ export default function BusinessCard({ business, onUpvote, isUpvoting }: Busines
             </Link>
           </CardTitle>
           <div className="flex items-center gap-2">
-            <CardDescription>by {business.creator.name}</CardDescription>
+            <CardDescription>by <Link href={`/users/${business.creator.userId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{business.creator.name}</Link></CardDescription>
             {business.isClosed && <Badge variant="destructive">Closed</Badge>}
           </div>
         </div>

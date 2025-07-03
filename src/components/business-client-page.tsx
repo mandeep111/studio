@@ -9,14 +9,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users, Info, MessageSquare, Edit } from "lucide-react";
+import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users, Info, MessageSquare, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "./ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
-import { startDealAction, findExistingDealAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 
 interface BusinessClientPageProps {
   initialBusiness: Business;
@@ -31,6 +32,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
   const [business, setBusiness] = useState<Business>(initialBusiness);
   const [isCoffeePopupOpen, setCoffeePopupOpen] = useState(false);
   const [isDealLoading, setIsDealLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -162,6 +164,25 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
         setIsDealLoading(false);
     }
   };
+  
+  const handleDelete = async () => {
+    if (!user || user.uid !== business.creator.userId) return;
+    setIsDeleting(true);
+
+    const formData = new FormData();
+    formData.append('type', 'business');
+    formData.append('id', business.id);
+
+    const result = await deleteItemAction(formData);
+
+    if(result.success) {
+      toast({ title: "Success", description: "Business deleted successfully." });
+      router.push('/marketplace');
+    } else {
+      toast({ variant: "destructive", title: "Error", description: result.message });
+      setIsDeleting(false);
+    }
+  };
 
   const isBusinessUpvoted = user && business ? business.upvotedBy.includes(user.uid) : false;
   const isCreator = user?.uid === business?.creator.userId;
@@ -181,12 +202,36 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
           Back to all businesses
         </Link>
         {isCreator && (
-            <Button asChild variant="outline">
-                <Link href={`/businesses/${business.id}/edit`}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Business
-                </Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm">
+                  <Link href={`/businesses/${business.id}/edit`}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                  </Link>
+              </Button>
+               <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                      <Button variant="destructive" size="sm" disabled={isDeleting}>
+                          {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                          Delete
+                      </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete your business "{business.title}".
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Yes, delete it
+                          </AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
+            </div>
         )}
       </div>
       {!isPaymentEnabled && (
@@ -201,14 +246,16 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
       <Card>
         <CardHeader>
           <div className="flex items-start gap-4">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={business.creator.avatarUrl} alt={business.creator.name} />
-              <AvatarFallback>{business.creator.name.charAt(0)}</AvatarFallback>
-            </Avatar>
+            <Link href={`/users/${business.creator.userId}`}>
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={business.creator.avatarUrl} alt={business.creator.name} />
+                <AvatarFallback>{business.creator.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+            </Link>
             <div>
               <CardTitle className="text-2xl lg:text-3xl">{business.title}</CardTitle>
               <CardDescription className="mt-1">
-                Business by {business.creator.name} &bull; Expertise: {business.creator.expertise}
+                Business by <Link href={`/users/${business.creator.userId}`} className="hover:underline font-medium text-foreground">{business.creator.name}</Link> &bull; Expertise: {business.creator.expertise}
               </CardDescription>
             </div>
           </div>
