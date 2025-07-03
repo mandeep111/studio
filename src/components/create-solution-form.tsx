@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { createSolution } from '@/lib/firestore';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Textarea } from './ui/textarea';
 import { SubmitButton } from './submit-button';
@@ -16,6 +15,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { createSolutionAction } from '@/app/actions';
 
 
 interface CreateSolutionFormProps {
@@ -34,7 +34,6 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
-  const [attachment, setAttachment] = useState<File | null>(null);
 
   const form = useForm<z.infer<typeof solutionFormSchema>>({
     resolver: zodResolver(solutionFormSchema),
@@ -50,39 +49,29 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
   const onSubmit = async (values: z.infer<typeof solutionFormSchema>) => {
     setFormLoading(true);
 
-    if (!userProfile) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit a solution." });
-        setFormLoading(false);
-        return;
+    const formData = new FormData();
+    formData.append('description', values.description);
+    if (values.price) formData.append('price', values.price);
+    formData.append('problemId', problemId);
+    formData.append('problemTitle', problemTitle);
+    
+    const fileInput = document.getElementById('attachment-solution') as HTMLInputElement;
+    if (fileInput?.files?.[0]) {
+        formData.append('attachment', fileInput.files[0]);
     }
-
-    const price = showPriceInput && values.price ? parseFloat(values.price) : null;
-    if (showPriceInput && values.price && isNaN(price)) {
-        form.setError("price", { type: "manual", message: "Price must be a valid number." });
-        setFormLoading(false);
-        return;
-    }
-
-    try {
-        await createSolution(values.description, problemId, problemTitle, price, userProfile, attachment || undefined);
-        toast({ title: "Success!", description: "Solution posted successfully." });
+    
+    const result = await createSolutionAction(formData);
+    
+    if (result.success) {
+        toast({ title: "Success!", description: result.message });
         form.reset();
-        setAttachment(null);
-        onSolutionCreated(); // Callback to refetch solutions
-    } catch (error) {
-        console.error(error);
-        let errorMessage = "Failed to post solution.";
-        if (error instanceof Error) {
-            if ((error as any).code?.includes('storage')) {
-                errorMessage = "Storage permission error. Please check your Firebase rules and ensure you are logged in.";
-            } else {
-                errorMessage = error.message;
-            }
-        }
-        toast({ variant: "destructive", title: "Error", description: errorMessage });
-    } finally {
-        setFormLoading(false);
+        if (fileInput) fileInput.value = "";
+        onSolutionCreated();
+    } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
     }
+    
+    setFormLoading(false);
   };
 
 
@@ -138,7 +127,7 @@ export default function CreateSolutionForm({ problemId, problemTitle, onSolution
             </div>
             <div className="space-y-2">
               <Label htmlFor="attachment-solution">Attachment (Optional)</Label>
-              <Input id="attachment-solution" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+              <Input id="attachment-solution" name="attachment" type="file" disabled={isFieldsDisabled} />
               <p className="text-xs text-muted-foreground">
                   Investors will be able to see this attachment.
               </p>

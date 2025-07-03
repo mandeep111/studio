@@ -2,14 +2,43 @@
 "use server";
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
-import { createDeal, getAllUsers, approveItem as approveItemInDb, deleteItem, getBusinesses, getProblems, sendMessage, updateUserMembership, logPayment, findDealByUserAndItem, createAd, toggleAdStatus, getPaymentSettings, updatePaymentSettings, addSystemMessage, updateDealStatus, getDeal, getUserProfile, createNotification, getIdeas, updateUserProfile, updateProblem, updateSolution, updateIdea, updateBusiness } from "@/lib/firestore";
-import type { UserProfile, Ad, PaymentSettings, Deal } from "@/lib/types";
+import { 
+    createDealInDb, 
+    getAllUsers, 
+    approveItem as approveItemInDb, 
+    deleteItem as deleteItemInDb, 
+    getBusinesses, 
+    getProblems, 
+    sendMessage, 
+    updateUserMembership, 
+    logPayment, 
+    findDealByUserAndItem, 
+    createAd, 
+    toggleAdStatus, 
+    getPaymentSettings, 
+    updatePaymentSettings, 
+    addSystemMessage, 
+    updateDealStatusInDb, 
+    getDeal, 
+    getUserProfile, 
+    createNotification, 
+    getIdeas, 
+    updateUserProfile as updateUserProfileInDb,
+    updateProblem as updateProblemInDb,
+    updateSolution as updateSolutionInDb,
+    updateIdea as updateIdeaInDb,
+    updateBusiness as updateBusinessInDb,
+    addTags as addTagsToDb,
+    uploadAttachment
+} from "@/lib/firestore";
+import type { UserProfile, Ad, PaymentSettings, Deal, Problem, Solution, Idea, Business, CreatorReference } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import type Stripe from "stripe";
-import { db } from "@/lib/firebase/config";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebase/config";
+import { adminDb } from "@/lib/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 const SuggestPairingsSchema = z.object({
   investorProfile: z.string().min(10, { message: "Investor profile must be at least 10 characters long." }),
@@ -205,7 +234,7 @@ export async function startDealAction(
     try {
         // Free deal creation path
         if (!isEnabled) {
-            const dealId = await createDeal(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
+            const dealId = await createDealInDb(investorProfile, primaryCreatorId, itemId, itemTitle, itemType, 0, solutionCreatorId);
             revalidatePath(`/${itemType}s/${itemId}`);
             return { success: true, dealId };
         }
@@ -308,7 +337,7 @@ export async function updateDealStatusAction(formData: FormData) {
     }
   
     try {
-        const result = await updateDealStatus(dealId, investorId, status);
+        const result = await updateDealStatusInDb(dealId, investorId, status);
         if (result.success) {
             revalidatePath(`/deals/${dealId}`);
             
@@ -352,7 +381,7 @@ export async function deleteItemAction(formData: FormData) {
     const id = formData.get('id') as string;
 
     try {
-        await deleteItem(type, id);
+        await deleteItemInDb(type, id);
         revalidatePath('/admin');
         revalidatePath('/');
         return { success: true, message: 'Item deleted successfully!' };
@@ -427,7 +456,7 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
     }
 
     try {
-        await updateUserProfile(userId, { name, expertise }, avatarFile ?? undefined);
+        await updateUserProfileInDb(userId, { name, expertise }, avatarFile ?? undefined);
         revalidatePath(`/users/${userId}`);
         revalidatePath(`/`); // For header
         return { success: true, message: "Profile updated successfully." };
@@ -441,7 +470,221 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
 }
 
 
-// --- Content Edit Actions ---
+// --- Secure Content Creation & Update Actions ---
+
+async function createItemAction(
+    type: 'problem' | 'idea' | 'business',
+    formData: FormData,
+    points: number
+) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return { success: false, message: "You must be logged in." };
+
+    const creator = await getUserProfile(currentUser.uid);
+    if (!creator) return { success: false, message: "User profile not found." };
+    
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const priceStr = formData.get('price') as string;
+    const tags = formData.getAll('tags') as string[];
+    const attachment = formData.get('attachment') as File | null;
+    
+    const price = priceStr ? parseFloat(priceStr) : null;
+    const priceApproved = price ? price <= 1000 : true;
+
+    try {
+        const itemRef = adminDb.collection(`${type}s`).doc();
+        const userRef = adminDb.collection('users').doc(creator.uid);
+        
+        const creatorRef: CreatorReference = {
+            userId: creator.uid,
+            name: creator.name,
+            avatarUrl: creator.avatarUrl,
+            expertise: creator.expertise,
+        };
+
+        const itemData: any = {
+            title,
+            description,
+            tags,
+            creator: creatorRef,
+            upvotes: 0,
+            upvotedBy: [],
+            solutionsCount: 0,
+            createdAt: FieldValue.serverTimestamp(),
+            price: price || null,
+            priceApproved,
+            interestedInvestorsCount: 0,
+            isClosed: false,
+        };
+
+        if (type === 'business') {
+            itemData.stage = formData.get('stage') as string;
+        }
+
+        if (attachment && attachment.size > 0) {
+            const { url, name } = await uploadAttachment(attachment);
+            itemData.attachmentUrl = url;
+            itemData.attachmentFileName = name;
+        }
+
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.set(itemRef, itemData);
+            transaction.update(userRef, { points: FieldValue.increment(points) });
+        });
+        
+        await addTagsToDb(tags);
+
+        if (!priceApproved) {
+            await createNotification("admins", `${creator.name} submitted a ${type} "${title}" with a price of $${price}, which requires approval.`, `/${type}s/${itemRef.id}`);
+        }
+        
+        revalidatePath('/marketplace');
+        revalidatePath(`/users/${creator.uid}`);
+        return { success: true, message: `${type.charAt(0).toUpperCase() + type.slice(1)} submitted successfully!` };
+
+    } catch (error) {
+        console.error(`Error creating ${type}:`, error);
+        return { success: false, message: `Failed to create ${type}.` };
+    }
+}
+
+export const createProblemAction = (formData: FormData) => createItemAction('problem', formData, 50);
+export const createIdeaAction = (formData: FormData) => createItemAction('idea', formData, 10);
+export const createBusinessAction = (formData: FormData) => createItemAction('business', formData, 30);
+
+
+export async function createSolutionAction(formData: FormData) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return { success: false, message: "You must be logged in." };
+    
+    const creator = await getUserProfile(currentUser.uid);
+    if (!creator) return { success: false, message: "User profile not found." };
+    
+    const description = formData.get('description') as string;
+    const priceStr = formData.get('price') as string;
+    const attachment = formData.get('attachment') as File | null;
+    const problemId = formData.get('problemId') as string;
+    const problemTitle = formData.get('problemTitle') as string;
+
+    const price = priceStr ? parseFloat(priceStr) : null;
+    const priceApproved = price ? price <= 1000 : true;
+    
+    try {
+        const solutionRef = adminDb.collection('solutions').doc();
+        const problemRef = adminDb.collection('problems').doc(problemId);
+        
+        const problemDoc = await problemRef.get();
+        if (!problemDoc.exists) throw new Error("Problem not found.");
+        const problemCreatorId = problemDoc.data()!.creator.userId;
+
+        const creatorRef: CreatorReference = {
+            userId: creator.uid,
+            name: creator.name,
+            avatarUrl: creator.avatarUrl,
+            expertise: creator.expertise,
+        };
+
+        const solutionData: Omit<Solution, 'id'> = {
+            problemId,
+            problemTitle,
+            description,
+            creator: creatorRef,
+            upvotes: 0,
+            upvotedBy: [],
+            createdAt: FieldValue.serverTimestamp() as any,
+            price,
+            priceApproved,
+            attachmentUrl: null,
+            attachmentFileName: null,
+            interestedInvestorsCount: 0,
+            isClosed: false,
+        };
+
+        if (attachment && attachment.size > 0) {
+            const { url, name } = await uploadAttachment(attachment);
+            solutionData.attachmentUrl = url;
+            solutionData.attachmentFileName = name;
+        }
+
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.set(solutionRef, solutionData);
+            transaction.update(problemRef, { solutionsCount: FieldValue.increment(1) });
+        });
+
+        if (problemCreatorId && problemCreatorId !== creator.uid) {
+            await createNotification(problemCreatorId, `${creator.name} proposed a new solution for your problem: "${problemTitle}"`, `/problems/${problemId}`);
+        }
+        if (!priceApproved) {
+            await createNotification("admins", `${creator.name} submitted a solution for "${problemTitle}" with a price of $${price}, which requires approval.`, `/solutions/${solutionRef.id}`);
+        }
+
+        revalidatePath(`/problems/${problemId}`);
+        return { success: true, message: "Solution submitted successfully!" };
+    } catch (error) {
+        console.error("Error creating solution:", error);
+        return { success: false, message: "Failed to create solution." };
+    }
+}
+
+
+export async function upvoteItemAction(
+    itemId: string,
+    itemType: 'problem' | 'solution' | 'idea' | 'business' | 'investor'
+) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return { success: false, message: "You must be logged in." };
+    
+    try {
+        const collectionName = itemType === 'investor' ? 'users' : `${itemType}s`;
+        const itemRef = adminDb.collection(collectionName).doc(itemId);
+        
+        await adminDb.runTransaction(async (transaction) => {
+            const itemDoc = await transaction.get(itemRef);
+            if (!itemDoc.exists) throw new Error("Item not found.");
+            
+            const data = itemDoc.data()!;
+            const upvotedBy = (data.upvotedBy || []) as string[];
+            const isUpvoted = upvotedBy.includes(currentUser.uid);
+            
+            const creatorId = itemType === 'investor' ? itemId : data.creator.userId;
+            if (creatorId === currentUser.uid) throw new Error("You cannot upvote your own content.");
+
+            const pointValues: Record<string, number> = { 'problem': 20, 'solution': 20, 'idea': 10, 'business': 10 };
+            const pointChange = itemType !== 'investor' ? (pointValues[itemType] * (isUpvoted ? -1 : 1)) : 0;
+            
+            // Update item
+            transaction.update(itemRef, {
+                upvotes: FieldValue.increment(isUpvoted ? -1 : 1),
+                upvotedBy: isUpvoted ? FieldValue.arrayRemove(currentUser.uid) : FieldValue.arrayUnion(currentUser.uid)
+            });
+
+            // Update creator points
+            if (pointChange !== 0) {
+                const creatorRef = adminDb.collection('users').doc(creatorId);
+                transaction.update(creatorRef, { points: FieldValue.increment(pointChange) });
+            }
+
+            if (!isUpvoted) {
+                 const upvoterSnap = await adminDb.collection('users').doc(currentUser.uid).get();
+                 const upvoterName = upvoterSnap.data()?.name || "Someone";
+                 const itemTitle = data.title || data.problemTitle || 'your content';
+                 const message = `${upvoterName} upvoted your ${itemType}: "${itemTitle}"`;
+                 await createNotification(creatorId, message, `/${collectionName}/${itemId}`);
+            }
+        });
+        
+        revalidatePath('/marketplace');
+        revalidatePath(`/${collectionName}/${itemId}`);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Upvote error:", error);
+        return { success: false, message: error.message };
+    }
+}
+
+
+// --- Content Edit Actions (Unchanged, already use FormData) ---
 
 async function handleContentUpdate(
     id: string,
@@ -473,22 +716,22 @@ async function handleContentUpdate(
 
 export async function updateProblemAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'problem', updateProblem, formData);
+    return handleContentUpdate(id, 'problem', updateProblemInDb, formData);
 }
 
 export async function updateSolutionAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'solution', updateSolution, formData);
+    return handleContentUpdate(id, 'solution', updateSolutionInDb, formData);
 }
 
 export async function updateIdeaAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'idea', updateIdea, formData);
+    return handleContentUpdate(id, 'idea', updateIdeaInDb, formData);
 }
 
 export async function updateBusinessAction(formData: FormData) {
     const id = formData.get('id') as string;
-    return handleContentUpdate(id, 'business', updateBusiness, formData);
+    return handleContentUpdate(id, 'business', updateBusinessInDb, formData);
 }
 
 export async function verifyRecaptcha(token: string, action: string): Promise<{ success: boolean; message: string }> {

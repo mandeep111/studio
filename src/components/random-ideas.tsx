@@ -1,8 +1,9 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPaginatedIdeas, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import { upvoteItemAction } from "@/app/actions";
 import type { Idea, Ad, PaymentSettings } from "@/lib/types";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -111,18 +112,14 @@ export default function RandomIdeas() {
         })
     );
     
-    try {
-        await upvoteIdea(ideaId, user.uid);
-    } catch (e: any) {
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: e.message || "Could not record upvote. Reverting.",
-        });
+    const result = await upvoteItemAction(ideaId, 'idea');
+    
+    if (!result.success) {
+        toast({ variant: "destructive", title: "Error", description: result.message });
         fetchIdeas(true);
-    } finally {
-        setUpvotingId(null);
     }
+
+    setUpvotingId(null);
   };
 
   const onIdeaCreated = () => {

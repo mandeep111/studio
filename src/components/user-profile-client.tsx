@@ -4,7 +4,8 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business, Deal } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, upvoteProblem, upvoteSolution, upvoteIdea, getBusinessesByUser, upvoteBusiness, getDealsForUser, getContentByCreators, upvoteInvestor } from "@/lib/firestore";
+import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, getBusinessesByUser, getDealsForUser, getContentByCreators } from "@/lib/firestore";
+import { upvoteItemAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -88,7 +89,7 @@ export default function UserProfileClient({
     const [upvotedItems, setUpvotedItems] = useState<UpvotedItem[]>(initialUpvotedItems);
     const [deals, setDeals] = useState<Deal[]>(initialDeals);
     const [workedWithContent, setWorkedWithContent] = useState<(Problem | Solution)[]>([]);
-    const [isUpvoting, setIsUpvoting] = useState(false);
+    const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
     
     const isOwnProfile = user?.uid === profile.uid;
@@ -132,98 +133,54 @@ export default function UserProfileClient({
     }, [fetchData]);
 
      const handleInvestorUpvote = async () => {
-        if (!user || isOwnProfile || profile.role !== 'Investor' || isUpvoting) return;
-        setIsUpvoting(true);
+        if (!user || isOwnProfile || profile.role !== 'Investor' || upvotingId) return;
+        setUpvotingId(profile.uid);
 
-        const currentUpvotes = profile.upvotes || 0;
-        const isUpvoted = (profile.upvotedBy || []).includes(user.uid);
-        
-        // Optimistic update
         setProfile(prev => ({
             ...prev,
-            upvotes: isUpvoted ? currentUpvotes - 1 : currentUpvotes + 1,
-            upvotedBy: isUpvoted 
+            upvotes: (prev.upvotedBy || []).includes(user.uid) ? (prev.upvotes || 0) - 1 : (prev.upvotes || 0) + 1,
+            upvotedBy: (prev.upvotedBy || []).includes(user.uid) 
                 ? (prev.upvotedBy || []).filter(id => id !== user.uid)
                 : [...(prev.upvotedBy || []), user.uid]
         }));
 
-        try {
-            await upvoteInvestor(profile.uid, user.uid);
-        } catch(e) {
-            setProfile(profile); // Revert on error
-            toast({variant: "destructive", title: "Error", description: (e as Error).message});
-        } finally {
-            setIsUpvoting(false);
+        const result = await upvoteItemAction(profile.uid, 'investor');
+        if (!result.success) {
+            toast({variant: "destructive", title: "Error", description: result.message});
+            setProfile(profile); // Revert
         }
+        
+        setUpvotingId(null);
     }
 
-    const handleProblemUpvote = async (problemId: string) => {
-        if (!user) return;
-        setProblems(prev => prev.map(p => {
-            if (p.id === problemId && p.creator.userId !== user.uid) {
-                const isUpvoted = p.upvotedBy.includes(user.uid);
-                return { ...p, upvotes: isUpvoted ? p.upvotes - 1 : p.upvotes + 1, upvotedBy: isUpvoted ? p.upvotedBy.filter(uid => uid !== user.uid) : [...p.upvotedBy, user.uid] };
-            }
-            return p;
-        }));
-        try {
-            await upvoteProblem(problemId, user.uid);
-        } catch (e) {
-            fetchData();
-            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+    const handleUpvote = async (itemId: string, itemType: 'problem' | 'solution' | 'idea' | 'business') => {
+        if (!user || upvotingId) return;
+        setUpvotingId(itemId);
+
+        const optimisticUpdate = (items: any[]) => {
+            return items.map(p => {
+                if (p.id === itemId) {
+                    const isUpvoted = p.upvotedBy.includes(user.uid);
+                    return { ...p, upvotes: isUpvoted ? p.upvotes - 1 : p.upvotes + 1, upvotedBy: isUpvoted ? p.upvotedBy.filter((uid: string) => uid !== user.uid) : [...p.upvotedBy, user.uid] };
+                }
+                return p;
+            });
+        };
+
+        if (itemType === 'problem') setProblems(optimisticUpdate);
+        else if (itemType === 'solution') setSolutions(optimisticUpdate);
+        else if (itemType === 'idea') setIdeas(optimisticUpdate);
+        else if (itemType === 'business') setBusinesses(optimisticUpdate);
+
+        const result = await upvoteItemAction(itemId, itemType);
+        if (!result.success) {
+            toast({variant: "destructive", title: "Error", description: result.message});
+            fetchData(); // Revert
         }
+
+        setUpvotingId(null);
     };
 
-    const handleSolutionUpvote = async (solutionId: string) => {
-        if (!user) return;
-        setSolutions(prev => prev.map(s => {
-            if (s.id === solutionId && s.creator.userId !== user.uid) {
-                const isUpvoted = s.upvotedBy.includes(user.uid);
-                return { ...s, upvotes: isUpvoted ? s.upvotes - 1 : s.upvotes + 1, upvotedBy: isUpvoted ? s.upvotedBy.filter(uid => uid !== user.uid) : [...s.upvotedBy, user.uid] };
-            }
-            return s;
-        }));
-        try {
-            await upvoteSolution(solutionId, user.uid);
-        } catch (e) {
-            fetchData();
-            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
-        }
-    };
-
-    const handleIdeaUpvote = async (ideaId: string) => {
-        if (!user) return;
-        setIdeas(prev => prev.map(i => {
-            if (i.id === ideaId && i.creator.userId !== user.uid) {
-                const isUpvoted = i.upvotedBy.includes(user.uid);
-                return { ...i, upvotes: isUpvoted ? i.upvotes - 1 : i.upvotes + 1, upvotedBy: isUpvoted ? i.upvotedBy.filter(uid => uid !== user.uid) : [...i.upvotedBy, user.uid] };
-            }
-            return i;
-        }));
-        try {
-            await upvoteIdea(ideaId, user.uid);
-        } catch (e) {
-            fetchData();
-            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
-        }
-    };
-
-    const handleBusinessUpvote = async (businessId: string) => {
-        if (!user) return;
-        setBusinesses(prev => prev.map(b => {
-            if (b.id === businessId && b.creator.userId !== user.uid) {
-                const isUpvoted = b.upvotedBy.includes(user.uid);
-                return { ...b, upvotes: isUpvoted ? b.upvotes - 1 : b.upvotes + 1, upvotedBy: isUpvoted ? b.upvotedBy.filter(uid => uid !== user.uid) : [...b.upvotedBy, user.uid] };
-            }
-            return b;
-        }));
-        try {
-            await upvoteBusiness(businessId, user.uid);
-        } catch (e) {
-            fetchData();
-            toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
-        }
-    };
 
     const handleLogout = async () => {
         await signOut(auth);
@@ -329,8 +286,8 @@ export default function UserProfileClient({
                                 </Button>
                             </>
                         ) : profile.role === 'Investor' && user ? (
-                            <Button variant="outline" className="w-full" onClick={handleInvestorUpvote} disabled={isUpvoting}>
-                                {isUpvoting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-2 h-4 w-4" />}
+                            <Button variant="outline" className="w-full" onClick={handleInvestorUpvote} disabled={upvotingId === profile.uid}>
+                                {upvotingId === profile.uid ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="mr-2 h-4 w-4" />}
                                 {(profile.upvotedBy || []).includes(user.uid) ? 'Upvoted' : 'Upvote Investor'}
                             </Button>
                         ) : null}
@@ -357,7 +314,7 @@ export default function UserProfileClient({
                                 {problems.length > 0 ? (
                                     <div className="space-y-4">
                                         {problems.map(problem => (
-                                            <ProblemCard key={problem.id} problem={problem} onUpvote={handleProblemUpvote} isUpvoting={false} />
+                                            <ProblemCard key={problem.id} problem={problem} onUpvote={(id) => handleUpvote(id, 'problem')} isUpvoting={upvotingId === problem.id} />
                                         ))}
                                     </div>
                                 ) : (
@@ -375,7 +332,7 @@ export default function UserProfileClient({
                                 {solutions.length > 0 ? (
                                     <div className="space-y-4">
                                         {solutions.map(solution => (
-                                            <SolutionCard key={solution.id} solution={solution} onUpvote={handleSolutionUpvote} isUpvoting={false} />
+                                            <SolutionCard key={solution.id} solution={solution} onUpvote={(id) => handleUpvote(id, 'solution')} isUpvoting={upvotingId === solution.id} />
                                         ))}
                                     </div>
                                 ) : (
@@ -396,7 +353,7 @@ export default function UserProfileClient({
                                 {businesses.length > 0 ? (
                                     <div className="space-y-4">
                                         {businesses.map(business => (
-                                            <BusinessCard key={business.id} business={business} onUpvote={handleBusinessUpvote} isUpvoting={false} />
+                                            <BusinessCard key={business.id} business={business} onUpvote={(id) => handleUpvote(id, 'business')} isUpvoting={upvotingId === business.id} />
                                         ))}
                                     </div>
                                 ) : (
@@ -417,7 +374,7 @@ export default function UserProfileClient({
                                 {ideas.length > 0 ? (
                                     <div className="space-y-4">
                                         {ideas.map(idea => (
-                                            <IdeaCard key={idea.id} idea={idea} onUpvote={handleIdeaUpvote} isUpvoting={false} />
+                                            <IdeaCard key={idea.id} idea={idea} onUpvote={(id) => handleUpvote(id, 'idea')} isUpvoting={upvotingId === idea.id} />
                                         ))}
                                     </div>
                                 ) : (

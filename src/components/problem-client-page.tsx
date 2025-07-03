@@ -1,8 +1,10 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getProblem, getSolutionsForProblem, upvoteProblem, upvoteSolution } from "@/lib/firestore";
+import { getProblem, getSolutionsForProblem } from "@/lib/firestore";
+import { upvoteItemAction } from "@/app/actions";
 import type { Problem, Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +62,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
   const [dealConfig, setDealConfig] = useState<{ solution?: Solution } | null>(null);
   const [isDealLoading, setIsDealLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [upvotingId, setUpvotingId] = useState<string | null>(null);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -128,53 +131,33 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
   }, [problem?.id]);
 
 
-  const handleProblemUpvote = async () => {
-    if (!user || !problem || user.uid === problem.creator.userId) return;
+  const handleUpvote = async (itemId: string, itemType: 'problem' | 'solution') => {
+    if (!user || upvotingId) return;
+    setUpvotingId(itemId);
 
-    setProblem(prevProblem => {
-        if (!prevProblem) return prevProblem;
-        const isAlreadyUpvoted = prevProblem.upvotedBy.includes(user.uid);
-        return {
-            ...prevProblem,
-            upvotes: isAlreadyUpvoted ? prevProblem.upvotes - 1 : prevProblem.upvotes + 1,
-            upvotedBy: isAlreadyUpvoted
-                ? prevProblem.upvotedBy.filter(uid => uid !== user.uid)
-                : [...prevProblem.upvotedBy, user.uid],
-        };
-    });
+    if (itemType === 'problem') {
+        setProblem(prev => {
+            if (!prev) return prev;
+            const isUpvoted = prev.upvotedBy.includes(user.uid);
+            return {...prev, upvotes: isUpvoted ? prev.upvotes - 1 : prev.upvotes + 1, upvotedBy: isUpvoted ? prev.upvotedBy.filter(uid => uid !== user.uid) : [...prev.upvotedBy, user.uid]};
+        });
+    } else {
+        setSolutions(prev => prev.map(s => {
+            if (s.id === itemId) {
+                const isUpvoted = s.upvotedBy.includes(user.uid);
+                return {...s, upvotes: isUpvoted ? s.upvotes - 1 : s.upvotes + 1, upvotedBy: isUpvoted ? s.upvotedBy.filter(uid => uid !== user.uid) : [...s.upvotedBy, user.uid]};
+            }
+            return s;
+        }));
+    }
 
-    try {
-        await upvoteProblem(problem.id, user.uid);
-    } catch(e) {
-        toast({variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Could not record upvote."})
+    const result = await upvoteItemAction(itemId, itemType);
+    if (!result.success) {
+        toast({variant: "destructive", title: "Error", description: result.message});
         fetchProblemAndSolutions(); // Revert
     }
-  };
-
-  const handleSolutionUpvote = async (solutionId: string) => {
-    if (!user) return;
-     
-    setSolutions(prevSolutions => prevSolutions.map(s => {
-        if (s.id === solutionId) {
-            if (s.creator.userId === user.uid) return s;
-            const isAlreadyUpvoted = s.upvotedBy.includes(user.uid);
-            return {
-                ...s,
-                upvotes: isAlreadyUpvoted ? s.upvotes - 1 : s.upvotes + 1,
-                upvotedBy: isAlreadyUpvoted
-                    ? s.upvotedBy.filter(uid => uid !== user.uid)
-                    : [...s.upvotedBy, user.uid],
-            };
-        }
-        return s;
-    }));
-
-     try {
-        await upvoteSolution(solutionId, user.uid);
-    } catch(e) {
-        toast({variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Could not record upvote."})
-        fetchProblemAndSolutions(); // Revert
-    }
+    
+    setUpvotingId(null);
   };
   
   const confirmAndStartDeal = async (amount: number, directDealConfig?: { solution?: Solution }) => {
@@ -377,8 +360,8 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
             <Button
               variant={isProblemUpvoted ? "default" : "outline"}
               size="sm"
-              onClick={handleProblemUpvote}
-              disabled={!user || isProblemCreator}
+              onClick={() => handleUpvote(problem.id, 'problem')}
+              disabled={!user || isProblemCreator || upvotingId === problem.id}
             >
               <ThumbsUp className="h-4 w-4 mr-2" />
               <span>{problem.upvotes.toLocaleString()} Upvotes</span>
@@ -423,10 +406,10 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
               <motion.div key={solution.id} variants={itemVariants}>
                 <SolutionCard 
                   solution={solution} 
-                  onUpvote={() => handleSolutionUpvote(solution.id)}
+                  onUpvote={(id) => handleUpvote(id, 'solution')}
                   onStartDeal={handleStartDealClick} 
                   isPaymentEnabled={isPaymentEnabled}
-                  isUpvoting={false}
+                  isUpvoting={upvotingId === solution.id}
                   existingDealId={existingDealId}
                 />
               </motion.div>

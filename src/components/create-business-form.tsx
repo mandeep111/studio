@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { createBusiness } from '@/lib/firestore';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +16,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { createBusinessAction } from '@/app/actions';
 
 
 interface CreateBusinessFormProps {
@@ -35,7 +35,6 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
-  const [attachment, setAttachment] = useState<File | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   
   const form = useForm<z.infer<typeof businessFormSchema>>({
@@ -51,42 +50,35 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
 
 
   const onSubmit = async (values: z.infer<typeof businessFormSchema>) => {
-    if (!userProfile) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit a business." });
-        return;
-    }
     setFormLoading(true);
 
-    const price = showPriceInput && values.price ? parseFloat(values.price) : null;
-     if (showPriceInput && values.price && isNaN(price)) {
-         form.setError("price", { type: "manual", message: "Price must be a valid number." });
-         setFormLoading(false);
-         return;
-    }
+    const formData = new FormData();
+    formData.append('title', values.title);
+    formData.append('description', values.description);
+    formData.append('stage', values.stage);
+    if(values.price) formData.append('price', values.price);
+    tags.forEach(tag => formData.append('tags', tag));
 
-    try {
-        await createBusiness(values.title, values.description, tags, values.stage, price, userProfile, attachment || undefined);
-        toast({ title: "Success!", description: "Business submitted successfully. You've earned 30 points!" });
+    const fileInput = document.getElementById('attachment-business-form') as HTMLInputElement;
+    if (fileInput?.files?.[0]) {
+        formData.append('attachment', fileInput.files[0]);
+    }
+    
+    const result = await createBusinessAction(formData);
+
+    if (result.success) {
+        toast({ title: "Success!", description: result.message });
         form.reset();
-        setAttachment(null);
         setTags([]);
+        if (fileInput) fileInput.value = "";
         if (onBusinessCreated) {
             onBusinessCreated();
         }
-    } catch (error) {
-        console.error(error);
-        let errorMessage = "Failed to submit business.";
-        if (error instanceof Error) {
-            if ((error as any).code?.includes('storage')) {
-                errorMessage = "Storage permission error. Please check your Firebase rules and ensure you are logged in.";
-            } else {
-                errorMessage = error.message;
-            }
-        }
-        toast({ variant: "destructive", title: "Error", description: errorMessage });
-    } finally {
-        setFormLoading(false);
+    } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
     }
+    
+    setFormLoading(false);
   };
 
   return (
@@ -188,8 +180,8 @@ export default function CreateBusinessForm({ onBusinessCreated, isPaymentEnabled
             </p>
         </div>
         <div className="space-y-2">
-            <Label htmlFor="attachment-business">Attachment (Optional)</Label>
-            <Input id="attachment-business" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+            <Label htmlFor="attachment-business-form">Attachment (Optional)</Label>
+            <Input id="attachment-business-form" name="attachment" type="file" disabled={isFieldsDisabled} />
             <p className="text-xs text-muted-foreground">
                 Investors will be able to see this attachment.
             </p>

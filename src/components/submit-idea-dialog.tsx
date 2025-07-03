@@ -19,13 +19,13 @@ import { useToast } from "@/hooks/use-toast";
 import { SubmitButton } from "./submit-button";
 import { Lightbulb, DollarSign, Gem } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { createIdea } from "@/lib/firestore";
 import { TagInput } from "./ui/tag-input";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { createIdeaAction } from "@/app/actions";
 
 
 interface SubmitIdeaDialogProps {
@@ -46,7 +46,6 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
-  const [attachment, setAttachment] = useState<File | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   
   const form = useForm<z.infer<typeof ideaFormSchema>>({
@@ -63,41 +62,31 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
   const onSubmit = async (values: z.infer<typeof ideaFormSchema>) => {
     setFormLoading(true);
 
-    if (!userProfile) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit an idea." });
-        setFormLoading(false);
-        return;
+    const formData = new FormData();
+    formData.append('title', values.title);
+    formData.append('description', values.description);
+    if(values.price) formData.append('price', values.price);
+    tags.forEach(tag => formData.append('tags', tag));
+    
+    const fileInput = document.getElementById('attachment-idea-dialog') as HTMLInputElement;
+    if (fileInput?.files?.[0]) {
+        formData.append('attachment', fileInput.files[0]);
     }
+    
+    const result = await createIdeaAction(formData);
 
-    const price = showPriceInput && values.price ? parseFloat(values.price) : null;
-    if (showPriceInput && values.price && isNaN(price)) {
-        form.setError("price", { type: "manual", message: "Price must be a valid number." });
-        setFormLoading(false);
-        return;
-    }
-
-    try {
-        await createIdea(values.title, values.description, tags, price, userProfile, attachment || undefined);
-        toast({ title: "Success!", description: "Idea submitted successfully." });
+    if (result.success) {
+        toast({ title: "Success!", description: result.message });
         form.reset();
         setTags([]);
-        setAttachment(null);
+        if (fileInput) fileInput.value = "";
         onIdeaCreated();
         setOpen(false);
-    } catch (error) {
-        console.error(error);
-        let errorMessage = "Failed to submit idea.";
-        if (error instanceof Error) {
-            if ((error as any).code?.includes('storage')) {
-                errorMessage = "Storage permission error. Please check your Firebase rules and ensure you are logged in.";
-            } else {
-                errorMessage = error.message;
-            }
-        }
-        toast({ variant: "destructive", title: "Error", description: errorMessage });
-    } finally {
-        setFormLoading(false);
+    } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
     }
+    
+    setFormLoading(false);
   };
 
 
@@ -185,8 +174,8 @@ export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: 
                 )}
             </div>
             <div className="space-y-2">
-                <Label htmlFor="attachment-idea">Attachment (Optional)</Label>
-                <Input id="attachment-idea" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+                <Label htmlFor="attachment-idea-dialog">Attachment (Optional)</Label>
+                <Input id="attachment-idea-dialog" name="attachment" type="file" disabled={isFieldsDisabled} />
                 <p className="text-xs text-muted-foreground">
                     Investors will be able to see this attachment.
                 </p>

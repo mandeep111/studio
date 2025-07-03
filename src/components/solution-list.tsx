@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedSolutions, upvoteSolution, getActiveAdForPlacement } from "@/lib/firestore";
+import { getPaginatedSolutions, getActiveAdForPlacement } from "@/lib/firestore";
+import { upvoteItemAction } from "@/app/actions";
 import type { Solution, Ad } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
@@ -109,18 +110,14 @@ export default function SolutionList() {
             })
         );
 
-        try {
-            await upvoteSolution(solutionId, user.uid);
-        } catch (e: any) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: e.message || "Could not record upvote. Reverting.",
-            });
+        const result = await upvoteItemAction(solutionId, 'solution');
+
+        if (!result.success) {
+            toast({ variant: "destructive", title: "Error", description: result.message });
             fetchSolutions(true);
-        } finally {
-            setUpvotingId(null);
         }
+
+        setUpvotingId(null);
     };
     
     const filteredSolutions = useMemo(() => {

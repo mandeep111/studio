@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 interface ProblemCardProps {
   problem: Problem;
-  onUpvote: (problemId: string) => void;
+  onUpvote: (problemId: string, creatorId: string) => void;
   isUpvoting: boolean;
 }
 
@@ -54,7 +54,7 @@ export default function ProblemCard({ problem, onUpvote, isUpvoting }: ProblemCa
             <Button 
                 variant={isUpvoted ? "default" : "outline"} 
                 size="sm"
-                onClick={() => onUpvote(problem.id)}
+                onClick={() => onUpvote(problem.id, problem.creator.userId)}
                 disabled={!user || isCreator || isUpvoting}
                 className="flex items-center gap-1 px-2 h-8"
             >

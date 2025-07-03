@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPaginatedProblems, upvoteProblem, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import { getPaginatedProblems, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
+import { upvoteItemAction } from "@/app/actions";
 import type { Problem, Ad, PaymentSettings } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "./ui/skeleton";
@@ -91,11 +92,12 @@ export default function ProblemList() {
         fetchProblems(true);
     }, [sortBy]);
 
-    const handleUpvote = async (problemId: string) => {
+    const handleUpvote = async (problemId: string, creatorId: string) => {
         if (!user || upvotingId) return;
 
         setUpvotingId(problemId);
         
+        // Optimistic update
         setProblems(prevProblems =>
             prevProblems.map(p => {
                 if (p.id === problemId) {
@@ -113,18 +115,14 @@ export default function ProblemList() {
             })
         );
 
-        try {
-            await upvoteProblem(problemId, user.uid);
-        } catch (e: any) {
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: e.message || "Could not record upvote. Reverting.",
-            });
-            fetchProblems(true);
-        } finally {
-            setUpvotingId(null);
+        const result = await upvoteItemAction(problemId, 'problem');
+        
+        if (!result.success) {
+            toast({ variant: "destructive", title: "Error", description: result.message });
+            fetchProblems(true); // Revert on error
         }
+        
+        setUpvotingId(null);
     };
 
     const canCreateProblem = userProfile?.role === 'User';

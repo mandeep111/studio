@@ -4,7 +4,6 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import { createProblem } from '@/lib/firestore';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +15,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { createProblemAction } from '@/app/actions';
 
 
 interface CreateProblemFormProps {
@@ -33,7 +33,6 @@ export default function CreateProblemForm({ onProblemCreated, isPaymentEnabled }
   const { user, userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [formLoading, setFormLoading] = useState(false);
-  const [attachment, setAttachment] = useState<File | null>(null);
   const [tags, setTags] = useState<string[]>([]);
 
   const form = useForm<z.infer<typeof problemFormSchema>>({
@@ -51,42 +50,32 @@ export default function CreateProblemForm({ onProblemCreated, isPaymentEnabled }
   const onSubmit = async (values: z.infer<typeof problemFormSchema>) => {
     setFormLoading(true);
 
-    if (!userProfile) {
-        toast({ variant: "destructive", title: "Authentication Error", description: "You must be logged in to submit a problem." });
-        setFormLoading(false);
-        return;
-    }
-
-    const price = showPriceInput && values.price ? parseFloat(values.price) : null;
-    if (showPriceInput && values.price && isNaN(price)) {
-         form.setError("price", { type: "manual", message: "Price must be a valid number." });
-         setFormLoading(false);
-         return;
+    const formData = new FormData();
+    formData.append('title', values.title);
+    formData.append('description', values.description);
+    if(values.price) formData.append('price', values.price);
+    tags.forEach(tag => formData.append('tags', tag));
+    
+    const fileInput = document.getElementById('attachment-problem') as HTMLInputElement;
+    if (fileInput?.files?.[0]) {
+        formData.append('attachment', fileInput.files[0]);
     }
     
-    try {
-        await createProblem(values.title, values.description, tags, price, userProfile, attachment || undefined);
-        toast({ title: "Success!", description: "Problem submitted successfully. You've earned 50 points!" });
+    const result = await createProblemAction(formData);
+    
+    if (result.success) {
+        toast({ title: "Success!", description: result.message });
         form.reset();
         setTags([]);
-        setAttachment(null);
+        if (fileInput) fileInput.value = "";
         if (onProblemCreated) {
             onProblemCreated();
         }
-    } catch (error) {
-        console.error(error);
-        let errorMessage = "Failed to submit problem.";
-        if (error instanceof Error) {
-            if ((error as any).code?.includes('storage')) {
-                errorMessage = "Storage permission error. Please check your Firebase rules and ensure you are logged in.";
-            } else {
-                errorMessage = error.message;
-            }
-        }
-        toast({ variant: "destructive", title: "Error", description: errorMessage });
-    } finally {
-        setFormLoading(false);
+    } else {
+        toast({ variant: "destructive", title: "Error", description: result.message });
     }
+    
+    setFormLoading(false);
   };
 
   return (
@@ -166,8 +155,8 @@ export default function CreateProblemForm({ onProblemCreated, isPaymentEnabled }
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="attachment">Attachment (Optional)</Label>
-          <Input id="attachment" name="attachment" type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} disabled={isFieldsDisabled} />
+          <Label htmlFor="attachment-problem">Attachment (Optional)</Label>
+          <Input id="attachment-problem" name="attachment" type="file" disabled={isFieldsDisabled} />
           <p className="text-xs text-muted-foreground">
               Investors will be able to see this attachment.
           </p>
