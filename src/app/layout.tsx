@@ -16,7 +16,12 @@ export const metadata: Metadata = {
   description: "Where every problem is a link to an opportunity.",
   icons: {
     icon: '/logo.png',
-  }
+  },
+  verification: {
+    other: {
+      "google-adsense-account": "ca-pub-1119691945074832",
+    },
+  },
 };
 
 export default function RootLayout({
