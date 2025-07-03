@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getSolution, upvoteSolution } from "@/lib/firestore";
-import { findExistingDealAction, deleteItemAction } from "@/app/actions";
+import { getSolution } from "@/lib/firestore";
+import { findExistingDealAction, deleteItemAction, upvoteItemAction } from "@/app/actions";
 import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
   const [loadingDeal, setLoadingDeal] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
   
   useEffect(() => {
@@ -46,7 +47,9 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
   }, [initialSolution, userProfile]);
 
   const handleUpvote = async () => {
-    if (!user || !solution || user.uid === solution.creator.userId) return;
+    if (!user || !solution || user.uid === solution.creator.userId || !!upvotingId) return;
+
+    setUpvotingId(solution.id);
     
     setSolution(prevSolution => {
         if (!prevSolution) return prevSolution;
@@ -58,15 +61,16 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
         };
     });
 
-    try {
-        await upvoteSolution(solution.id, user.uid);
-    } catch(e) {
-        toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
+    const result = await upvoteItemAction(user.uid, solution.id, 'solution');
+
+    if (!result.success) {
+        toast({variant: "destructive", title: "Error", description: result.message});
         const revertedSolution = await getSolution(solution.id);
         if (revertedSolution) {
           setSolution(revertedSolution);
         }
     }
+    setUpvotingId(null);
   };
   
   const handleDelete = async () => {
@@ -151,7 +155,7 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
             <div>
               <CardTitle className="text-2xl lg:text-3xl">Solution by {solution.creator.name}</CardTitle>
               <CardDescription className="mt-1">
-                Expertise: <Link href={`/users/${solution.creator.userId}`} className="hover:underline font-medium text-foreground">{solution.creator.name}</Link>
+                Expertise: <Link href={`/users/${solution.creator.userId}`} className="hover:underline font-medium text-foreground">{solution.creator.expertise}</Link>
               </CardDescription>
             </div>
           </div>
@@ -190,8 +194,8 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
             )}
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant={isUpvoted ? "default" : "outline"} size="sm" onClick={handleUpvote} disabled={!user || isCreator}>
-            <ThumbsUp className="h-5 w-5 mr-2" />
+          <Button variant={isUpvoted ? "default" : "outline"} size="sm" onClick={handleUpvote} disabled={!user || isCreator || !!upvotingId}>
+             {upvotingId === solution.id ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <ThumbsUp className="h-5 w-5 mr-2" />}
             <span>{solution.upvotes.toLocaleString()} Upvotes</span>
           </Button>
           <Link href={`/problems/${solution.problemId}`} className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
