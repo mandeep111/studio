@@ -12,7 +12,7 @@ import {
   orderBy,
   query,
   runTransaction,
-  serverTimestamp,
+  serverTimestamp as clientServerTimestamp,
   updateDoc,
   where,
   writeBatch,
@@ -23,7 +23,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad, PaymentSettings } from "./types";
+import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad, PaymentSettings, UpvotedItem } from "./types";
 
 // --- Data Fetching ---
 
@@ -67,43 +67,31 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     return docSnap.exists() ? { uid: docSnap.id, ...docSnap.data() } as UserProfile : null;
 }
 
-export async function getProblemsByUser(userId: string): Promise<Problem[]> {
-    const col = collection(db, "problems");
-    const q = query(col, where("creator.userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const problems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
-    // Sort in-memory to avoid needing a composite index
-    return problems.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+export async function getProblem(problemId: string): Promise<Problem | null> {
+    const docRef = doc(db, 'problems', problemId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Problem) : null;
 }
 
-export async function getSolutionsByUser(userId: string): Promise<Solution[]> {
-    const col = collection(db, "solutions");
-    const q = query(col, where("creator.userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const solutions = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
-     // Sort in-memory to avoid needing a composite index
-    return solutions.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+export async function getSolution(solutionId: string): Promise<Solution | null> {
+    const docRef = doc(db, 'solutions', solutionId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Solution) : null;
 }
 
-export async function getIdeasByUser(userId: string): Promise<Idea[]> {
-    const col = collection(db, "ideas");
-    const q = query(col, where("creator.userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const ideas = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
-     // Sort in-memory to avoid needing a composite index
-    return ideas.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+export async function getIdea(ideaId: string): Promise<Idea | null> {
+    const docRef = doc(db, 'ideas', ideaId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Idea) : null;
 }
 
-export async function getBusinessesByUser(userId: string): Promise<Business[]> {
-    const col = collection(db, "businesses");
-    const q = query(col, where("creator.userId", "==", userId));
-    const snapshot = await getDocs(q);
-    const businesses = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Business));
-    // Sort in-memory to avoid needing a composite index
-    return businesses.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+export async function getBusiness(businessId: string): Promise<Business | null> {
+    const docRef = doc(db, 'businesses', businessId);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Business) : null;
 }
 
-export async function getUpvotedItems(userId: string) {
+export async function getUpvotedItemsForUser(userId: string): Promise<UpvotedItem[]> {
     const problemsQuery = query(collection(db, "problems"), where("upvotedBy", "array-contains", userId));
     const solutionsQuery = query(collection(db, "solutions"), where("upvotedBy", "array-contains", userId));
     const ideasQuery = query(collection(db, "ideas"), where("upvotedBy", "array-contains", userId));
@@ -120,7 +108,6 @@ export async function getUpvotedItems(userId: string) {
     const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, ...doc.data() as Solution, id: doc.id }));
     const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, ...doc.data() as Idea, id: doc.id }));
     const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, ...doc.data() as Business, id: doc.id }));
-
 
     const allItems = [...problems, ...solutions, ...ideas, ...businesses];
     
@@ -228,52 +215,20 @@ export async function getPaginatedInvestors(options: { sortBy?: 'dealsCount' | '
     return { users, lastVisible: newLastVisible };
 }
 
-export async function getContentByCreators(creatorIds: string[]): Promise<Array<Problem | Solution>> {
-    if (creatorIds.length === 0) return [];
-
-    const CHUNK_SIZE = 30;
-    const chunks = [];
-    for (let i = 0; i < creatorIds.length; i += CHUNK_SIZE) {
-        chunks.push(creatorIds.slice(i, i + CHUNK_SIZE));
-    }
-    
-    const allContent: Array<(Problem & {type: 'problem'}) | (Solution & {type: 'solution'})> = [];
-
-    for (const chunk of chunks) {
-        const problemsQuery = query(collection(db, "problems"), where("creator.userId", "in", chunk));
-        const solutionsQuery = query(collection(db, "solutions"), where("creator.userId", "in", chunk));
-
-        const [problemsSnap, solutionsSnap] = await Promise.all([
-            getDocs(problemsQuery),
-            getDocs(solutionsQuery)
-        ]);
-
-        const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, ...doc.data() as Problem, id: doc.id }));
-        const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, ...doc.data() as Solution, id: doc.id }));
-
-        allContent.push(...problems, ...solutions);
-    }
-    
-    allContent.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-    });
-
-    return allContent;
-}
-
-
 // --- Creation & Updates ---
 
+// This function needs admin privileges because it's called from server actions and scripts.
 export async function createNotification(userId: string | "admins", message: string, link: string) {
-    const notificationsCol = collection(db, "notifications");
-    await addDoc(notificationsCol, {
+    const { adminDb } = await import('./firebase/admin');
+    const { serverTimestamp: adminServerTimestamp } = await import('firebase-admin/firestore');
+
+    const notificationsCol = adminDb.collection("notifications");
+    await notificationsCol.add({
         userId,
         message,
         link,
         read: false,
-        createdAt: serverTimestamp(),
+        createdAt: adminServerTimestamp(),
     });
 }
 
@@ -302,21 +257,6 @@ export async function getDeal(id: string): Promise<Deal | null> {
     const docRef = doc(db, "deals", id);
     const docSnap = await getDoc(docRef);
     return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Deal : null;
-}
-
-export async function getDealsForUser(userId: string): Promise<Deal[]> {
-    const dealsCol = collection(db, "deals");
-    const q = query(dealsCol, where("participantIds", "array-contains", userId));
-    const snapshot = await getDocs(q);
-    const allDeals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Deal));
-
-    allDeals.sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-    });
-
-    return allDeals;
 }
 
 export async function getMessages(dealId: string): Promise<Message[]> {
