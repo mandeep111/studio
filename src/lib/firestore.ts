@@ -489,34 +489,3 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     // Default to enabled if not set
     return { isEnabled: true };
 }
-
-// --- Counts for Stats ---
-export async function getCounts() {
-    const problemsQuery = query(collection(db, "problems"));
-    const solutionsQuery = query(collection(db, "solutions"));
-    const ideasQuery = query(collection(db, "ideas"));
-    const businessesQuery = query(collection(db, "businesses"));
-    const investorsQuery = query(collection(db, "users"), where("role", "==", "Investor"));
-
-    const [
-        problemsSnap,
-        solutionsSnap,
-        ideasSnap,
-        businessesSnap,
-        investorsSnap
-    ] = await Promise.all([
-        getDocs(problemsQuery),
-        getDocs(solutionsQuery),
-        getDocs(ideasQuery),
-        getDocs(businessesQuery),
-        getDocs(investorsQuery)
-    ]);
-
-    return {
-        problems: problemsSnap.size,
-        solutions: solutionsSnap.size,
-        ideas: ideasSnap.size,
-        businesses: businessesSnap.size,
-        investors: investorsSnap.size,
-    };
-}

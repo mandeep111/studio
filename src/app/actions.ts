@@ -13,7 +13,7 @@ import {
     createNotification, 
     getIdeas
 } from "@/lib/firestore";
-import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution } from "@/lib/types";
+import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution, Ad } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
@@ -593,12 +593,11 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
     }
 }
 
-export async function createProblemAction(formData: FormData) {
+export async function createProblemAction(userId: string, formData: FormData) {
     const { adminDb } = await import('@/lib/firebase/admin');
     const { FieldValue } = await import("firebase-admin/firestore");
 
     try {
-        const userId = formData.get('userId') as string;
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
         const priceStr = formData.get('price') as string | null;
@@ -661,12 +660,11 @@ export async function createProblemAction(formData: FormData) {
     }
 }
 
-export async function createIdeaAction(formData: FormData) {
+export async function createIdeaAction(userId: string, formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
     
     try {
-        const userId = formData.get('userId') as string;
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
         const priceStr = formData.get('price') as string | null;
@@ -729,12 +727,11 @@ export async function createIdeaAction(formData: FormData) {
     }
 }
 
-export async function createBusinessAction(formData: FormData) {
+export async function createBusinessAction(userId: string, formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
     
     try {
-        const userId = formData.get('userId') as string;
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
         const stage = formData.get('stage') as string;
@@ -800,12 +797,11 @@ export async function createBusinessAction(formData: FormData) {
 }
 
 
-export async function createSolutionAction(formData: FormData) {
+export async function createSolutionAction(userId: string, formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
 
     try {
-        const userId = formData.get('userId') as string;
         const description = formData.get('description') as string;
         const priceStr = formData.get('price') as string | null;
         const problemId = formData.get('problemId') as string;
@@ -1036,4 +1032,35 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
     console.error("Error during reCAPTCHA verification:", error);
     return { success: false, message: "An unexpected error occurred during reCAPTCHA verification." };
   }
+}
+
+export async function getCounts() {
+    const { adminDb } = await import('@/lib/firebase/admin');
+    const problemsQuery = adminDb.collection("problems");
+    const solutionsQuery = adminDb.collection("solutions");
+    const ideasQuery = adminDb.collection("ideas");
+    const businessesQuery = adminDb.collection("businesses");
+    const investorsQuery = adminDb.collection("users").where("role", "==", "Investor");
+
+    const [
+        problemsSnap,
+        solutionsSnap,
+        ideasSnap,
+        businessesSnap,
+        investorsSnap
+    ] = await Promise.all([
+        problemsQuery.count().get(),
+        solutionsQuery.count().get(),
+        ideasQuery.count().get(),
+        businessesQuery.count().get(),
+        investorsQuery.count().get()
+    ]);
+
+    return {
+        problems: problemsSnap.data().count,
+        solutions: solutionsSnap.data().count,
+        ideas: ideasSnap.data().count,
+        businesses: businessesSnap.data().count,
+        investors: investorsSnap.data().count,
+    };
 }

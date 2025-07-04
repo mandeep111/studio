@@ -1,4 +1,4 @@
-import { getCounts } from "@/lib/firestore";
+import { getCounts } from "@/app/actions";
 import StatsCounter from "./stats-counter";
 import { BrainCircuit, Lightbulb, Briefcase, Sparkles, Users } from "lucide-react";
 
