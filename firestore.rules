@@ -1,50 +1,106 @@
-{
-  "rules_version": "2",
-  "service cloud.firestore": {
-    "match /databases/{database}/documents": {
-      "function isAuthenticated()": {
-        "return request.auth != null;"
-      },
-      "function isOwner(userId)": {
-        "return request.auth.uid == userId;"
-      },
 
-      "match /{document=**}": {
-        "allow read": true
-      },
+rules_version = '2';
 
-      "match /users/{userId}": {
-        "allow create": "if isOwner(userId);",
-        "allow update": "if isOwner(userId);"
-      },
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
 
-      "match /problems/{problemId}": {
-        "allow create": "if isAuthenticated();",
-        "allow update": "if isOwner(resource.data.creator.userId);",
-        "allow delete": "if isOwner(resource.data.creator.userId);"
-      },
+    function isAdmin() {
+      // In a production app, this would be more secure, e.g., checking a custom claim.
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
 
-      "match /solutions/{solutionId}": {
-        "allow create": "if isAuthenticated();",
-        "allow update": "if isOwner(resource.data.creator.userId);",
-        "allow delete": "if isOwner(resource.data.creator.userId);"
-      },
-      
-      "match /ideas/{ideaId}": {
-        "allow create": "if isAuthenticated();",
-        "allow update": "if isOwner(resource.data.creator.userId);",
-        "allow delete": "if isOwner(resource.data.creator.userId);"
-      },
-      
-      "match /businesses/{businessId}": {
-        "allow create": "if isAuthenticated();",
-        "allow update": "if isOwner(resource.data.creator.userId);",
-        "allow delete": "if isOwner(resource.data.creator.userId);"
-      },
+    // --- Public Read Rules ---
+    // Allow public read on most top-level collections for browsing content.
+    match /{collection}/{docId} {
+      allow read: if collection in ['problems', 'solutions', 'ideas', 'businesses', 'users', 'tags'];
+    }
 
-      "match /tags/{tag}": {
-        "allow write": "if isAuthenticated();"
+    // --- Content Creation/Modification Rules ---
+    match /problems/{problemId} {
+      allow create: if isAuth();
+      allow update: if isOwner(resource.data.creator.userId);
+      allow delete: if isOwner(resource.data.creator.userId) || isAdmin();
+    }
+    
+    match /solutions/{solutionId} {
+      allow create: if isAuth();
+      allow update: if isOwner(resource.data.creator.userId);
+      allow delete: if isOwner(resource.data.creator.userId) || isAdmin();
+    }
+
+    match /ideas/{ideaId} {
+      allow create: if isAuth();
+      allow update: if isOwner(resource.data.creator.userId);
+      allow delete: if isOwner(resource.data.creator.userId) || isAdmin();
+    }
+
+    match /businesses/{businessId} {
+      allow create: if isAuth();
+      allow update: if isOwner(resource.data.creator.userId);
+      allow delete: if isOwner(resource.data.creator.userId) || isAdmin();
+    }
+    
+    // --- User Profile Rules ---
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId);
+      // Only the owner can update their own profile.
+      allow update: if isOwner(userId);
+      // Only admins can delete user profiles.
+      allow delete: if isAdmin();
+    }
+
+    // --- Deal Rules ---
+    match /deals/{dealId} {
+      // Users can only create deals where they are the investor.
+      // Use request.resource.data for create operations.
+      allow create: if isAuth() && request.auth.uid == request.resource.data.investor.userId;
+      // Participants can read and update the deal.
+      allow read, update: if isAuth() && request.auth.uid in resource.data.participantIds;
+      // Deals can't be deleted from the client for record-keeping.
+      allow delete: if false;
+
+      // --- Deal Messages Subcollection Rules ---
+      match /messages/{messageId} {
+        // Participants can create and read messages.
+        allow create, read: if isAuth() && request.auth.uid in get(/databases/$(database)/documents/deals/$(dealId)).data.participantIds;
+        // Messages are immutable.
+        allow update, delete: if false; 
       }
+    }
+    
+    // --- Admin-Only & Server-Side Rules ---
+    match /settings/{docId} {
+      allow read, write: if isAdmin();
+    }
+    match /ads/{adId} {
+      allow read, write: if isAdmin();
+    }
+    match /payments/{paymentId} {
+      // Only admins can read payment history.
+      allow read: if isAdmin();
+      // Payments are created server-side only.
+      allow write: if false; 
+    }
+    match /tags/{tagId} {
+      allow read: if true;
+      // Tags are managed server-side.
+      allow write: if false;
+    }
+    match /notifications/{notificationId} {
+      // Users can read and update their own notifications (to mark as read).
+      allow read, update: if isOwner(resource.data.userId) || resource.data.userId == 'admins' && isAdmin();
+      // Notifications are created server-side only.
+      allow create, delete: if false; 
     }
   }
 }

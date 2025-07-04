@@ -3,7 +3,7 @@
 // It can be imported by server actions and API routes.
 "use server";
 
-import type { UserProfile, Deal } from "./types";
+import type { UserProfile, Deal, CreatorReference } from "./types";
 import { createNotification } from "./firestore";
 
 async function addSystemMessage(dealId: string, text: string) {
@@ -62,7 +62,7 @@ export async function createDealInDb(
     
     const dealRef = adminDb.collection('deals').doc();
 
-    const dealData: Omit<Deal, 'id'> = {
+    const dealData: { [key: string]: any } = {
         investor: {
             userId: investorProfile.uid,
             name: investorProfile.name,
