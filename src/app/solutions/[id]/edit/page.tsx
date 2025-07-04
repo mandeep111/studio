@@ -4,10 +4,9 @@ import Header from "@/components/header";
 import EditSolutionForm from "@/components/edit-solution-form";
 
 export default async function EditSolutionPage({ params }: { params: { id: string } }) {
+    // getSolution will throw an error if not found, which is caught by the global error boundary.
     const solution = await getSolution(params.id);
-    if (!solution) {
-        throw new Error("Could not find the requested solution to edit.");
-    }
+
     return (
         <div className="flex min-h-screen w-full flex-col">
             <Header />

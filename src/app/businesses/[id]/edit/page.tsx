@@ -4,10 +4,9 @@ import Header from "@/components/header";
 import EditBusinessForm from "@/components/edit-business-form";
 
 export default async function EditBusinessPage({ params }: { params: { id: string } }) {
+    // getBusiness will throw an error if not found, which is caught by the global error boundary.
     const business = await getBusiness(params.id);
-    if (!business) {
-        throw new Error("Could not find the requested business to edit.");
-    }
+    
     return (
         <div className="flex min-h-screen w-full flex-col">
             <Header />

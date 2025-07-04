@@ -4,11 +4,9 @@ import { getSolution } from "@/lib/firestore";
 import SolutionClientPage from "@/components/solution-client-page";
 
 export default async function SolutionPage({ params }: { params: { id: string } }) {
+  // getSolution will throw an error if the solution is not found,
+  // which will be caught by the global error boundary.
   const solution = await getSolution(params.id);
-  
-  if (!solution) {
-    throw new Error("Could not find the requested solution. It may have been deleted.");
-  }
 
   const serializableSolution = JSON.parse(JSON.stringify(solution));
 

@@ -4,10 +4,9 @@ import Header from "@/components/header";
 import EditIdeaForm from "@/components/edit-idea-form";
 
 export default async function EditIdeaPage({ params }: { params: { id: string } }) {
+    // getIdea will throw an error if not found, which is caught by the global error boundary.
     const idea = await getIdea(params.id);
-    if (!idea) {
-        throw new Error("Could not find the requested idea to edit.");
-    }
+
     return (
         <div className="flex min-h-screen w-full flex-col">
             <Header />
