@@ -1,12 +1,11 @@
 
-import Stripe from 'stripe';
-import { headers } from 'next/headers';
+import type Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { createDealInDb } from '@/lib/deal-utils.server';
 
 export async function POST(req: Request) {
     const body = await req.text();
-    const signature = headers().get('Stripe-Signature') as string;
+    const signature = req.headers.get('Stripe-Signature') as string;
 
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!webhookSecret) {
