@@ -1,3 +1,4 @@
+
 // To run this script, use: npm run db:seed
 // Make sure you have a .env.local file with your Firebase project's credentials.
 
@@ -6,14 +7,9 @@ config({ path: '.env.local' }); // Make sure to load the local env file
 import type { UserProfile, CreatorReference } from '../src/lib/types';
 
 async function seed() {
-    const {
-        collection,
-        doc,
-        writeBatch,
-        Timestamp,
-        setDoc,
-    } = await import('firebase/firestore');
-    const { db } = await import('../src/lib/firebase/config');
+    // Use the Admin SDK for scripts
+    const { adminDb: db } = await import('../src/lib/firebase/admin');
+    const { Timestamp } = await import('firebase-admin/firestore');
     const { ADMIN_AVATARS, INVESTOR_AVATARS, USER_AVATARS } = await import('../src/lib/avatars');
 
     const USERS: Omit<UserProfile, 'uid'>[] = [
@@ -23,9 +19,10 @@ async function seed() {
         role: 'Admin',
         avatarUrl: ADMIN_AVATARS[0],
         expertise: 'Platform Management',
-        points: 100,
+        points: 0,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
     },
     {
         email: 'problem.creator@problem2profit.com',
@@ -36,6 +33,7 @@ async function seed() {
         points: 50,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
     },
     {
         email: 'solution.creator@problem2profit.com',
@@ -46,6 +44,7 @@ async function seed() {
         points: 20,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
     },
     {
         email: 'investor@problem2profit.com',
@@ -56,6 +55,11 @@ async function seed() {
         points: 120,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
+        dealsCompletedCount: 0,
+        dealsCancelledCount: 0,
+        upvotes: 0,
+        upvotedBy: [],
     },
         {
         email: 'idea.creator@problem2profit.com',
@@ -66,6 +70,7 @@ async function seed() {
         points: 10,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
     },
     {
         email: 'problem.creator2@problem2profit.com',
@@ -76,6 +81,7 @@ async function seed() {
         points: 15,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
     },
     {
         email: 'business.owner@problem2profit.com',
@@ -86,6 +92,7 @@ async function seed() {
         points: 40,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
     },
     {
         email: 'investor2@problem2profit.com',
@@ -96,23 +103,28 @@ async function seed() {
         points: 250,
         isPremium: true,
         unreadDealMessages: {},
+        dealsCount: 0,
+        dealsCompletedCount: 0,
+        dealsCancelledCount: 0,
+        upvotes: 0,
+        upvotedBy: [],
     }
     ];
 
     async function seedUsers() {
-    console.log('Seeding users...');
-    const usersCollection = collection(db, 'users');
-    const batch = writeBatch(db);
+        console.log('Seeding users...');
+        const usersCollection = db.collection('users');
+        const batch = db.batch();
 
-    for (const user of USERS) {
-        const userId = user.email; 
-        const userRef = doc(usersCollection, userId);
-        batch.set(userRef, { ...user, uid: userId });
-    }
+        for (const user of USERS) {
+            const userId = user.email; 
+            const userRef = usersCollection.doc(userId);
+            batch.set(userRef, { ...user, uid: userId });
+        }
 
-    await batch.commit();
-    console.log('Users seeded successfully!');
-    return USERS.map(u => ({...u, uid: u.email}));
+        await batch.commit();
+        console.log('Users seeded successfully!');
+        return USERS.map(u => ({...u, uid: u.email}));
     }
 
     function createCreatorRef(user: UserProfile): CreatorReference {
@@ -126,16 +138,16 @@ async function seed() {
 
     async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         console.log('Seeding problems and solutions...');
-        const problemsCollection = collection(db, 'problems');
-        const solutionsCollection = collection(db, 'solutions');
-        const batch = writeBatch(db);
+        const problemsCollection = db.collection('problems');
+        const solutionsCollection = db.collection('solutions');
+        const batch = db.batch();
 
         const problemCreator = seededUsers.find(u => u.email === 'problem.creator@problem2profit.com')!;
         const solutionCreator = seededUsers.find(u => u.email === 'solution.creator@problem2profit.com')!;
         const problemCreator2 = seededUsers.find(u => u.email === 'problem.creator2@problem2profit.com')!;
 
         // Problem 1
-        const problem1Ref = doc(problemsCollection);
+        const problem1Ref = problemsCollection.doc();
         batch.set(problem1Ref, {
             title: 'Reducing Urban Traffic Congestion',
             description: 'Major cities worldwide suffer from severe traffic congestion, leading to increased pollution, economic losses, and decreased quality of life. We need innovative solutions to manage traffic flow efficiently.',
@@ -150,10 +162,11 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
 
         // Solution for Problem 1
-        const solution1Ref = doc(solutionsCollection);
+        const solution1Ref = solutionsCollection.doc();
         batch.set(solution1Ref, {
             problemId: problem1Ref.id,
             problemTitle: 'Reducing Urban Traffic Congestion',
@@ -167,10 +180,11 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
 
         // Problem 2
-        const problem2Ref = doc(problemsCollection);
+        const problem2Ref = problemsCollection.doc();
         batch.set(problem2Ref, {
             title: 'Making Healthy Eating More Accessible',
             description: 'Access to fresh, healthy, and affordable food is a challenge for many communities, especially in urban "food deserts". How can technology help bridge this gap?',
@@ -185,10 +199,11 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
 
         // Problem 3 (from new user)
-        const problem3Ref = doc(problemsCollection);
+        const problem3Ref = problemsCollection.doc();
         batch.set(problem3Ref, {
             title: 'Improving Community Recycling Programs',
             description: 'Many local recycling programs suffer from low participation and high contamination rates. How can we use technology to educate residents and simplify the recycling process?',
@@ -203,10 +218,11 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
 
         // Solution for Problem 3 (from original solution creator)
-        const solution3Ref = doc(solutionsCollection);
+        const solution3Ref = solutionsCollection.doc();
         batch.set(solution3Ref, {
             problemId: problem3Ref.id,
             problemTitle: 'Improving Community Recycling Programs',
@@ -220,10 +236,11 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
 
         // Problem 4 (no solution)
-        const problem4Ref = doc(problemsCollection);
+        const problem4Ref = problemsCollection.doc();
         batch.set(problem4Ref, {
             title: 'Remote Team Collaboration Burnout',
             description: 'With the rise of remote work, teams are experiencing increased burnout due to constant virtual meetings and a lack of clear work-life boundaries. We need tools and strategies to foster healthier remote collaboration.',
@@ -238,8 +255,8 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
-
 
         await batch.commit();
         console.log('Problems and solutions seeded successfully!');
@@ -247,13 +264,13 @@ async function seed() {
 
     async function seedIdeas(seededUsers: UserProfile[]) {
         console.log('Seeding ideas...');
-        const ideasCollection = collection(db, 'ideas');
-        const batch = writeBatch(db);
+        const ideasCollection = db.collection('ideas');
+        const batch = db.batch();
 
         const ideaCreator = seededUsers.find(u => u.email === 'idea.creator@problem2profit.com')!;
 
         // Idea 1
-        const idea1Ref = doc(ideasCollection);
+        const idea1Ref = ideasCollection.doc();
         batch.set(idea1Ref, {
             title: 'Gamified Language Learning for Niche Languages',
             description: 'An app that uses gamification, story-telling, and AI-driven conversation partners to teach less common or endangered languages, helping to preserve cultural heritage.',
@@ -265,10 +282,11 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
         
         // Idea 2
-        const idea2Ref = doc(ideasCollection);
+        const idea2Ref = ideasCollection.doc();
         batch.set(idea2Ref, {
             title: 'Personalized Public Art Guide',
             description: 'A mobile app that uses your location to provide augmented reality overlays and detailed information about public art, murals, and sculptures around you.',
@@ -280,10 +298,11 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
 
         // Idea 3
-        const idea3Ref = doc(ideasCollection);
+        const idea3Ref = ideasCollection.doc();
         batch.set(idea3Ref, {
             title: 'Subscription Box for Local Artisans',
             description: 'A curated subscription box service that features unique, handcrafted goods from local artisans in a different city each month, helping small businesses reach a wider audience.',
@@ -295,6 +314,7 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
 
         await batch.commit();
@@ -303,12 +323,12 @@ async function seed() {
 
     async function seedBusinesses(seededUsers: UserProfile[]) {
         console.log('Seeding businesses...');
-        const businessesCollection = collection(db, 'businesses');
-        const batch = writeBatch(db);
+        const businessesCollection = db.collection('businesses');
+        const batch = db.batch();
 
         const businessOwner = seededUsers.find(u => u.email === 'business.owner@problem2profit.com')!;
 
-        batch.set(doc(businessesCollection), {
+        batch.set(businessesCollection.doc(), {
             title: 'EcoWear - Sustainable Fashion',
             description: 'An e-commerce brand offering stylish apparel made from 100% recycled materials. We have a growing customer base and are seeking funding to expand our product line and marketing efforts.',
             tags: ['E-commerce', 'Sustainability', 'Fashion', 'Retail'],
@@ -322,9 +342,10 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 1,
+            isClosed: false,
         });
 
-        batch.set(doc(businessesCollection), {
+        batch.set(businessesCollection.doc(), {
             title: 'LocalEats - Farm-to-Table Delivery',
             description: 'A subscription service that partners with local farms to deliver fresh, organic produce directly to consumers. We are looking to scale our operations to three new cities.',
             tags: ['Food Tech', 'Subscription', 'Logistics', 'Health'],
@@ -338,6 +359,7 @@ async function seed() {
             attachmentUrl: null,
             attachmentFileName: null,
             interestedInvestorsCount: 0,
+            isClosed: false,
         });
         
         await batch.commit();
@@ -346,11 +368,10 @@ async function seed() {
 
     async function seedSettings() {
         console.log('Seeding settings...');
-        const settingsRef = doc(db, 'settings', 'payment');
-        await setDoc(settingsRef, { isEnabled: true });
+        const settingsRef = db.collection('settings').doc('payment');
+        await settingsRef.set({ isEnabled: true });
         console.log('Settings seeded successfully!');
     }
-
 
     async function main() {
         console.log('Starting database seeding process...');
@@ -367,10 +388,12 @@ async function seed() {
     }
 
     main().catch(e => {
-    console.error('An error occurred during seeding:');
-    console.error(e);
-    process.exit(1);
+        console.error('An error occurred during seeding:');
+        console.error(e);
+        process.exit(1);
     });
 }
 
 seed();
+
+    
