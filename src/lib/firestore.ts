@@ -64,31 +64,51 @@ export async function getAllUsers(): Promise<UserProfile[]> {
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
     const docRef = doc(db, "users", userId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { uid: docSnap.id, ...docSnap.data() } as UserProfile : null;
+    if (!docSnap.exists()) {
+        console.error(`No user profile found for ID: ${userId}`);
+        throw new Error("User profile not found.");
+    }
+    return { uid: docSnap.id, ...docSnap.data() } as UserProfile;
 }
 
 export async function getProblem(problemId: string): Promise<Problem | null> {
     const docRef = doc(db, 'problems', problemId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Problem) : null;
+    if (!docSnap.exists()) {
+        console.error(`No problem found for ID: ${problemId}`);
+        throw new Error("Problem not found.");
+    }
+    return { id: docSnap.id, ...docSnap.data() } as Problem;
 }
 
 export async function getSolution(solutionId: string): Promise<Solution | null> {
     const docRef = doc(db, 'solutions', solutionId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Solution) : null;
+    if (!docSnap.exists()) {
+        console.error(`No solution found for ID: ${solutionId}`);
+        throw new Error("Solution not found.");
+    }
+    return { id: docSnap.id, ...docSnap.data() } as Solution;
 }
 
 export async function getIdea(ideaId: string): Promise<Idea | null> {
     const docRef = doc(db, 'ideas', ideaId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Idea) : null;
+    if (!docSnap.exists()) {
+        console.error(`No idea found for ID: ${ideaId}`);
+        throw new Error("Idea not found.");
+    }
+    return { id: docSnap.id, ...docSnap.data() } as Idea;
 }
 
 export async function getBusiness(businessId: string): Promise<Business | null> {
     const docRef = doc(db, 'businesses', businessId);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? ({ id: docSnap.id, ...docSnap.data() } as Business) : null;
+    if (!docSnap.exists()) {
+        console.error(`No business found for ID: ${businessId}`);
+        throw new Error("Business not found.");
+    }
+    return { id: docSnap.id, ...docSnap.data() } as Business;
 }
 
 export async function getUpvotedItemsForUser(userId: string): Promise<UpvotedItem[]> {
@@ -219,17 +239,21 @@ export async function getPaginatedInvestors(options: { sortBy?: 'dealsCount' | '
 
 // This function needs admin privileges because it's called from server actions and scripts.
 export async function createNotification(userId: string | "admins", message: string, link: string) {
-    const { adminDb } = await import('./firebase/admin');
-    const { serverTimestamp: adminServerTimestamp } = await import('firebase-admin/firestore');
+    try {
+        const { adminDb } = await import('./firebase/admin');
+        const { FieldValue } = await import('firebase-admin/firestore');
 
-    const notificationsCol = adminDb.collection("notifications");
-    await notificationsCol.add({
-        userId,
-        message,
-        link,
-        read: false,
-        createdAt: adminServerTimestamp(),
-    });
+        const notificationsCol = adminDb.collection("notifications");
+        await notificationsCol.add({
+            userId,
+            message,
+            link,
+            read: false,
+            createdAt: FieldValue.serverTimestamp(),
+        });
+    } catch (error) {
+        console.error("Failed to create notification:", error);
+    }
 }
 
 export async function getTags(): Promise<string[]> {
@@ -256,7 +280,11 @@ export async function findDealByUserAndItem(itemId: string, investorId: string):
 export async function getDeal(id: string): Promise<Deal | null> {
     const docRef = doc(db, "deals", id);
     const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Deal : null;
+    if (!docSnap.exists()) {
+        console.error(`No deal found for ID: ${id}`);
+        throw new Error("Deal not found.");
+    }
+    return { id: docSnap.id, ...docSnap.data() } as Deal;
 }
 
 export async function getMessages(dealId: string): Promise<Message[]> {
