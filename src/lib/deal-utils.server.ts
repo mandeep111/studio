@@ -1,3 +1,4 @@
+
 // This is a server-only file to encapsulate deal creation logic.
 // It can be imported by server actions and API routes.
 "use server";
@@ -74,12 +75,6 @@ export async function createDealInDb(
             avatarUrl: primaryCreator.avatarUrl,
             expertise: primaryCreator.expertise,
         },
-        solutionCreator: solutionCreator ? {
-            userId: solutionCreator.uid,
-            name: solutionCreator.name,
-            avatarUrl: solutionCreator.avatarUrl,
-            expertise: solutionCreator.expertise,
-        } : undefined,
         relatedItemId: itemId,
         title: itemTitle,
         type: itemType,
@@ -87,6 +82,15 @@ export async function createDealInDb(
         participantIds,
         status: 'active',
     };
+
+    if (solutionCreator) {
+        dealData.solutionCreator = {
+            userId: solutionCreator.uid,
+            name: solutionCreator.name,
+            avatarUrl: solutionCreator.avatarUrl,
+            expertise: solutionCreator.expertise,
+        };
+    }
 
     const paymentRef = adminDb.collection('payments').doc();
 
