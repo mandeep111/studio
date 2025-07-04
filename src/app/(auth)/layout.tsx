@@ -1,1 +1,1 @@
-export const ThisFileIsDisabled = true;
+export {};
