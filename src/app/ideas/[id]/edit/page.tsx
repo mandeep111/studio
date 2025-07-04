@@ -1,13 +1,12 @@
 
 import { getIdea } from "@/lib/firestore";
-import { notFound } from "next/navigation";
 import Header from "@/components/header";
 import EditIdeaForm from "@/components/edit-idea-form";
 
 export default async function EditIdeaPage({ params }: { params: { id: string } }) {
     const idea = await getIdea(params.id);
     if (!idea) {
-        notFound();
+        throw new Error("Could not find the requested idea to edit.");
     }
     return (
         <div className="flex min-h-screen w-full flex-col">

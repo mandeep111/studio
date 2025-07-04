@@ -1,7 +1,6 @@
 
 import { getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
-import { notFound } from "next/navigation";
 import IdeaClientPage from "@/components/idea-client-page";
 import { getIdeaById } from "@/app/actions";
 
@@ -12,7 +11,7 @@ export default async function IdeaPage({ params }: { params: { id: string } }) {
   ]);
 
   if (!idea) {
-    notFound();
+    throw new Error("Could not find the requested idea. It may have been deleted.");
   }
   
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));

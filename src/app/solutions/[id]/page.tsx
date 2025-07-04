@@ -1,13 +1,13 @@
+
 import Header from "@/components/header";
 import { getSolution } from "@/lib/firestore";
-import { notFound } from "next/navigation";
 import SolutionClientPage from "@/components/solution-client-page";
 
 export default async function SolutionPage({ params }: { params: { id: string } }) {
   const solution = await getSolution(params.id);
   
   if (!solution) {
-    notFound();
+    throw new Error("Could not find the requested solution. It may have been deleted.");
   }
 
   const serializableSolution = JSON.parse(JSON.stringify(solution));

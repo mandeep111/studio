@@ -1,7 +1,6 @@
 
 import { getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
-import { notFound } from "next/navigation";
 import BusinessClientPage from "@/components/business-client-page";
 import { getBusinessById } from "@/app/actions";
 
@@ -12,7 +11,7 @@ export default async function BusinessPage({ params }: { params: { id: string } 
   ]);
 
   if (!business) {
-    notFound();
+    throw new Error("Could not find the requested business. It may have been deleted.");
   }
   
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));

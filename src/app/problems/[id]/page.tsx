@@ -1,7 +1,6 @@
 
 import { getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
-import { notFound } from "next/navigation";
 import ProblemClientPage from "@/components/problem-client-page";
 import AdDisplay from "@/components/ad-display";
 import { getProblemById, getSolutionsForProblem as getSolutionsForProblemServer } from "@/app/actions";
@@ -14,7 +13,7 @@ export default async function ProblemPage({ params }: { params: { id: string } }
   ]);
 
   if (!problem) {
-    notFound();
+    throw new Error("Could not find the requested problem. It may have been deleted.");
   }
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));

@@ -147,7 +147,7 @@ export async function getAiPairings(
       pairings: pairingsResult.suggestedPairings,
     };
   } catch (e) {
-    console.error("AI Pairing Error:", (e as Error).message);
+    console.error("AI Pairing Error:", e);
     return { message: "An unexpected error occurred with the AI. Please try again.", error: true };
   }
 }
@@ -233,7 +233,7 @@ export async function upgradeMembershipAction(
 
         return { success: true, url: session.url };
     } catch (error) {
-        console.error("Stripe Error (Membership):", (error as Error).message);
+        console.error("Stripe Error (Membership):", error);
         return { success: false, message: "Could not connect to payment provider. Please try again."};
     }
 }
@@ -316,7 +316,7 @@ export async function startDealAction(
         return { success: true, url: session.url };
     } catch (error) {
         console.error("Error creating deal:", error);
-        return { success: false, message: (error as Error).message || "Could not start the deal. Please try again."};
+        return { success: false, message: "Could not start the deal. Please try again."};
     }
 }
 
@@ -590,7 +590,7 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
         if (error instanceof Error && (error as any).code?.startsWith('storage/')) {
              return { success: false, message: "Could not upload image. This might be due to Firebase Storage security rules. Please ensure authenticated users are allowed to write to the 'avatars/' path." };
         }
-        return { success: false, message: (error as Error).message || "An unexpected error occurred." };
+        return { success: false, message: "An unexpected error occurred." };
     }
 }
 
@@ -910,9 +910,9 @@ export async function upvoteItemAction(
         revalidatePath('/marketplace');
         revalidatePath(`/${collectionName}/${itemId}`);
         return { success: true };
-    } catch (error: any) {
+    } catch (error) {
         console.error("Upvote error:", error);
-        return { success: false, message: error.message };
+        return { success: false, message: (error as Error).message };
     }
 }
 

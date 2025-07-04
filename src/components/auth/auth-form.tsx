@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -134,6 +135,7 @@ export function AuthForm() {
       toast({ title: "Password Reset Email Sent", description: "Check your inbox for instructions to reset your password." });
       setResetEmail("");
     } catch (error: any) {
+       console.error("Password reset failed:", error);
        toast({ variant: "destructive", title: "Error", description: error.message });
     } finally {
         setResetLoading(false);
@@ -181,6 +183,7 @@ export function AuthForm() {
       toast({ title: "Success", description: "Logged in successfully." });
       router.push("/marketplace");
     } catch (error: any) {
+      console.error("Login failed:", error);
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -224,6 +227,7 @@ export function AuthForm() {
       toast({ title: "Success", description: "Logged in with Google successfully." });
       router.push("/marketplace");
     } catch (error: any) {
+       console.error("Google sign-in failed:", error);
        toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
@@ -297,6 +301,7 @@ export function AuthForm() {
       router.push('/auth/verify-email');
 
     } catch (error: any) {
+      console.error("Sign up failed:", error);
       toast({
         variant: "destructive",
         title: "Sign Up Failed",

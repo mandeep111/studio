@@ -1,13 +1,12 @@
 
 import { getProblem } from "@/lib/firestore";
-import { notFound } from "next/navigation";
 import Header from "@/components/header";
 import EditProblemForm from "@/components/edit-problem-form";
 
 export default async function EditProblemPage({ params }: { params: { id: string } }) {
     const problem = await getProblem(params.id);
     if (!problem) {
-        notFound();
+        throw new Error("Could not find the requested problem to edit.");
     }
     return (
         <div className="flex min-h-screen w-full flex-col">

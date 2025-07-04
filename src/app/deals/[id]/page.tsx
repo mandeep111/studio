@@ -1,6 +1,6 @@
+
 import Header from "@/components/header";
 import { getDeal, getMessages, getUserProfile, getProblem, getIdea, getBusiness } from "@/lib/firestore";
-import { notFound } from "next/navigation";
 import type { UserProfile, Problem, Idea, Business } from "@/lib/types";
 import DealClientPage from "@/components/deal-client-page";
 import DealsListPanel from "@/components/deals-list-panel";
@@ -9,7 +9,7 @@ export default async function DealPage({ params }: { params: { id: string } }) {
   const deal = await getDeal(params.id);
   
   if (!deal) {
-    notFound();
+    throw new Error("Could not find the requested deal. It may have been deleted or you may not have access.");
   }
 
   const initialMessages = await getMessages(params.id);
