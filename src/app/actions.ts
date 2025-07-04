@@ -1039,35 +1039,47 @@ export async function getCounts() {
 
 // --- Server-side data fetching for pages ---
 
-export async function getProblemById(id: string): Promise<Problem | null> {
+export async function getProblemById(id: string): Promise<Problem> {
     const { adminDb } = await import('@/lib/firebase/admin');
     const docRef = adminDb.collection("problems").doc(id);
     const docSnap = await docRef.get();
-    if (!docSnap.exists) return null;
+    if (!docSnap.exists) {
+        console.error(`[Server Action] Problem with ID ${id} not found.`);
+        throw new Error("The requested problem could not be found. It may have been deleted.");
+    }
     return { id: docSnap.id, ...docSnap.data() } as Problem;
 }
 
-export async function getBusinessById(id: string): Promise<Business | null> {
+export async function getBusinessById(id: string): Promise<Business> {
     const { adminDb } = await import('@/lib/firebase/admin');
     const docRef = adminDb.collection("businesses").doc(id);
     const docSnap = await docRef.get();
-    if (!docSnap.exists) return null;
+    if (!docSnap.exists) {
+        console.error(`[Server Action] Business with ID ${id} not found.`);
+        throw new Error("The requested business could not be found. It may have been deleted.");
+    }
     return { id: docSnap.id, ...docSnap.data() } as Business;
 }
 
-export async function getIdeaById(id: string): Promise<Idea | null> {
+export async function getIdeaById(id: string): Promise<Idea> {
     const { adminDb } = await import('@/lib/firebase/admin');
     const docRef = adminDb.collection("ideas").doc(id);
     const docSnap = await docRef.get();
-    if (!docSnap.exists) return null;
+    if (!docSnap.exists) {
+        console.error(`[Server Action] Idea with ID ${id} not found.`);
+        throw new Error("The requested idea could not be found. It may have been deleted.");
+    }
     return { id: docSnap.id, ...docSnap.data() } as Idea;
 }
 
-export async function getUserProfileById(id: string): Promise<UserProfile | null> {
+export async function getUserProfileById(id: string): Promise<UserProfile> {
     const { adminDb } = await import('@/lib/firebase/admin');
     const docRef = adminDb.collection("users").doc(id);
     const docSnap = await docRef.get();
-    if (!docSnap.exists) return null;
+    if (!docSnap.exists) {
+        console.error(`[Server Action] User with ID ${id} not found.`);
+        throw new Error("The requested user profile could not be found.");
+    }
     return { uid: docSnap.id, ...docSnap.data() } as UserProfile;
 }
 

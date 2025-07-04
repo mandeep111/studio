@@ -9,10 +9,6 @@ export default async function IdeaPage({ params }: { params: { id: string } }) {
     getIdeaById(params.id),
     getPaymentSettings()
   ]);
-
-  if (!idea) {
-    throw new Error("Could not find the requested idea. It may have been deleted.");
-  }
   
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
 

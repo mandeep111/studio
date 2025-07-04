@@ -12,10 +12,6 @@ export default async function ProblemPage({ params }: { params: { id: string } }
     getPaymentSettings()
   ]);
 
-  if (!problem) {
-    throw new Error("Could not find the requested problem. It may have been deleted.");
-  }
-
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
 
   return (

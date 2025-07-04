@@ -13,10 +13,6 @@ import UserProfileClient from "@/components/user-profile-client";
 export default async function UserProfilePage({ params }: { params: { id: string } }) {
   const userProfile = await getUserProfileById(params.id);
 
-  if (!userProfile) {
-    throw new Error("Could not find the requested user profile.");
-  }
-
   // These can still be fetched on the server as they depend on the visited user's ID
   const [problems, solutions, ideas, businesses, deals] = await Promise.all([
     getProblemsByUser(params.id),

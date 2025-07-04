@@ -7,24 +7,27 @@ import DealsListPanel from "@/components/deals-list-panel";
 
 export default async function DealPage({ params }: { params: { id: string } }) {
   const deal = await getDeal(params.id);
-  
-  if (!deal) {
-    throw new Error("Could not find the requested deal. It may have been deleted or you may not have access.");
-  }
 
   const initialMessages = await getMessages(params.id);
 
   let relatedItem: Problem | Idea | Business | null = null;
-  if (deal.type === 'problem') {
-    relatedItem = await getProblem(deal.relatedItemId);
-  } else if (deal.type === 'idea') {
-    relatedItem = await getIdea(deal.relatedItemId);
-  } else if (deal.type === 'business') {
-    relatedItem = await getBusiness(deal.relatedItemId);
+  try {
+    if (deal.type === 'problem') {
+      relatedItem = await getProblem(deal.relatedItemId);
+    } else if (deal.type === 'idea') {
+      relatedItem = await getIdea(deal.relatedItemId);
+    } else if (deal.type === 'business') {
+      relatedItem = await getBusiness(deal.relatedItemId);
+    }
+  } catch (error) {
+    console.error(`Could not fetch related item for deal ${deal.id}:`, error);
   }
   
   const participantProfiles = await Promise.all(
-      (deal.participantIds || []).map(id => getUserProfile(id))
+      (deal.participantIds || []).map(id => getUserProfile(id).catch(err => {
+          console.error(`Failed to fetch profile for participant ${id}:`, err);
+          return null;
+      }))
   );
   
   const participants = participantProfiles.filter(p => p !== null) as UserProfile[];

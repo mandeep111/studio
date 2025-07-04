@@ -9,10 +9,6 @@ export default async function BusinessPage({ params }: { params: { id: string } 
     getBusinessById(params.id),
     getPaymentSettings()
   ]);
-
-  if (!business) {
-    throw new Error("Could not find the requested business. It may have been deleted.");
-  }
   
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
 

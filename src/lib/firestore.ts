@@ -61,52 +61,52 @@ export async function getAllUsers(): Promise<UserProfile[]> {
   return snapshot.docs.map((doc) => ({ ...doc.data(), uid: doc.id } as UserProfile));
 }
 
-export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+export async function getUserProfile(userId: string): Promise<UserProfile> {
     const docRef = doc(db, "users", userId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        console.error(`No user profile found for ID: ${userId}`);
-        throw new Error("User profile not found.");
+        console.error(`[Client Query] User with ID ${userId} not found.`);
+        throw new Error("The requested user profile could not be found.");
     }
     return { uid: docSnap.id, ...docSnap.data() } as UserProfile;
 }
 
-export async function getProblem(problemId: string): Promise<Problem | null> {
+export async function getProblem(problemId: string): Promise<Problem> {
     const docRef = doc(db, 'problems', problemId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        console.error(`No problem found for ID: ${problemId}`);
-        throw new Error("Problem not found.");
+        console.error(`[Client Query] Problem with ID ${problemId} not found.`);
+        throw new Error("The requested problem could not be found. It may have been deleted.");
     }
     return { id: docSnap.id, ...docSnap.data() } as Problem;
 }
 
-export async function getSolution(solutionId: string): Promise<Solution | null> {
+export async function getSolution(solutionId: string): Promise<Solution> {
     const docRef = doc(db, 'solutions', solutionId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        console.error(`No solution found for ID: ${solutionId}`);
-        throw new Error("Solution not found.");
+        console.error(`[Client Query] Solution with ID ${solutionId} not found.`);
+        throw new Error("The requested solution could not be found. It may have been deleted.");
     }
     return { id: docSnap.id, ...docSnap.data() } as Solution;
 }
 
-export async function getIdea(ideaId: string): Promise<Idea | null> {
+export async function getIdea(ideaId: string): Promise<Idea> {
     const docRef = doc(db, 'ideas', ideaId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        console.error(`No idea found for ID: ${ideaId}`);
-        throw new Error("Idea not found.");
+        console.error(`[Client Query] Idea with ID ${ideaId} not found.`);
+        throw new Error("The requested idea could not be found. It may have been deleted.");
     }
     return { id: docSnap.id, ...docSnap.data() } as Idea;
 }
 
-export async function getBusiness(businessId: string): Promise<Business | null> {
+export async function getBusiness(businessId: string): Promise<Business> {
     const docRef = doc(db, 'businesses', businessId);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        console.error(`No business found for ID: ${businessId}`);
-        throw new Error("Business not found.");
+        console.error(`[Client Query] Business with ID ${businessId} not found.`);
+        throw new Error("The requested business could not be found. It may have been deleted.");
     }
     return { id: docSnap.id, ...docSnap.data() } as Business;
 }
@@ -277,12 +277,12 @@ export async function findDealByUserAndItem(itemId: string, investorId: string):
     return { id: dealDoc.id, ...dealDoc.data() } as Deal;
 }
 
-export async function getDeal(id: string): Promise<Deal | null> {
+export async function getDeal(id: string): Promise<Deal> {
     const docRef = doc(db, "deals", id);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        console.error(`No deal found for ID: ${id}`);
-        throw new Error("Deal not found.");
+        console.error(`[Client Query] Deal with ID ${id} not found.`);
+        throw new Error("The requested deal could not be found. It may have been deleted or you may not have access.");
     }
     return { id: docSnap.id, ...docSnap.data() } as Deal;
 }
