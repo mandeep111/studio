@@ -59,6 +59,7 @@ const testProfiles = {
 async function main() {
     console.log('🚀 Starting Problem2Profit Integrity Test...');
     try {
+        await checkProjectConfiguration();
         await setupTestUsers();
         await testFirestoreConnection();
         await testProblemAndSolutionLifecycle();
@@ -75,6 +76,21 @@ async function main() {
         process.exit(0);
     }
 }
+
+async function checkProjectConfiguration() {
+    console.log('- Checking Project Configuration...');
+    const expectedProjectId = 'trisolve-2c9cf';
+    const configuredProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+    if (!configuredProjectId) {
+        throw new Error('`NEXT_PUBLIC_FIREBASE_PROJECT_ID` is not set in your .env.local file.');
+    }
+    if (configuredProjectId !== expectedProjectId) {
+        throw new Error(`Incorrect Firebase Project ID. Expected '${expectedProjectId}' but found '${configuredProjectId}'. Please update your .env.local file.`);
+    }
+    console.log(`  ✅ Configured for production project: ${configuredProjectId}`);
+}
+
 
 async function setupTestUsers() {
     console.log('\n- Setting up temporary users...');
