@@ -76,3 +76,34 @@ npm run dev
 ```
 
 The application will be available at [http://localhost:9002](http://localhost:9002).
+
+---
+
+## Production Deployment & Secrets
+
+For production, environment variables should not be stored in a `.env.local` file. Instead, they should be managed as secrets using a service like **Google Cloud Secret Manager**. Firebase App Hosting is automatically configured to access secrets you create.
+
+### Required Production Secrets:
+
+You will need to create a secret for each of the following variables in Google Cloud Secret Manager:
+
+*   `NEXT_PUBLIC_FIREBASE_API_KEY`
+*   `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+*   `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+*   `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+*   `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+*   `NEXT_PUBLIC_FIREBASE_APP_ID`
+*   `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`
+*   `FIREBASE_SERVICE_ACCOUNT_JSON` (The entire content of the JSON key file)
+*   `STRIPE_SECRET_KEY`
+*   `STRIPE_WEBHOOK_SECRET`
+*   `NEXT_PUBLIC_BASE_URL` (The public URL of your deployed app)
+
+### How to Add a Secret:
+
+1.  Go to the [Google Cloud Secret Manager page](https://console.cloud.google.com/security/secret-manager) for your project.
+2.  Click **Create Secret**.
+3.  Enter the name of the secret (e.g., `STRIPE_SECRET_KEY`).
+4.  Paste the value of the secret in the "Secret value" field.
+5.  Click **Create Secret**.
+6.  Repeat for all required variables. Your Firebase App Hosting backend will automatically have access to them.
