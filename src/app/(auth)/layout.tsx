@@ -1,7 +1,7 @@
 import React from 'react';
 
-// This is a minimal pass-through layout to resolve a Next.js build error.
-// A layout file must export a default component, even if it does nothing.
+// This is a minimal pass-through layout. A layout file must exist and
+// export a default component for the route group to be valid, even if its pages are inert.
 export default function ConflictingAuthLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
