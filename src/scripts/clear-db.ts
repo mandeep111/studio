@@ -4,10 +4,10 @@
 
 import { config } from 'dotenv';
 config({ path: '.env.local' });
+import type { CollectionReference } from 'firebase-admin/firestore';
 
 async function clearDb() {
     const { adminDb } = await import('../lib/firebase/admin');
-    const type { CollectionReference } = await import('firebase-admin/firestore');
 
     const COLLECTIONS_TO_DELETE = [
         'users',

@@ -3,12 +3,13 @@
 
 import { config } from 'dotenv';
 config({ path: '.env.local' });
+import type { UserProfile } from '../src/lib/types';
+
 
 async function runTest() {
     const { collection, doc, getDoc, deleteDoc, setDoc, query, where, getDocs } = await import('firebase/firestore');
     const { db } = await import('../src/lib/firebase/config');
     const { suggestPairings } = await import('../src/ai/flows/suggest-pairings');
-    const type { UserProfile } = await import('../src/lib/types');
     const { USER_AVATARS, INVESTOR_AVATARS } = await import('../src/lib/avatars');
     const { 
         startDealAction, 

@@ -3,6 +3,7 @@
 
 import { config } from 'dotenv';
 config({ path: '.env.local' }); // Make sure to load the local env file
+import type { UserProfile, CreatorReference } from '../src/lib/types';
 
 async function seed() {
     const {
@@ -13,7 +14,6 @@ async function seed() {
         setDoc,
     } = await import('firebase/firestore');
     const { db } = await import('../src/lib/firebase/config');
-    const type { UserProfile, CreatorReference } = await import('../src/lib/types');
     const { ADMIN_AVATARS, INVESTOR_AVATARS, USER_AVATARS } = await import('../src/lib/avatars');
 
     const USERS: Omit<UserProfile, 'uid'>[] = [
