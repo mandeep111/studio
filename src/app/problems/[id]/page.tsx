@@ -20,7 +20,11 @@ export default async function ProblemPage({ params }: { params: { id: string } }
   // This avoids showing ads to paying members.
   const currentUser = auth.currentUser;
   const userProfile = currentUser ? await getUserProfile(currentUser.uid) : null;
-  const showAd = !userProfile?.isPremium;
+  const isPremiumUser = userProfile?.isPremium;
+  
+  // Ad should only show if the user is not premium AND the content is substantial.
+  const hasSufficientContent = problem.description.length > 300 || solutions.length > 0;
+  const showAd = !isPremiumUser && hasSufficientContent;
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
 
