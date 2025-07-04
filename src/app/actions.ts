@@ -17,6 +17,7 @@ import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution, Ad
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
+import type Stripe from "stripe";
 import { adminStorage } from "@/lib/firebase/admin";
 import { v4 as uuidv4 } from "uuid";
 
