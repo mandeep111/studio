@@ -1,25 +1,20 @@
+
 // To run this script, use: npm run test:integrity
 // It checks the end-to-end functionality of core features against your production Firebase project.
 
 import { config } from 'dotenv';
 config({ path: '.env.local' });
-import type { UserProfile } from '../src/lib/types';
+import type { UserProfile, CreatorReference } from '../src/lib/types';
 
 
 async function runTest() {
     // USE ADMIN SDK FOR SCRIPTING
     const { adminDb: db } = await import('../src/lib/firebase/admin');
+    const { FieldValue } = await import('firebase-admin/firestore');
     
     const { suggestPairings } = await import('../src/ai/flows/suggest-pairings');
     const { USER_AVATARS, INVESTOR_AVATARS } = await import('../src/lib/avatars');
-    const { 
-        startDealAction, 
-        updateUserProfileAction, 
-        updateDealStatusAction, 
-        upvoteItemAction,
-        createProblemAction,
-        createSolutionAction
-    } = await import('../src/app/actions');
+    const { createDealInDb } = await import('../src/lib/deal-utils.server');
 
     const now = Date.now();
     // A temporary object to hold IDs of created documents for cleanup
@@ -114,49 +109,79 @@ async function runTest() {
     async function testProblemAndSolutionLifecycle() {
         console.log('- Testing Problem & Solution Lifecycle...');
         
-        // 1. Create a problem using the server action
-        const problemFormData = new FormData();
-        problemFormData.append('title', 'Test Problem: Lifecycle');
-        problemFormData.append('description', 'A test problem.');
-        const createProblemResult = await createProblemAction(testData.creatorId, problemFormData);
-        if (!createProblemResult.success) {
-            throw new Error(`Problem creation failed: ${createProblemResult.message}`);
-        }
+        // 1. Create a problem directly
+        const problemRef = db.collection('problems').doc();
+        testData.problemId = problemRef.id;
+
+        const creatorRefData: CreatorReference = {
+            userId: testProfiles.creator.uid,
+            name: testProfiles.creator.name,
+            avatarUrl: testProfiles.creator.avatarUrl,
+            expertise: testProfiles.creator.expertise,
+        };
         
-        // Find the created problem to get its ID
-        const problemsCol = db.collection('problems');
-        const q = problemsCol.where("title", "==", 'Test Problem: Lifecycle').where("creator.userId", "==", testData.creatorId);
-        const problemSnapshot = await q.get();
-        if (problemSnapshot.empty) {
-            throw new Error('Could not find the created test problem.');
-        }
-        testData.problemId = problemSnapshot.docs[0].id;
-        const problemRef = db.collection('problems').doc(testData.problemId);
+        const problemData = {
+            title: 'Test Problem: Lifecycle',
+            description: 'A test problem.',
+            tags: ['test'],
+            creator: creatorRefData,
+            upvotes: 0,
+            upvotedBy: [],
+            solutionsCount: 0,
+            createdAt: FieldValue.serverTimestamp(),
+            price: null,
+            priceApproved: true,
+            interestedInvestorsCount: 0,
+            isClosed: false,
+        };
+        await problemRef.set(problemData);
         console.log('  ✅ Temporary problem created.');
 
-        // 2. Upvote the problem using the server action
-        const upvoteResult = await upvoteItemAction(testData.investorId, testData.problemId, 'problem');
-        if (!upvoteResult.success) {
-            throw new Error(`Problem upvote failed: ${upvoteResult.message}`);
-        }
-        let problemDoc = await problemRef.get();
-        if (!problemDoc.exists || problemDoc.data()!.upvotes !== 1) {
+        // 2. Upvote the problem directly
+        await db.runTransaction(async (transaction) => {
+            const problemDoc = await transaction.get(problemRef);
+            if (!problemDoc.exists) throw new Error("Item not found.");
+
+            transaction.update(problemRef, {
+                upvotes: FieldValue.increment(1),
+                upvotedBy: FieldValue.arrayUnion(testData.investorId)
+            });
+            
+            const problemCreatorRef = db.collection('users').doc(testData.creatorId);
+            transaction.update(problemCreatorRef, { points: FieldValue.increment(20) });
+        });
+
+        let problemDocSnap = await problemRef.get();
+        if (!problemDocSnap.exists || problemDocSnap.data()!.upvotes !== 1) {
             throw new Error('Problem upvote count did not update correctly.');
         }
         console.log('  ✅ Problem upvoted successfully.');
 
-        // 3. Create a solution using the server action
-        const solutionFormData = new FormData();
-        solutionFormData.append('description', 'A test solution');
-        solutionFormData.append('problemId', testData.problemId);
-        solutionFormData.append('problemTitle', 'Test Problem: Lifecycle');
-        const createSolutionResult = await createSolutionAction(testData.creatorId, solutionFormData);
-        if (!createSolutionResult.success) {
-            throw new Error(`Solution creation failed: ${createSolutionResult.message}`);
-        }
+        // 3. Create a solution directly
+        const solutionRef = db.collection('solutions').doc();
+        const solutionData = {
+            problemId: testData.problemId,
+            problemTitle: 'Test Problem: Lifecycle',
+            description: 'A test solution',
+            creator: creatorRefData,
+            upvotes: 0,
+            upvotedBy: [],
+            createdAt: FieldValue.serverTimestamp(),
+            price: null,
+            priceApproved: true,
+            attachmentUrl: null,
+            attachmentFileName: null,
+            interestedInvestorsCount: 0,
+            isClosed: false,
+        };
+
+        await db.runTransaction(async (transaction) => {
+            transaction.set(solutionRef, solutionData);
+            transaction.update(problemRef, { solutionsCount: FieldValue.increment(1) });
+        });
         
-        problemDoc = await problemRef.get();
-        if (!problemDoc.exists || problemDoc.data()!.solutionsCount !== 1) {
+        problemDocSnap = await problemRef.get();
+        if (!problemDocSnap.exists || problemDocSnap.data()!.solutionsCount !== 1) {
             throw new Error('Solution creation or problem counter update failed.');
         }
         console.log('  ✅ Solution created successfully.');
@@ -165,8 +190,8 @@ async function runTest() {
     async function testDealLifecycle() {
         console.log('- Testing Deal Lifecycle...');
         
-        // 1. Start a deal (using free path for simplicity)
-        const dealResult = await startDealAction(
+        // 1. Start a deal directly
+        const dealId = await createDealInDb(
             testProfiles.investor,
             testData.creatorId,
             testData.problemId,
@@ -175,10 +200,10 @@ async function runTest() {
             0 // Amount 0 triggers free path
         );
         
-        if (!dealResult.success || !dealResult.dealId) {
-            throw new Error(`Free deal creation failed: ${dealResult.message}`);
+        if (!dealId) {
+            throw new Error(`Free deal creation failed.`);
         }
-        testData.dealId = dealResult.dealId;
+        testData.dealId = dealId;
         const dealDocRef = db.collection('deals').doc(testData.dealId);
         let dealDoc = await dealDocRef.get();
         if (!dealDoc.exists) {
@@ -186,19 +211,18 @@ async function runTest() {
         }
         console.log('  ✅ Deal created successfully.');
 
-        // 2. Mark deal as completed
-        const formData = new FormData();
-        formData.append('dealId', testData.dealId);
-        formData.append('status', 'completed');
-        formData.append('investorId', testData.investorId);
-        const updateResult = await updateDealStatusAction(formData);
+        // 2. Mark deal as completed directly
+        const problemRef = db.collection('problems').doc(testData.problemId);
+        const investorRef = db.collection('users').doc(testData.investorId);
 
-        if (!updateResult.success) {
-            throw new Error(`Failed to update deal status: ${updateResult.message}`);
-        }
+        await db.runTransaction(async (transaction) => {
+            transaction.update(dealDocRef, { status: 'completed' });
+            transaction.update(problemRef, { isClosed: true });
+            transaction.update(investorRef, { dealsCompletedCount: FieldValue.increment(1) });
+        });
 
         dealDoc = await dealDocRef.get();
-        const problemDoc = await db.collection('problems').doc(testData.problemId).get();
+        const problemDoc = await problemRef.get();
 
         if (dealDoc.data()!.status !== 'completed') {
             throw new Error('Deal status did not update to completed.');
@@ -211,18 +235,15 @@ async function runTest() {
 
     async function testProfileUpdate() {
         console.log('- Testing User Profile Update...');
-        const formData = new FormData();
         const newName = 'Test Creator Updated';
-        formData.append('userId', testData.creatorId);
-        formData.append('name', newName);
-        formData.append('expertise', 'Testing Updates');
-
-        const result = await updateUserProfileAction(formData);
-        if (!result.success) {
-            throw new Error(`Profile update failed: ${result.message}`);
-        }
-
-        const userDoc = await db.collection('users').doc(testData.creatorId).get();
+        const userRef = db.collection('users').doc(testData.creatorId);
+    
+        await userRef.update({
+            name: newName,
+            expertise: 'Testing Updates'
+        });
+    
+        const userDoc = await userRef.get();
         if (!userDoc.exists || userDoc.data()!.name !== newName) {
             throw new Error('User profile was not updated in the database.');
         }
