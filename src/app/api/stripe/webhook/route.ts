@@ -1,9 +1,10 @@
 
-import type Stripe from 'stripe';
+import Stripe from 'stripe';
+import { type NextRequest } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createDealInDb } from '@/lib/deal-utils.server';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     const body = await req.text();
     const signature = req.headers.get('Stripe-Signature') as string;
 
@@ -106,5 +107,3 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
     // The success_url on the checkout session handles the client-side redirect.
     // The webhook's job is just to create the deal in the DB.
 }
-
-    

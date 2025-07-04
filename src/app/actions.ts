@@ -7,20 +7,19 @@ import {
     getBusinesses as getBusinessesClient, 
     getProblems as getProblemsClient, 
     findDealByUserAndItem, 
-    getPaymentSettings as getPaymentSettingsClient,
+    getPaymentSettings,
     getDeal, 
     getUserProfile, 
     createNotification, 
     getIdeas as getIdeasClient
 } from "@/lib/firestore";
-import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution, Ad, Problem, Idea, Business } from "@/lib/types";
+import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution, Problem, Business, Idea, UpvotedItem } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import type Stripe from "stripe";
 import { adminStorage } from "@/lib/firebase/admin";
 import { v4 as uuidv4 } from "uuid";
-import { adminDb } from "@/lib/firebase/admin";
 
 async function uploadAttachment(file: File): Promise<{ url: string; name: string }> {
   if (!file) {
@@ -165,7 +164,7 @@ export async function upgradeMembershipAction(
     
     const { adminDb } = await import("@/lib/firebase/admin");
 
-    const { isEnabled } = await getPaymentSettingsForServer();
+    const { isEnabled } = await getPaymentSettings();
 
     if (!isEnabled) {
         try {
@@ -255,7 +254,7 @@ export async function startDealAction(
     
     const { adminDb } = await import('@/lib/firebase/admin');
 
-    const { isEnabled } = await getPaymentSettingsForServer();
+    const { isEnabled } = await getPaymentSettings();
     
     try {
         // Free deal creation path
@@ -636,17 +635,13 @@ export async function createProblemAction(userId: string, formData: FormData) {
             itemData.attachmentUrl = url;
             itemData.attachmentFileName = name;
         }
-        
-        const batch = adminDb.batch();
-        batch.set(itemRef, itemData);
-        batch.update(userRef, { points: FieldValue.increment(50) });
-        
-        tags.forEach(tag => {
-            const tagRef = adminDb.collection("tags").doc(tag.toLowerCase().trim());
-            batch.set(tagRef, { name: tag.trim(), count: FieldValue.increment(1) }, { merge: true });
+
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.set(itemRef, itemData);
+            transaction.update(userRef, { points: FieldValue.increment(50) });
         });
         
-        await batch.commit();
+        await addTagsToDb(tags);
 
         if (!priceApproved) {
             await createNotification("admins", `${creator.name} submitted a problem "${title}" with a price of $${price}, which requires approval.`, `/problems/${itemRef.id}`);
@@ -704,16 +699,12 @@ export async function createIdeaAction(userId: string, formData: FormData) {
             itemData.attachmentFileName = name;
         }
 
-        const batch = adminDb.batch();
-        batch.set(itemRef, itemData);
-        batch.update(userRef, { points: FieldValue.increment(10) });
-
-        tags.forEach(tag => {
-            const tagRef = adminDb.collection("tags").doc(tag.toLowerCase().trim());
-            batch.set(tagRef, { name: tag.trim(), count: FieldValue.increment(1) }, { merge: true });
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.set(itemRef, itemData);
+            transaction.update(userRef, { points: FieldValue.increment(10) });
         });
-
-        await batch.commit();
+        
+        await addTagsToDb(tags);
 
         if (!priceApproved) {
             await createNotification("admins", `${creator.name} submitted an idea "${title}" with a price of $${price}, which requires approval.`, `/ideas/${itemRef.id}`);
@@ -772,17 +763,12 @@ export async function createBusinessAction(userId: string, formData: FormData) {
             itemData.attachmentFileName = name;
         }
 
-        const batch = adminDb.batch();
-        batch.set(itemRef, itemData);
-        batch.update(userRef, { points: FieldValue.increment(30) });
-
-        tags.forEach(tag => {
-            const tagRef = adminDb.collection("tags").doc(tag.toLowerCase().trim());
-            batch.set(tagRef, { name: tag.trim(), count: FieldValue.increment(1) }, { merge: true });
+        await adminDb.runTransaction(async (transaction) => {
+            transaction.set(itemRef, itemData);
+            transaction.update(userRef, { points: FieldValue.increment(30) });
         });
-
-        await batch.commit();
-
+        
+        await addTagsToDb(tags);
 
         if (!priceApproved) {
             await createNotification("admins", `${creator.name} submitted a business "${title}" with a price of $${price}, which requires approval.`, `/businesses/${itemRef.id}`);
@@ -987,19 +973,16 @@ export async function updateBusinessAction(formData: FormData) {
     return handleContentUpdate(id, 'business', formData);
 }
 
-export async function verifyRecaptcha(token: string, action: string): Promise<{ success: boolean; message: string; }> {
+export async function verifyRecaptcha(token: string, action: string): Promise<{ success: boolean; message: string }> {
   const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-  const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-  if (!siteKey || !firebaseProjectId || !apiKey) {
-    console.warn("reCAPTCHA environment variables not fully configured. Skipping verification.");
-    // In a production environment, you might want this to be a hard failure.
-    // For this app, we'll allow it to pass to not block login/signup during setup.
+  if (!siteKey || !projectId || !apiKey) {
     return { success: true, message: "reCAPTCHA not configured, skipping." };
   }
 
-  const verificationUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${firebaseProjectId}/assessments?key=${apiKey}`;
+  const verificationUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${projectId}/assessments?key=${apiKey}`;
   
   try {
     const response = await fetch(verificationUrl, {
@@ -1019,7 +1002,7 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
     if (!response.ok) {
         const errorBody = await response.json();
         console.error("reCAPTCHA API error:", errorBody);
-        return { success: false, message: "Could not communicate with reCAPTCHA service. Please ensure your Firebase Project ID and API Key are correct and that the reCAPTCHA Enterprise API is enabled on your project." };
+        return { success: false, message: "Could not communicate with reCAPTCHA service." };
     }
 
     const data = await response.json();
@@ -1037,25 +1020,12 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
 }
 
 export async function getCounts() {
-    const problemsQuery = adminDb.collection("problems");
-    const solutionsQuery = adminDb.collection("solutions");
-    const ideasQuery = adminDb.collection("ideas");
-    const businessesQuery = adminDb.collection("businesses");
-    const investorsQuery = adminDb.collection("users").where("role", "==", "Investor");
-
-    const [
-        problemsSnap,
-        solutionsSnap,
-        ideasSnap,
-        businessesSnap,
-        investorsSnap
-    ] = await Promise.all([
-        problemsQuery.count().get(),
-        solutionsQuery.count().get(),
-        ideasQuery.count().get(),
-        businessesQuery.count().get(),
-        investorsQuery.count().get()
-    ]);
+    const { adminDb } = await import("@/lib/firebase/admin");
+    const problemsSnap = await adminDb.collection('problems').count().get();
+    const solutionsSnap = await adminDb.collection('solutions').count().get();
+    const ideasSnap = await adminDb.collection('ideas').count().get();
+    const businessesSnap = await adminDb.collection('businesses').count().get();
+    const investorsSnap = await adminDb.collection('users').where('role', '==', 'Investor').count().get();
 
     return {
         problems: problemsSnap.data().count,
@@ -1067,79 +1037,114 @@ export async function getCounts() {
 }
 
 
-// Server-side data fetching using Admin SDK
-export async function getProblemForServer(id: string): Promise<Problem | null> {
+// --- Server-side data fetching for pages ---
+
+export async function getProblemById(id: string): Promise<Problem | null> {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const docRef = adminDb.collection("problems").doc(id);
     const docSnap = await docRef.get();
-    return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as Problem : null;
+    if (!docSnap.exists) return null;
+    return { id: docSnap.id, ...docSnap.data() } as Problem;
 }
 
-export async function getSolutionsForProblemForServer(problemId: string): Promise<Solution[]> {
+export async function getBusinessById(id: string): Promise<Business | null> {
+    const { adminDb } = await import('@/lib/firebase/admin');
+    const docRef = adminDb.collection("businesses").doc(id);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return null;
+    return { id: docSnap.id, ...docSnap.data() } as Business;
+}
+
+export async function getIdeaById(id: string): Promise<Idea | null> {
+    const { adminDb } = await import('@/lib/firebase/admin');
+    const docRef = adminDb.collection("ideas").doc(id);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return null;
+    return { id: docSnap.id, ...docSnap.data() } as Idea;
+}
+
+export async function getUserProfileById(id: string): Promise<UserProfile | null> {
+    const { adminDb } = await import('@/lib/firebase/admin');
+    const docRef = adminDb.collection("users").doc(id);
+    const docSnap = await docRef.get();
+    if (!docSnap.exists) return null;
+    return { uid: docSnap.id, ...docSnap.data() } as UserProfile;
+}
+
+export async function getSolutionsForProblem(problemId: string): Promise<Solution[]> {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const col = adminDb.collection("solutions");
     const q = col.where("problemId", "==", problemId).orderBy("upvotes", "desc");
     const snapshot = await q.get();
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
+    return snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Solution));
 }
 
-export async function getPaymentSettingsForServer(): Promise<PaymentSettings> {
-    const docRef = adminDb.collection('settings').doc('payment');
-    const docSnap = await docRef.get();
-    if (docSnap.exists) {
-        return docSnap.data() as PaymentSettings;
-    }
-    // Default to enabled if not set
-    return { isEnabled: true };
-}
-
-export async function getBusinessForServer(id: string): Promise<Business | null> {
-    const docRef = adminDb.collection("businesses").doc(id);
-    const docSnap = await docRef.get();
-    return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as Business : null;
-}
-
-export async function getIdeaForServer(id: string): Promise<Idea | null> {
-    const docRef = adminDb.collection("ideas").doc(id);
-    const docSnap = await docRef.get();
-    return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as Idea : null;
-}
-
-export async function getUserProfileForServer(id: string): Promise<UserProfile | null> {
-    const docRef = adminDb.collection("users").doc(id);
-    const docSnap = await docRef.get();
-    return docSnap.exists() ? { uid: docSnap.id, ...docSnap.data() } as UserProfile : null;
-}
-
-export async function getProblemsByUserForServer(userId: string): Promise<Problem[]> {
+export async function getProblemsByUser(userId: string): Promise<Problem[]> {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const col = adminDb.collection("problems");
     const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
     const snapshot = await q.get();
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
 }
 
-export async function getSolutionsByUserForServer(userId: string): Promise<Solution[]> {
+export async function getSolutionsByUser(userId: string): Promise<Solution[]> {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const col = adminDb.collection("solutions");
     const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
     const snapshot = await q.get();
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
 }
 
-export async function getIdeasByUserForServer(userId: string): Promise<Idea[]> {
+export async function getIdeasByUser(userId: string): Promise<Idea[]> {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const col = adminDb.collection("ideas");
     const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
     const snapshot = await q.get();
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
 }
 
-export async function getBusinessesByUserForServer(userId: string): Promise<Business[]> {
+export async function getBusinessesByUser(userId: string): Promise<Business[]> {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const col = adminDb.collection("businesses");
     const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
     const snapshot = await q.get();
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Business));
 }
 
-export async function getDealsForUserForServer(userId: string): Promise<Deal[]> {
+export async function getDealsForUser(userId: string): Promise<Deal[]> {
+    const { adminDb } = await import('@/lib/firebase/admin');
     const dealsCol = adminDb.collection("deals");
     const q = dealsCol.where("participantIds", "array-contains", userId).orderBy("createdAt", "desc");
     const snapshot = await q.get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Deal));
+}
+
+export async function getUpvotedItemsForUser(userId: string): Promise<UpvotedItem[]> {
+    const { adminDb } = await import('@/lib/firebase/admin');
+    const problemsQuery = adminDb.collection("problems").where("upvotedBy", "array-contains", userId);
+    const solutionsQuery = adminDb.collection("solutions").where("upvotedBy", "array-contains", userId);
+    const ideasQuery = adminDb.collection("ideas").where("upvotedBy", "array-contains", userId);
+    const businessesQuery = adminDb.collection("businesses").where("upvotedBy", "array-contains", userId);
+
+    const [problemsSnap, solutionsSnap, ideasSnap, businessesSnap] = await Promise.all([
+        problemsQuery.get(),
+        solutionsQuery.get(),
+        ideasQuery.get(),
+        businessesQuery.get()
+    ]);
+
+    const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, ...doc.data() as Problem, id: doc.id }));
+    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, ...doc.data() as Solution, id: doc.id }));
+    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, ...doc.data() as Idea, id: doc.id }));
+    const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, ...doc.data() as Business, id: doc.id }));
+
+    const allItems = [...problems, ...solutions, ...ideas, ...businesses];
+    
+    allItems.sort((a, b) => {
+        const aSeconds = a.createdAt.seconds || 0;
+        const bSeconds = b.createdAt.seconds || 0;
+        return bSeconds - aSeconds;
+    });
+
+    return allItems;
 }

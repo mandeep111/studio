@@ -1,12 +1,14 @@
-import { getBusinessForServer, getPaymentSettingsForServer } from "@/app/actions";
+
+import { getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
 import { notFound } from "next/navigation";
 import BusinessClientPage from "@/components/business-client-page";
+import { getBusinessById } from "@/app/actions";
 
 export default async function BusinessPage({ params }: { params: { id: string } }) {
   const [business, paymentSettings] = await Promise.all([
-    getBusinessForServer(params.id),
-    getPaymentSettingsForServer()
+    getBusinessById(params.id),
+    getPaymentSettings()
   ]);
 
   if (!business) {

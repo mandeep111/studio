@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getProblem, getSolutionsForProblem } from "@/lib/firestore";
 import { upvoteItemAction } from "@/app/actions";
 import type { Problem, Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,7 +15,7 @@ import CreateSolutionForm from "@/components/create-solution-form";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction, getProblemById, getSolutionsForProblem as getSolutionsForProblemServer } from "@/app/actions";
 import { Button } from "./ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -123,10 +122,10 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
 
   const fetchProblemAndSolutions = useCallback(async () => {
     if (!problem?.id) return;
-    const problemData = await getProblem(problem.id);
+    const problemData = await getProblemById(problem.id);
     if (problemData) {
       setProblem(problemData);
-      const solutionsData = await getSolutionsForProblem(problem.id);
+      const solutionsData = await getSolutionsForProblemServer(problem.id);
       setSolutions(solutionsData);
     }
   }, [problem?.id]);
@@ -245,9 +244,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
   const hasUserSubmittedSolution = user ? solutions.some(s => s.creator.userId === user.uid) : false;
   const canSubmitSolution = userProfile?.role === 'User' && !isProblemCreator && !hasUserSubmittedSolution;
   const canStartDeal = userProfile && userProfile.role === 'Investor';
-  
-  const hasSufficientContent = problem.description.length > 300 || solutions.length > 0;
-  const showAd = hasSufficientContent && !userProfile?.isPremium;
+  const showAd = !userProfile?.isPremium;
 
   if (!problem) return null;
 
@@ -396,7 +393,7 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
           )}
         </CardFooter>
       </Card>
-      
+
       {showAd && <AdDisplay />}
 
       <section className="mt-8">

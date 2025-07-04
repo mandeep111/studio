@@ -1,13 +1,16 @@
-import { getProblemForServer, getSolutionsForProblemForServer, getPaymentSettingsForServer } from "@/app/actions";
+
+import { getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
 import { notFound } from "next/navigation";
 import ProblemClientPage from "@/components/problem-client-page";
+import AdDisplay from "@/components/ad-display";
+import { getProblemById, getSolutionsForProblem as getSolutionsForProblemServer } from "@/app/actions";
 
 export default async function ProblemPage({ params }: { params: { id: string } }) {
   const [problem, solutions, paymentSettings] = await Promise.all([
-    getProblemForServer(params.id),
-    getSolutionsForProblemForServer(params.id),
-    getPaymentSettingsForServer()
+    getProblemById(params.id),
+    getSolutionsForProblemServer(params.id),
+    getPaymentSettings()
   ]);
 
   if (!problem) {

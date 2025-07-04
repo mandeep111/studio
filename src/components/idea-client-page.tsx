@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getIdea } from "@/lib/firestore";
+import { upvoteItemAction } from "@/app/actions";
 import type { Idea } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ThumbsUp, Coffee, File, Gem, Users, Info, DollarSign, CheckCircle, MessageSquare, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
-import { startDealAction, findExistingDealAction, deleteItemAction, upvoteItemAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction, getIdeaById } from "@/app/actions";
 import { Button } from "./ui/button";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -88,7 +88,7 @@ export default function IdeaClientPage({ initialIdea, isPaymentEnabled }: IdeaCl
 
   const fetchIdea = useCallback(async () => {
     if (!idea?.id) return;
-    const ideaData = await getIdea(idea.id);
+    const ideaData = await getIdeaById(idea.id);
     if (ideaData) {
       setIdea(ideaData);
     }

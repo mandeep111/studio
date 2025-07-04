@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business, Deal } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { getUpvotedItems, getContentByCreators } from "@/lib/firestore";
+import { getUpvotedItemsForUser } from "@/app/actions";
 import { upvoteItemAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +35,6 @@ interface UserProfileClientProps {
     initialSolutions: Solution[];
     initialIdeas: Idea[];
     initialBusinesses: Business[];
-    initialUpvotedItems: UpvotedItem[];
     initialDeals: Deal[];
 }
 
@@ -75,7 +74,6 @@ export default function UserProfileClient({
     initialSolutions, 
     initialIdeas, 
     initialBusinesses,
-    initialUpvotedItems,
     initialDeals,
 }: UserProfileClientProps) {
     const { user, userProfile: currentUserProfile } = useAuth();
@@ -86,13 +84,20 @@ export default function UserProfileClient({
     const [solutions, setSolutions] = useState<Solution[]>(initialSolutions);
     const [ideas, setIdeas] = useState<Idea[]>(initialIdeas);
     const [businesses, setBusinesses] = useState<Business[]>(initialBusinesses);
-    const [upvotedItems, setUpvotedItems] = useState<UpvotedItem[]>(initialUpvotedItems);
+    const [upvotedItems, setUpvotedItems] = useState<UpvotedItem[]>([]);
     const [deals, setDeals] = useState<Deal[]>(initialDeals);
-    const [workedWithContent, setWorkedWithContent] = useState<(Problem | Solution)[]>([]);
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
-    const isOwnProfile = currentUserProfile?.uid === profile.uid;
+    
+    const isOwnProfile = user?.uid === profile.uid;
 
+    const fetchData = useCallback(async () => {
+        if (isOwnProfile) {
+            const upvotedData = await getUpvotedItemsForUser(profile.uid);
+            setUpvotedItems(upvotedData);
+        }
+    }, [profile.uid, isOwnProfile]);
+    
     useEffect(() => {
         setProfile(userProfile);
         setProblems(initialProblems);
@@ -100,31 +105,8 @@ export default function UserProfileClient({
         setIdeas(initialIdeas);
         setBusinesses(initialBusinesses);
         setDeals(initialDeals);
-        setUpvotedItems(initialUpvotedItems);
-    }, [userProfile, initialProblems, initialSolutions, initialIdeas, initialBusinesses, initialDeals, initialUpvotedItems]);
-
-    useEffect(() => {
-        if (isOwnProfile) {
-            getUpvotedItems(profile.uid).then(setUpvotedItems);
-        }
-    }, [isOwnProfile, profile.uid]);
-
-    useEffect(() => {
-        if (profile.role === 'Investor') {
-            const creatorIds = new Set<string>();
-            deals.forEach(deal => {
-                creatorIds.add(deal.primaryCreator.userId);
-                if (deal.solutionCreator) {
-                    creatorIds.add(deal.solutionCreator.userId);
-                }
-            });
-            creatorIds.delete(profile.uid);
-
-            if (creatorIds.size > 0) {
-                getContentByCreators(Array.from(creatorIds)).then(setWorkedWithContent);
-            }
-        }
-    }, [profile.uid, profile.role, deals]);
+        fetchData();
+    }, [userProfile, initialProblems, initialSolutions, initialIdeas, initialBusinesses, initialDeals, fetchData]);
 
      const handleInvestorUpvote = async () => {
         if (!user || isOwnProfile || profile.role !== 'Investor' || upvotingId) return;
@@ -169,18 +151,7 @@ export default function UserProfileClient({
         const result = await upvoteItemAction(user.uid, itemId, itemType);
         if (!result.success) {
             toast({variant: "destructive", title: "Error", description: result.message});
-            // Refetch all data on error to be safe
-            Promise.all([
-                getProblemsByUser(profile.uid),
-                getSolutionsByUser(profile.uid),
-                getIdeasByUser(profile.uid),
-                getBusinessesByUser(profile.uid),
-            ]).then(([p, s, i, b]) => {
-                setProblems(p);
-                setSolutions(s);
-                setIdeas(i);
-                setBusinesses(b);
-            });
+            // You might want to refetch the specific list that failed
         }
 
         setUpvotingId(null);
@@ -213,12 +184,6 @@ export default function UserProfileClient({
                 <Sparkles className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Ideas</span>
             </TabsTrigger>
-            {profile.role === 'Investor' && (
-                <TabsTrigger value="worked-with">
-                    <Users className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Network</span>
-                </TabsTrigger>
-            )}
             {(isOwnProfile || profile.role === 'Investor') && (
                 <TabsTrigger value="deals">
                     <Handshake className="h-4 w-4 sm:mr-2" />
@@ -312,7 +277,7 @@ export default function UserProfileClient({
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Problems Submitted</CardTitle>
                                 {isOwnProfile && (currentUserProfile?.role === 'User') && (
-                                    <SubmitProblemDialog onProblemCreated={() => {}} isPaymentEnabled={true}/>
+                                    <SubmitProblemDialog onProblemCreated={fetchData} isPaymentEnabled={true}/>
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -351,7 +316,7 @@ export default function UserProfileClient({
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Businesses Submitted</CardTitle>
                                 {isOwnProfile && (currentUserProfile?.role === 'User') && (
-                                    <SubmitBusinessDialog onBusinessCreated={() => {}} isPaymentEnabled={true} />
+                                    <SubmitBusinessDialog onBusinessCreated={fetchData} isPaymentEnabled={true} />
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -372,7 +337,7 @@ export default function UserProfileClient({
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Ideas Submitted</CardTitle>
                                 {isOwnProfile && (currentUserProfile?.role === 'User') && (
-                                    <SubmitIdeaDialog onIdeaCreated={() => {}} isPaymentEnabled={true}/>
+                                    <SubmitIdeaDialog onIdeaCreated={fetchData} isPaymentEnabled={true}/>
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -388,33 +353,6 @@ export default function UserProfileClient({
                             </CardContent>
                         </Card>
                     </TabsContent>
-                    {profile.role === 'Investor' && (
-                        <TabsContent value="worked-with" className="mt-4">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Network Content</CardTitle>
-                                    <CardDescription>Content from creators this investor has worked with.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    {workedWithContent.length > 0 ? (
-                                        <div className="space-y-4">
-                                            {workedWithContent.map(item => {
-                                                if ('solutionsCount' in item) { // It's a Problem
-                                                    return <ProblemCard key={item.id} problem={item} onUpvote={() => {}} isUpvoting={false} />;
-                                                }
-                                                if ('problemId' in item) { // It's a Solution
-                                                    return <SolutionCard key={item.id} solution={item} onUpvote={() => {}} isUpvoting={false} />;
-                                                }
-                                                return null;
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <p className="text-muted-foreground text-center py-8">No content from this investor's network yet.</p>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    )}
                     {(isOwnProfile || profile.role === 'Investor') && (
                         <TabsContent value="deals" className="mt-4">
                             <Card>

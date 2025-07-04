@@ -1,5 +1,7 @@
+
 import Header from "@/components/header";
 import LandingHero from "@/components/landing-hero";
+import StatsSection from "@/components/stats-section";
 
 export default function Home() {
   return (
@@ -7,6 +9,7 @@ export default function Home() {
       <Header />
       <main className="flex-1 bg-background">
         <LandingHero />
+        <StatsSection />
       </main>
     </div>
   );

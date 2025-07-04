@@ -1,12 +1,14 @@
-import { getIdeaForServer, getPaymentSettingsForServer } from "@/app/actions";
+
+import { getPaymentSettings } from "@/lib/firestore";
 import Header from "@/components/header";
 import { notFound } from "next/navigation";
 import IdeaClientPage from "@/components/idea-client-page";
+import { getIdeaById } from "@/app/actions";
 
 export default async function IdeaPage({ params }: { params: { id: string } }) {
   const [idea, paymentSettings] = await Promise.all([
-    getIdeaForServer(params.id),
-    getPaymentSettingsForServer()
+    getIdeaById(params.id),
+    getPaymentSettings()
   ]);
 
   if (!idea) {

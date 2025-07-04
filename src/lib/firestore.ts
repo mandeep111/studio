@@ -67,37 +67,6 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     return docSnap.exists() ? { uid: docSnap.id, ...docSnap.data() } as UserProfile : null;
 }
 
-export async function getProblem(id: string): Promise<Problem | null> {
-    const docRef = doc(db, "problems", id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Problem : null;
-}
-
-export async function getSolution(id: string): Promise<Solution | null> {
-    const docRef = doc(db, "solutions", id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Solution : null;
-}
-
-export async function getIdea(id: string): Promise<Idea | null> {
-    const docRef = doc(db, "ideas", id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as Idea : null;
-}
-
-export async function getBusiness(id: string): Promise<Business | null> {
-    const docRef = doc(db, "businesses", id);
-    const docSnap = await getDoc(docRef);
-    return docSnap.exists() ? {id: docSnap.id, ...docSnap.data()} as Business : null;
-}
-
-export async function getSolutionsForProblem(problemId: string): Promise<Solution[]> {
-    const col = collection(db, "solutions");
-    const q = query(col, where("problemId", "==", problemId), orderBy("upvotes", "desc"));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
-}
-
 export async function getProblemsByUser(userId: string): Promise<Problem[]> {
     const col = collection(db, "problems");
     const q = query(col, where("creator.userId", "==", userId));

@@ -257,5 +257,3 @@ const IdeaCardSkeleton = () => (
         </CardFooter>
     </div>
 );
-
-    

@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getBusiness } from "@/lib/firestore";
+import { upvoteItemAction } from "@/app/actions";
 import type { Business } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users,
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "./ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
-import { startDealAction, findExistingDealAction, deleteItemAction, upvoteItemAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction, getBusinessById } from "@/app/actions";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -88,7 +88,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
 
   const fetchBusiness = useCallback(async () => {
     if (!business?.id) return;
-    const businessData = await getBusiness(business.id);
+    const businessData = await getBusinessById(business.id);
     if (businessData) {
       setBusiness(businessData);
     }
@@ -100,7 +100,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
 
 
   const handleBusinessUpvote = async () => {
-    if (!user || !business || user.uid === business.creator.userId || upvotingId) return;
+    if (!user || !business || user.uid === business.creator.userId) return;
 
     setUpvotingId(business.id);
 
@@ -116,13 +116,13 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
         };
     });
 
-    const result = await upvoteItemAction(user.uid, business.id, 'business');
-
-    if (!result.success) {
-        toast({variant: "destructive", title: "Error", description: result.message})
+    try {
+        await upvoteItemAction(user.uid, business.id, 'business');
+    } catch(e) {
+        toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
         fetchBusiness(); // Revert
     }
-    
+
     setUpvotingId(null);
   };
 
@@ -336,5 +336,3 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
     </>
   );
 }
-
-    
