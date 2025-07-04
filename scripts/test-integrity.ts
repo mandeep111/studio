@@ -1,23 +1,30 @@
 
 // To run this script, use: npm run test:integrity
-// It checks the end-to-end functionality of core features.
+// It checks the end-to-end functionality of core features against your production Firebase project.
 
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
-import { collection, doc, addDoc, getDoc, deleteDoc, setDoc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, deleteDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../src/lib/firebase/config';
 import { suggestPairings } from '../src/ai/flows/suggest-pairings';
 import type { UserProfile } from '../src/lib/types';
-import { ADMIN_AVATARS, USER_AVATARS, INVESTOR_AVATARS } from '../src/lib/avatars';
-import { startDealAction, upgradeMembershipAction, updateUserProfileAction, updateDealStatusAction } from '../src/app/actions';
-import { createSolution, upvoteProblem } from '../src/lib/firestore';
+import { USER_AVATARS, INVESTOR_AVATARS } from '../src/lib/avatars';
+import { 
+    startDealAction, 
+    updateUserProfileAction, 
+    updateDealStatusAction, 
+    upvoteItemAction,
+    createProblemAction,
+    createSolutionAction,
+    deleteItemAction
+} from '../src/app/actions';
 
 const now = Date.now();
 // A temporary object to hold IDs of created documents for cleanup
 const testData = {
-    creatorId: 'test-creator-id-' + now,
-    investorId: 'test-investor-id-' + now,
+    creatorId: `test-creator-id-${now}`,
+    investorId: `test-investor-id-${now}`,
     problemId: '',
     solutionId: '',
     dealId: '',
@@ -26,17 +33,17 @@ const testData = {
 const testProfiles = {
     creator: {
         uid: testData.creatorId,
-        email: `test.creator@problem2profit.com`,
+        email: `test.creator.${now}@problem2profit.com`,
         name: 'Test Creator',
         role: 'User',
         avatarUrl: USER_AVATARS[5],
         expertise: 'Testing',
         points: 0,
-        isPremium: true, // Give premium for testing features
+        isPremium: true,
     } as UserProfile,
     investor: {
         uid: testData.investorId,
-        email: `test.investor@problem2profit.com`,
+        email: `test.investor.${now}@problem2profit.com`,
         name: 'Test Investor',
         role: 'Investor',
         avatarUrl: INVESTOR_AVATARS[5],
@@ -89,31 +96,48 @@ async function testFirestoreConnection() {
 
 async function testProblemAndSolutionLifecycle() {
     console.log('- Testing Problem & Solution Lifecycle...');
-
-    // 1. Create a problem
-    const problemRef = await addDoc(collection(db, 'problems'), {
-        title: 'Test Problem: Lifecycle',
-        description: 'A test problem.',
-        creator: { userId: testData.creatorId, name: testProfiles.creator.name, avatarUrl: '', expertise: 'Testing' },
-        upvotes: 0,
-        upvotedBy: [],
-        solutionsCount: 0,
-        createdAt: Timestamp.now(),
-        isClosed: false,
-    });
-    testData.problemId = problemRef.id;
+    
+    // 1. Create a problem using the server action
+    const problemFormData = new FormData();
+    problemFormData.append('title', 'Test Problem: Lifecycle');
+    problemFormData.append('description', 'A test problem.');
+    const createProblemResult = await createProblemAction(testData.creatorId, problemFormData);
+    if (!createProblemResult.success) {
+        throw new Error(`Problem creation failed: ${createProblemResult.message}`);
+    }
+    
+    // Find the created problem to get its ID
+    const problemsCol = collection(db, 'problems');
+    const q = query(problemsCol, where("title", "==", 'Test Problem: Lifecycle'), where("creator.userId", "==", testData.creatorId));
+    const problemSnapshot = await getDocs(q);
+    if (problemSnapshot.empty) {
+        throw new Error('Could not find the created test problem.');
+    }
+    testData.problemId = problemSnapshot.docs[0].id;
+    const problemRef = doc(db, 'problems', testData.problemId);
     console.log('  ✅ Temporary problem created.');
 
-    // 2. Upvote the problem
-    await upvoteProblem(testData.problemId, testData.investorId);
+    // 2. Upvote the problem using the server action
+    const upvoteResult = await upvoteItemAction(testData.investorId, testData.problemId, 'problem');
+    if (!upvoteResult.success) {
+        throw new Error(`Problem upvote failed: ${upvoteResult.message}`);
+    }
     let problemDoc = await getDoc(problemRef);
     if (!problemDoc.exists() || problemDoc.data().upvotes !== 1) {
-        throw new Error('Problem upvote failed.');
+        throw new Error('Problem upvote count did not update correctly.');
     }
     console.log('  ✅ Problem upvoted successfully.');
 
-    // 3. Create a solution
-    await createSolution('A test solution', testData.problemId, 'Test Problem: Lifecycle', null, testProfiles.creator);
+    // 3. Create a solution using the server action
+    const solutionFormData = new FormData();
+    solutionFormData.append('description', 'A test solution');
+    solutionFormData.append('problemId', testData.problemId);
+    solutionFormData.append('problemTitle', 'Test Problem: Lifecycle');
+    const createSolutionResult = await createSolutionAction(testData.creatorId, solutionFormData);
+     if (!createSolutionResult.success) {
+        throw new Error(`Solution creation failed: ${createSolutionResult.message}`);
+    }
+    
     problemDoc = await getDoc(problemRef);
     if (!problemDoc.exists() || problemDoc.data().solutionsCount !== 1) {
         throw new Error('Solution creation or problem counter update failed.');
@@ -219,15 +243,17 @@ async function testAiFlow() {
 async function cleanup() {
     console.log('\n- 🧹 Cleaning up test data...');
     const promises = [];
-    if (testData.problemId) promises.push(deleteDoc(doc(db, 'problems', testData.problemId)));
+    
+    // Use the deleteItemAction for problems to ensure solutions are also cleaned up
+    if (testData.problemId) {
+        const formData = new FormData();
+        formData.append('type', 'problem');
+        formData.append('id', testData.problemId);
+        promises.push(deleteItemAction(formData));
+    }
+    
     if (testData.dealId) promises.push(deleteDoc(doc(db, 'deals', testData.dealId)));
     
-    // Clean up any solutions created for the test problem
-    const solutionsQuery = collection(db, 'solutions');
-    const q = query(solutionsQuery, where('problemId', '==', testData.problemId));
-    const solutionSnapshot = await getDocs(q);
-    solutionSnapshot.forEach(doc => promises.push(deleteDoc(doc.ref)));
-
     promises.push(deleteDoc(doc(db, 'users', testData.creatorId)));
     promises.push(deleteDoc(doc(db, 'users', testData.investorId)));
     
@@ -241,3 +267,5 @@ async function cleanup() {
 
 // Run the main function
 main();
+
+    
