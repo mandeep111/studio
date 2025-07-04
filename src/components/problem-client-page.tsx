@@ -22,6 +22,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { motion } from "framer-motion";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
+import AdDisplay from "./ad-display";
 
 interface ProblemClientPageProps {
   initialProblem: Problem;
@@ -244,6 +245,9 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
   const hasUserSubmittedSolution = user ? solutions.some(s => s.creator.userId === user.uid) : false;
   const canSubmitSolution = userProfile?.role === 'User' && !isProblemCreator && !hasUserSubmittedSolution;
   const canStartDeal = userProfile && userProfile.role === 'Investor';
+  
+  const hasSufficientContent = problem.description.length > 300 || solutions.length > 0;
+  const showAd = hasSufficientContent && !userProfile?.isPremium;
 
   if (!problem) return null;
 
@@ -392,6 +396,8 @@ export default function ProblemClientPage({ initialProblem, initialSolutions, is
           )}
         </CardFooter>
       </Card>
+      
+      {showAd && <AdDisplay />}
 
       <section className="mt-8">
         <h2 className="text-2xl font-bold mb-4">Proposed Solutions ({solutions.length})</h2>

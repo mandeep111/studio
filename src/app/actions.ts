@@ -3,23 +3,24 @@
 
 import { suggestPairings } from "@/ai/flows/suggest-pairings";
 import { 
-    getAllUsers, 
-    getBusinesses, 
-    getProblems, 
+    getAllUsers as getAllUsersClient, 
+    getBusinesses as getBusinessesClient, 
+    getProblems as getProblemsClient, 
     findDealByUserAndItem, 
-    getPaymentSettings,
+    getPaymentSettings as getPaymentSettingsClient,
     getDeal, 
     getUserProfile, 
     createNotification, 
-    getIdeas
+    getIdeas as getIdeasClient
 } from "@/lib/firestore";
-import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution, Ad } from "@/lib/types";
+import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution, Ad, Problem, Idea, Business } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { stripe } from "@/lib/stripe";
 import type Stripe from "stripe";
 import { adminStorage } from "@/lib/firebase/admin";
 import { v4 as uuidv4 } from "uuid";
+import { adminDb } from "@/lib/firebase/admin";
 
 async function uploadAttachment(file: File): Promise<{ url: string; name: string }> {
   if (!file) {
@@ -92,10 +93,10 @@ export async function getAiPairings(
     const { investorProfile } = validatedFields.data;
 
     const [allUsers, businesses, problems, ideas] = await Promise.all([
-      getAllUsers(),
-      getBusinesses(),
-      getProblems(),
-      getIdeas(),
+      getAllUsersClient(),
+      getBusinessesClient(),
+      getProblemsClient(),
+      getIdeasClient(),
     ]);
     
     const problemCreators = allUsers
@@ -164,7 +165,7 @@ export async function upgradeMembershipAction(
     
     const { adminDb } = await import("@/lib/firebase/admin");
 
-    const { isEnabled } = await getPaymentSettings();
+    const { isEnabled } = await getPaymentSettingsForServer();
 
     if (!isEnabled) {
         try {
@@ -254,7 +255,7 @@ export async function startDealAction(
     
     const { adminDb } = await import('@/lib/firebase/admin');
 
-    const { isEnabled } = await getPaymentSettings();
+    const { isEnabled } = await getPaymentSettingsForServer();
     
     try {
         // Free deal creation path
@@ -1036,7 +1037,6 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
 }
 
 export async function getCounts() {
-    const { adminDb } = await import('@/lib/firebase/admin');
     const problemsQuery = adminDb.collection("problems");
     const solutionsQuery = adminDb.collection("solutions");
     const ideasQuery = adminDb.collection("ideas");
@@ -1064,4 +1064,29 @@ export async function getCounts() {
         businesses: businessesSnap.data().count,
         investors: investorsSnap.data().count,
     };
+}
+
+
+// Server-side data fetching using Admin SDK
+export async function getProblemForServer(id: string): Promise<Problem | null> {
+    const docRef = adminDb.collection("problems").doc(id);
+    const docSnap = await docRef.get();
+    return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as Problem : null;
+}
+
+export async function getSolutionsForProblemForServer(problemId: string): Promise<Solution[]> {
+    const col = adminDb.collection("solutions");
+    const q = col.where("problemId", "==", problemId).orderBy("upvotes", "desc");
+    const snapshot = await q.get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
+}
+
+export async function getPaymentSettingsForServer(): Promise<PaymentSettings> {
+    const docRef = adminDb.collection('settings').doc('payment');
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+        return docSnap.data() as PaymentSettings;
+    }
+    // Default to enabled if not set
+    return { isEnabled: true };
 }
