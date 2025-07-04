@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,20 +10,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Lightbulb, X } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { createIdeaAction } from "@/app/actions";
 import CreateIdeaForm from "./create-idea-form";
+import { Lightbulb } from "lucide-react";
 
 interface SubmitIdeaDialogProps {
-  onIdeaCreated: () => void;
-  children?: React.ReactNode;
-  isPaymentEnabled: boolean;
+    onIdeaCreated?: () => void;
+    children?: React.ReactNode;
+    isPaymentEnabled: boolean;
 }
 
 export function SubmitIdeaDialog({ onIdeaCreated, children, isPaymentEnabled }: SubmitIdeaDialogProps) {
   const [open, setOpen] = useState(false);
-  
+
   const handleIdeaCreated = () => {
     if (onIdeaCreated) {
         onIdeaCreated();
