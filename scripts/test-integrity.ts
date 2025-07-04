@@ -7,8 +7,9 @@ import type { UserProfile } from '../src/lib/types';
 
 
 async function runTest() {
-    const { collection, doc, getDoc, deleteDoc, setDoc, query, where, getDocs } = await import('firebase/firestore');
-    const { db } = await import('../src/lib/firebase/config');
+    // USE ADMIN SDK FOR SCRIPTING
+    const { adminDb: db } = await import('../src/lib/firebase/admin');
+    
     const { suggestPairings } = await import('../src/ai/flows/suggest-pairings');
     const { USER_AVATARS, INVESTOR_AVATARS } = await import('../src/lib/avatars');
     const { 
@@ -95,15 +96,15 @@ async function runTest() {
 
     async function setupTestUsers() {
         console.log('\n- Setting up temporary users...');
-        await setDoc(doc(db, 'users', testData.creatorId), testProfiles.creator);
-        await setDoc(doc(db, 'users', testData.investorId), testProfiles.investor);
+        await db.collection('users').doc(testData.creatorId).set(testProfiles.creator);
+        await db.collection('users').doc(testData.investorId).set(testProfiles.investor);
         console.log('  ✅ Temporary users created.');
     }
 
     async function testFirestoreConnection() {
         console.log('- Testing Firestore Connection...');
         try {
-            await getDoc(doc(db, 'users', 'non-existent-user'));
+            await db.collection('users').doc('non-existent-user').get();
             console.log('  ✅ Firestore connection is OK.');
         } catch (e) {
             throw new Error(`Failed to connect to Firestore: ${(e as Error).message}`);
@@ -123,14 +124,14 @@ async function runTest() {
         }
         
         // Find the created problem to get its ID
-        const problemsCol = collection(db, 'problems');
-        const q = query(problemsCol, where("title", "==", 'Test Problem: Lifecycle'), where("creator.userId", "==", testData.creatorId));
-        const problemSnapshot = await getDocs(q);
+        const problemsCol = db.collection('problems');
+        const q = problemsCol.where("title", "==", 'Test Problem: Lifecycle').where("creator.userId", "==", testData.creatorId);
+        const problemSnapshot = await q.get();
         if (problemSnapshot.empty) {
             throw new Error('Could not find the created test problem.');
         }
         testData.problemId = problemSnapshot.docs[0].id;
-        const problemRef = doc(db, 'problems', testData.problemId);
+        const problemRef = db.collection('problems').doc(testData.problemId);
         console.log('  ✅ Temporary problem created.');
 
         // 2. Upvote the problem using the server action
@@ -138,8 +139,8 @@ async function runTest() {
         if (!upvoteResult.success) {
             throw new Error(`Problem upvote failed: ${upvoteResult.message}`);
         }
-        let problemDoc = await getDoc(problemRef);
-        if (!problemDoc.exists() || problemDoc.data().upvotes !== 1) {
+        let problemDoc = await problemRef.get();
+        if (!problemDoc.exists || problemDoc.data()!.upvotes !== 1) {
             throw new Error('Problem upvote count did not update correctly.');
         }
         console.log('  ✅ Problem upvoted successfully.');
@@ -154,8 +155,8 @@ async function runTest() {
             throw new Error(`Solution creation failed: ${createSolutionResult.message}`);
         }
         
-        problemDoc = await getDoc(problemRef);
-        if (!problemDoc.exists() || problemDoc.data().solutionsCount !== 1) {
+        problemDoc = await problemRef.get();
+        if (!problemDoc.exists || problemDoc.data()!.solutionsCount !== 1) {
             throw new Error('Solution creation or problem counter update failed.');
         }
         console.log('  ✅ Solution created successfully.');
@@ -178,9 +179,9 @@ async function runTest() {
             throw new Error(`Free deal creation failed: ${dealResult.message}`);
         }
         testData.dealId = dealResult.dealId;
-        const dealDocRef = doc(db, 'deals', testData.dealId);
-        let dealDoc = await getDoc(dealDocRef);
-        if (!dealDoc.exists()) {
+        const dealDocRef = db.collection('deals').doc(testData.dealId);
+        let dealDoc = await dealDocRef.get();
+        if (!dealDoc.exists) {
             throw new Error('Deal document was not created in the database.');
         }
         console.log('  ✅ Deal created successfully.');
@@ -196,13 +197,13 @@ async function runTest() {
             throw new Error(`Failed to update deal status: ${updateResult.message}`);
         }
 
-        dealDoc = await getDoc(dealDocRef);
-        const problemDoc = await getDoc(doc(db, 'problems', testData.problemId));
+        dealDoc = await dealDocRef.get();
+        const problemDoc = await db.collection('problems').doc(testData.problemId).get();
 
-        if (dealDoc.data()?.status !== 'completed') {
+        if (dealDoc.data()!.status !== 'completed') {
             throw new Error('Deal status did not update to completed.');
         }
-        if (problemDoc.data()?.isClosed !== true) {
+        if (problemDoc.data()!.isClosed !== true) {
             throw new Error('Related problem was not marked as closed.');
         }
         console.log('  ✅ Deal status updated and related item closed successfully.');
@@ -221,8 +222,8 @@ async function runTest() {
             throw new Error(`Profile update failed: ${result.message}`);
         }
 
-        const userDoc = await getDoc(doc(db, 'users', testData.creatorId));
-        if (!userDoc.exists() || userDoc.data().name !== newName) {
+        const userDoc = await db.collection('users').doc(testData.creatorId).get();
+        if (!userDoc.exists || userDoc.data()!.name !== newName) {
             throw new Error('User profile was not updated in the database.');
         }
         console.log('  ✅ User profile updated successfully.');
@@ -259,19 +260,19 @@ async function runTest() {
     async function cleanup() {
         console.log('\n- 🧹 Cleaning up test data...');
         const promises = [];
-        if (testData.problemId) promises.push(deleteDoc(doc(db, 'problems', testData.problemId)));
+        if (testData.problemId) promises.push(db.collection('problems').doc(testData.problemId).delete());
         
         // Clean up any solutions created for the test problem
         if (testData.problemId) {
-            const solutionsQuery = query(collection(db, 'solutions'), where('problemId', '==', testData.problemId));
-            const solutionSnapshot = await getDocs(solutionsQuery);
-            solutionSnapshot.forEach(doc => promises.push(deleteDoc(doc.ref)));
+            const solutionsQuery = db.collection('solutions').where('problemId', '==', testData.problemId);
+            const solutionSnapshot = await solutionsQuery.get();
+            solutionSnapshot.forEach(doc => promises.push(doc.ref.delete()));
         }
 
-        if (testData.dealId) promises.push(deleteDoc(doc(db, 'deals', testData.dealId)));
+        if (testData.dealId) promises.push(db.collection('deals').doc(testData.dealId).delete());
         
-        promises.push(deleteDoc(doc(db, 'users', testData.creatorId)));
-        promises.push(deleteDoc(doc(db, 'users', testData.investorId)));
+        promises.push(db.collection('users').doc(testData.creatorId).delete());
+        promises.push(db.collection('users').doc(testData.investorId).delete());
         
         try {
             await Promise.all(promises);
