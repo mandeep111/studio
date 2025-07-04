@@ -989,17 +989,19 @@ export async function updateBusinessAction(formData: FormData) {
     return handleContentUpdate(id, 'business', formData);
 }
 
-export async function verifyRecaptcha(token: string, action: string): Promise<{ success: boolean; message: string }> {
+export async function verifyRecaptcha(token: string, action: string): Promise<{ success: boolean; message: string; }> {
   const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
-  if (!siteKey || !projectId || !apiKey) {
-    console.warn("reCAPTCHA not configured. Skipping verification.");
+  if (!siteKey || !firebaseProjectId || !apiKey) {
+    console.warn("reCAPTCHA environment variables not fully configured. Skipping verification.");
+    // In a production environment, you might want this to be a hard failure.
+    // For this app, we'll allow it to pass to not block login/signup during setup.
     return { success: true, message: "reCAPTCHA not configured, skipping." };
   }
 
-  const verificationUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${projectId}/assessments?key=${apiKey}`;
+  const verificationUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${firebaseProjectId}/assessments?key=${apiKey}`;
   
   try {
     const response = await fetch(verificationUrl, {
@@ -1019,7 +1021,7 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
     if (!response.ok) {
         const errorBody = await response.json();
         console.error("reCAPTCHA API error:", errorBody);
-        return { success: false, message: "Could not communicate with reCAPTCHA service." };
+        return { success: false, message: "Could not communicate with reCAPTCHA service. Please ensure your Firebase Project ID and API Key are correct and that the reCAPTCHA Enterprise API is enabled on your project." };
     }
 
     const data = await response.json();
