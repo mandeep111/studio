@@ -1,28 +1,35 @@
+
 import {
   addDoc,
-  arrayRemove,
-  arrayUnion,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
-  increment,
   limit,
   orderBy,
   query,
-  runTransaction,
-  serverTimestamp,
+  startAfter,
   updateDoc,
   where,
   writeBatch,
   type DocumentSnapshot,
-  startAfter,
-  deleteField,
-  deleteDoc,
-  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
-import { db } from "./firebase/config";
-import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad, PaymentSettings } from "./types";
+import { db } from "@/lib/firebase/config";
+import type {
+  Ad,
+  Business,
+  Deal,
+  Idea,
+  Message,
+  Notification,
+  Payment,
+  PaymentSettings,
+  Problem,
+  Solution,
+  UserProfile,
+} from "@/lib/types";
 
 // --- Data Fetching ---
 
@@ -118,7 +125,7 @@ export async function getProblemsByUser(userId: string): Promise<Problem[]> {
     const snapshot = await getDocs(q);
     const problems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
     // Sort in-memory to avoid needing a composite index
-    return problems.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    return problems.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
 export async function getSolutionsByUser(userId: string): Promise<Solution[]> {
@@ -127,7 +134,7 @@ export async function getSolutionsByUser(userId: string): Promise<Solution[]> {
     const snapshot = await getDocs(q);
     const solutions = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
      // Sort in-memory to avoid needing a composite index
-    return solutions.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    return solutions.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
 export async function getIdeasByUser(userId: string): Promise<Idea[]> {
@@ -136,7 +143,7 @@ export async function getIdeasByUser(userId: string): Promise<Idea[]> {
     const snapshot = await getDocs(q);
     const ideas = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
      // Sort in-memory to avoid needing a composite index
-    return ideas.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    return ideas.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
 export async function getBusinessesByUser(userId: string): Promise<Business[]> {
@@ -145,7 +152,7 @@ export async function getBusinessesByUser(userId: string): Promise<Business[]> {
     const snapshot = await getDocs(q);
     const businesses = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Business));
     // Sort in-memory to avoid needing a composite index
-    return businesses.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+    return businesses.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 }
 
 export async function getUpvotedItems(userId: string) {
@@ -171,8 +178,8 @@ export async function getUpvotedItems(userId: string) {
     
     // Sort by creation date descending
     allItems.sort((a, b) => {
-        const dateA = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
-        const dateB = b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return dateB.getTime() - dateA.getTime();
     });
 
@@ -300,8 +307,8 @@ export async function getContentByCreators(creatorIds: string[]): Promise<Array<
     }
     
     allContent.sort((a, b) => {
-        const dateA = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
-        const dateB = b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return dateB.getTime() - dateA.getTime();
     });
 
@@ -343,13 +350,12 @@ export async function findDealByUserAndItem(itemId: string, investorId: string):
     return { id: dealDoc.id, ...dealDoc.data() } as Deal;
 }
 
-export async function getDeal(id: string): Promise<Deal | null> {
+export async function getDeal(id: string): Promise<Deal> {
     const docRef = doc(db, "deals", id);
-    if (!docRef) return null;
+    if (!docRef) throw new Error(`Deal with ID ${id} not found.`);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-        console.error(`Deal with ID ${id} not found.`);
-        return null;
+        throw new Error(`Deal with ID ${id} not found.`);
     }
     return { id: docSnap.id, ...docSnap.data() } as Deal;
 }
@@ -361,8 +367,8 @@ export async function getDealsForUser(userId: string): Promise<Deal[]> {
     const allDeals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Deal));
 
     allDeals.sort((a, b) => {
-        const dateA = a.createdAt?.seconds ? new Date(a.createdAt.seconds * 1000) : new Date(0);
-        const dateB = b.createdAt?.seconds ? new Date(b.createdAt.seconds * 1000) : new Date(0);
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
         return dateB.getTime() - dateA.getTime();
     });
 
@@ -511,6 +517,11 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
 
 // --- Counts for Stats ---
 export async function getCounts() {
+    if (!db) {
+        console.error("🔴 CRITICAL: Firestore database is not initialized. This is likely due to missing or incorrect environment variables in .env.local. Please verify your Firebase configuration.");
+        return { problems: 0, solutions: 0, ideas: 0, businesses: 0, investors: 0 };
+    }
+    
     const getCount = async (collectionName: string, qConstraints: any[] = []) => {
         try {
             const coll = collection(db, collectionName);
