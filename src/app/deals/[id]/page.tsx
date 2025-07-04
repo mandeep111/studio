@@ -11,21 +11,21 @@ export default async function DealPage({ params }: { params: { id: string } }) {
   const initialMessages = await getMessages(params.id);
 
   let relatedItem: Problem | Idea | Business | null = null;
-  try {
-    if (deal.type === 'problem') {
-      relatedItem = await getProblem(deal.relatedItemId);
-    } else if (deal.type === 'idea') {
-      relatedItem = await getIdea(deal.relatedItemId);
-    } else if (deal.type === 'business') {
-      relatedItem = await getBusiness(deal.relatedItemId);
-    }
-  } catch (error) {
-    console.error(`Could not fetch related item for deal ${deal.id}:`, error);
+  // This will now throw an error if the related item is not found,
+  // which will be caught by the nearest error.tsx boundary.
+  if (deal.type === 'problem') {
+    relatedItem = await getProblem(deal.relatedItemId);
+  } else if (deal.type === 'idea') {
+    relatedItem = await getIdea(deal.relatedItemId);
+  } else if (deal.type === 'business') {
+    relatedItem = await getBusiness(deal.relatedItemId);
   }
   
   const participantProfiles = await Promise.all(
       (deal.participantIds || []).map(id => getUserProfile(id).catch(err => {
           console.error(`Failed to fetch profile for participant ${id}:`, err);
+          // Return null or a placeholder/error object if a participant is not found
+          // This prevents the entire page from crashing if one participant is deleted.
           return null;
       }))
   );

@@ -16,7 +16,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // In a real application, you would log this error to a service like Sentry, LogRocket, etc.
-    console.error(error);
+    console.error("Caught in Global Error Boundary:", error);
   }, [error]);
 
   return (
@@ -30,12 +30,12 @@ export default function GlobalError({
                     </div>
                     <CardTitle className="text-2xl">Something Went Wrong</CardTitle>
                     <CardDescription>
-                        An unexpected error occurred. We're sorry for the inconvenience.
+                        We're sorry for the inconvenience. An unexpected error occurred.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                      <p className="text-sm text-muted-foreground mb-4">
-                        You can try to reload the page or click the button below.
+                        The content you're looking for may have been deleted, or there was a server error. You can try to reload the page.
                     </p>
                     <Button onClick={() => reset()}>
                         Try Again
