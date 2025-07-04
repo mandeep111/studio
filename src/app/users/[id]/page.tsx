@@ -1,27 +1,35 @@
 import Header from "@/components/header";
-import { getProblemsByUser, getSolutionsByUser, getUserProfile, getIdeasByUser, getUpvotedItems, getBusinessesByUser, getDealsForUser } from "@/lib/firestore";
+import { 
+    getUserProfileForServer, 
+    getProblemsByUserForServer,
+    getSolutionsByUserForServer,
+    getIdeasByUserForServer,
+    getBusinessesByUserForServer,
+    getDealsForUserForServer,
+} from "@/app/actions";
 import { notFound } from "next/navigation";
 import UserProfileClient from "@/components/user-profile-client";
-import { auth } from "@/lib/firebase/config";
 
 export default async function UserProfilePage({ params }: { params: { id: string } }) {
-  const userProfile = await getUserProfile(params.id);
-  const currentUser = auth.currentUser;
+  const userProfile = await getUserProfileForServer(params.id);
 
   if (!userProfile) {
     notFound();
   }
 
-  const [problems, solutions, ideas, businesses, upvotedItems, deals] = await Promise.all([
-    getProblemsByUser(params.id),
-    getSolutionsByUser(params.id),
-    getIdeasByUser(params.id),
-    getBusinessesByUser(params.id),
-    currentUser?.uid === params.id ? getUpvotedItems(params.id) : Promise.resolve([]),
-    getDealsForUser(params.id),
+  const [problems, solutions, ideas, businesses, deals] = await Promise.all([
+    getProblemsByUserForServer(params.id),
+    getSolutionsByUserForServer(params.id),
+    getIdeasByUserForServer(params.id),
+    getBusinessesByUserForServer(params.id),
+    getDealsForUserForServer(params.id),
   ]);
 
   const serializable = (data: any) => JSON.parse(JSON.stringify(data));
+
+  // The upvotedItems can only be fetched for the currently logged-in user,
+  // so we pass an empty array here and let the client component fetch it if needed.
+  const initialUpvotedItems: any[] = [];
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -34,7 +42,7 @@ export default async function UserProfilePage({ params }: { params: { id: string
                 initialSolutions={serializable(solutions)}
                 initialIdeas={serializable(ideas)}
                 initialBusinesses={serializable(businesses)}
-                initialUpvotedItems={serializable(upvotedItems)}
+                initialUpvotedItems={serializable(initialUpvotedItems)}
                 initialDeals={serializable(deals)}
             />
         </div>

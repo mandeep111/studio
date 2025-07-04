@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedIdeas, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
 import { upvoteItemAction } from "@/app/actions";
 import type { Idea, Ad, PaymentSettings } from "@/lib/types";
@@ -257,3 +257,5 @@ const IdeaCardSkeleton = () => (
         </CardFooter>
     </div>
 );
+
+    

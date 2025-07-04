@@ -1090,3 +1090,56 @@ export async function getPaymentSettingsForServer(): Promise<PaymentSettings> {
     // Default to enabled if not set
     return { isEnabled: true };
 }
+
+export async function getBusinessForServer(id: string): Promise<Business | null> {
+    const docRef = adminDb.collection("businesses").doc(id);
+    const docSnap = await docRef.get();
+    return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as Business : null;
+}
+
+export async function getIdeaForServer(id: string): Promise<Idea | null> {
+    const docRef = adminDb.collection("ideas").doc(id);
+    const docSnap = await docRef.get();
+    return docSnap.exists ? { id: docSnap.id, ...docSnap.data() } as Idea : null;
+}
+
+export async function getUserProfileForServer(id: string): Promise<UserProfile | null> {
+    const docRef = adminDb.collection("users").doc(id);
+    const docSnap = await docRef.get();
+    return docSnap.exists() ? { uid: docSnap.id, ...docSnap.data() } as UserProfile : null;
+}
+
+export async function getProblemsByUserForServer(userId: string): Promise<Problem[]> {
+    const col = adminDb.collection("problems");
+    const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
+    const snapshot = await q.get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Problem));
+}
+
+export async function getSolutionsByUserForServer(userId: string): Promise<Solution[]> {
+    const col = adminDb.collection("solutions");
+    const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
+    const snapshot = await q.get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Solution));
+}
+
+export async function getIdeasByUserForServer(userId: string): Promise<Idea[]> {
+    const col = adminDb.collection("ideas");
+    const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
+    const snapshot = await q.get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Idea));
+}
+
+export async function getBusinessesByUserForServer(userId: string): Promise<Business[]> {
+    const col = adminDb.collection("businesses");
+    const q = col.where("creator.userId", "==", userId).orderBy("createdAt", "desc");
+    const snapshot = await q.get();
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Business));
+}
+
+export async function getDealsForUserForServer(userId: string): Promise<Deal[]> {
+    const dealsCol = adminDb.collection("deals");
+    const q = dealsCol.where("participantIds", "array-contains", userId).orderBy("createdAt", "desc");
+    const snapshot = await q.get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Deal));
+}

@@ -4,7 +4,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import type { Problem, Solution, UserProfile, Idea, UpvotedItem, Business, Deal } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
-import { getProblemsByUser, getSolutionsByUser, getIdeasByUser, getUpvotedItems, getBusinessesByUser, getDealsForUser, getContentByCreators } from "@/lib/firestore";
+import { getUpvotedItems, getContentByCreators } from "@/lib/firestore";
 import { upvoteItemAction } from "@/app/actions";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -91,28 +91,28 @@ export default function UserProfileClient({
     const [workedWithContent, setWorkedWithContent] = useState<(Problem | Solution)[]>([]);
     const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
-    
-    const isOwnProfile = user?.uid === profile.uid;
+    const isOwnProfile = currentUserProfile?.uid === profile.uid;
 
-    const fetchData = useCallback(async () => {
-        const [problemsData, solutionsData, ideasData, businessesData, upvotedData, dealsData] = await Promise.all([
-            getProblemsByUser(profile.uid),
-            getSolutionsByUser(profile.uid),
-            getIdeasByUser(profile.uid),
-            getBusinessesByUser(profile.uid),
-            isOwnProfile ? getUpvotedItems(profile.uid) : Promise.resolve([]),
-            getDealsForUser(profile.uid),
-        ]);
-        setProblems(problemsData);
-        setSolutions(solutionsData);
-        setIdeas(ideasData);
-        setBusinesses(businessesData);
-        setUpvotedItems(upvotedData as UpvotedItem[]);
-        setDeals(dealsData);
+    useEffect(() => {
+        setProfile(userProfile);
+        setProblems(initialProblems);
+        setSolutions(initialSolutions);
+        setIdeas(initialIdeas);
+        setBusinesses(initialBusinesses);
+        setDeals(initialDeals);
+        setUpvotedItems(initialUpvotedItems);
+    }, [userProfile, initialProblems, initialSolutions, initialIdeas, initialBusinesses, initialDeals, initialUpvotedItems]);
 
+    useEffect(() => {
+        if (isOwnProfile) {
+            getUpvotedItems(profile.uid).then(setUpvotedItems);
+        }
+    }, [isOwnProfile, profile.uid]);
+
+    useEffect(() => {
         if (profile.role === 'Investor') {
             const creatorIds = new Set<string>();
-            dealsData.forEach(deal => {
+            deals.forEach(deal => {
                 creatorIds.add(deal.primaryCreator.userId);
                 if (deal.solutionCreator) {
                     creatorIds.add(deal.solutionCreator.userId);
@@ -121,16 +121,10 @@ export default function UserProfileClient({
             creatorIds.delete(profile.uid);
 
             if (creatorIds.size > 0) {
-                const content = await getContentByCreators(Array.from(creatorIds));
-                setWorkedWithContent(content);
+                getContentByCreators(Array.from(creatorIds)).then(setWorkedWithContent);
             }
         }
-
-    }, [profile.uid, isOwnProfile, profile.role]);
-    
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    }, [profile.uid, profile.role, deals]);
 
      const handleInvestorUpvote = async () => {
         if (!user || isOwnProfile || profile.role !== 'Investor' || upvotingId) return;
@@ -147,7 +141,7 @@ export default function UserProfileClient({
         const result = await upvoteItemAction(user.uid, profile.uid, 'investor');
         if (!result.success) {
             toast({variant: "destructive", title: "Error", description: result.message});
-            setProfile(profile); // Revert
+            setProfile(userProfile); // Revert
         }
         
         setUpvotingId(null);
@@ -175,7 +169,18 @@ export default function UserProfileClient({
         const result = await upvoteItemAction(user.uid, itemId, itemType);
         if (!result.success) {
             toast({variant: "destructive", title: "Error", description: result.message});
-            fetchData(); // Revert
+            // Refetch all data on error to be safe
+            Promise.all([
+                getProblemsByUser(profile.uid),
+                getSolutionsByUser(profile.uid),
+                getIdeasByUser(profile.uid),
+                getBusinessesByUser(profile.uid),
+            ]).then(([p, s, i, b]) => {
+                setProblems(p);
+                setSolutions(s);
+                setIdeas(i);
+                setBusinesses(b);
+            });
         }
 
         setUpvotingId(null);
@@ -307,7 +312,7 @@ export default function UserProfileClient({
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Problems Submitted</CardTitle>
                                 {isOwnProfile && (currentUserProfile?.role === 'User') && (
-                                    <SubmitProblemDialog onProblemCreated={fetchData} isPaymentEnabled={true}/>
+                                    <SubmitProblemDialog onProblemCreated={() => {}} isPaymentEnabled={true}/>
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -346,7 +351,7 @@ export default function UserProfileClient({
                              <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Businesses Submitted</CardTitle>
                                 {isOwnProfile && (currentUserProfile?.role === 'User') && (
-                                    <SubmitBusinessDialog onBusinessCreated={fetchData} isPaymentEnabled={true} />
+                                    <SubmitBusinessDialog onBusinessCreated={() => {}} isPaymentEnabled={true} />
                                 )}
                             </CardHeader>
                             <CardContent>
@@ -367,7 +372,7 @@ export default function UserProfileClient({
                             <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Ideas Submitted</CardTitle>
                                 {isOwnProfile && (currentUserProfile?.role === 'User') && (
-                                    <SubmitIdeaDialog onIdeaCreated={fetchData} isPaymentEnabled={true}/>
+                                    <SubmitIdeaDialog onIdeaCreated={() => {}} isPaymentEnabled={true}/>
                                 )}
                             </CardHeader>
                             <CardContent>

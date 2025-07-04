@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getBusiness, upvoteBusiness } from "@/lib/firestore";
+import { getBusiness } from "@/lib/firestore";
 import type { Business } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users,
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "./ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
-import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction, upvoteItemAction } from "@/app/actions";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -34,6 +34,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
   const [isDealLoading, setIsDealLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [existingDealId, setExistingDealId] = useState<string | null>(null);
+  const [upvotingId, setUpvotingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (userProfile && userProfile.role === 'Investor') {
@@ -99,7 +100,9 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
 
 
   const handleBusinessUpvote = async () => {
-    if (!user || !business || user.uid === business.creator.userId) return;
+    if (!user || !business || user.uid === business.creator.userId || upvotingId) return;
+
+    setUpvotingId(business.id);
 
     setBusiness(prevBusiness => {
         if (!prevBusiness) return prevBusiness;
@@ -113,12 +116,14 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
         };
     });
 
-    try {
-        await upvoteBusiness(business.id, user.uid);
-    } catch(e) {
-        toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
+    const result = await upvoteItemAction(user.uid, business.id, 'business');
+
+    if (!result.success) {
+        toast({variant: "destructive", title: "Error", description: result.message})
         fetchBusiness(); // Revert
     }
+    
+    setUpvotingId(null);
   };
 
   const handleStartDealClick = async () => {
@@ -301,9 +306,9 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
                     variant={isBusinessUpvoted ? "default" : "outline"}
                     size="sm"
                     onClick={handleBusinessUpvote}
-                    disabled={!user || isCreator}
+                    disabled={!user || isCreator || !!upvotingId}
                 >
-                    <ThumbsUp className="h-4 w-4 mr-2" />
+                    {upvotingId === business.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ThumbsUp className="h-4 w-4 mr-2" />}
                     <span>{business.upvotes.toLocaleString()} Upvotes</span>
                 </Button>
                  <div className="flex items-center gap-1">
@@ -331,3 +336,5 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
     </>
   );
 }
+
+    
