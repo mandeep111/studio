@@ -593,11 +593,12 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
     }
 }
 
-export async function createProblemAction(userId: string, formData: FormData) {
+export async function createProblemAction(formData: FormData) {
     const { adminDb } = await import('@/lib/firebase/admin');
     const { FieldValue } = await import("firebase-admin/firestore");
 
     try {
+        const userId = formData.get('userId') as string;
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
         const priceStr = formData.get('price') as string | null;
@@ -634,13 +635,17 @@ export async function createProblemAction(userId: string, formData: FormData) {
             itemData.attachmentUrl = url;
             itemData.attachmentFileName = name;
         }
-
-        await adminDb.runTransaction(async (transaction) => {
-            transaction.set(itemRef, itemData);
-            transaction.update(userRef, { points: FieldValue.increment(50) });
+        
+        const batch = adminDb.batch();
+        batch.set(itemRef, itemData);
+        batch.update(userRef, { points: FieldValue.increment(50) });
+        
+        tags.forEach(tag => {
+            const tagRef = adminDb.collection("tags").doc(tag.toLowerCase().trim());
+            batch.set(tagRef, { name: tag.trim(), count: FieldValue.increment(1) }, { merge: true });
         });
         
-        await addTagsToDb(tags);
+        await batch.commit();
 
         if (!priceApproved) {
             await createNotification("admins", `${creator.name} submitted a problem "${title}" with a price of $${price}, which requires approval.`, `/problems/${itemRef.id}`);
@@ -656,11 +661,12 @@ export async function createProblemAction(userId: string, formData: FormData) {
     }
 }
 
-export async function createIdeaAction(userId: string, formData: FormData) {
+export async function createIdeaAction(formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
     
     try {
+        const userId = formData.get('userId') as string;
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
         const priceStr = formData.get('price') as string | null;
@@ -698,12 +704,16 @@ export async function createIdeaAction(userId: string, formData: FormData) {
             itemData.attachmentFileName = name;
         }
 
-        await adminDb.runTransaction(async (transaction) => {
-            transaction.set(itemRef, itemData);
-            transaction.update(userRef, { points: FieldValue.increment(10) });
+        const batch = adminDb.batch();
+        batch.set(itemRef, itemData);
+        batch.update(userRef, { points: FieldValue.increment(10) });
+
+        tags.forEach(tag => {
+            const tagRef = adminDb.collection("tags").doc(tag.toLowerCase().trim());
+            batch.set(tagRef, { name: tag.trim(), count: FieldValue.increment(1) }, { merge: true });
         });
-        
-        await addTagsToDb(tags);
+
+        await batch.commit();
 
         if (!priceApproved) {
             await createNotification("admins", `${creator.name} submitted an idea "${title}" with a price of $${price}, which requires approval.`, `/ideas/${itemRef.id}`);
@@ -719,11 +729,12 @@ export async function createIdeaAction(userId: string, formData: FormData) {
     }
 }
 
-export async function createBusinessAction(userId: string, formData: FormData) {
+export async function createBusinessAction(formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
     
     try {
+        const userId = formData.get('userId') as string;
         const title = formData.get('title') as string;
         const description = formData.get('description') as string;
         const stage = formData.get('stage') as string;
@@ -762,12 +773,17 @@ export async function createBusinessAction(userId: string, formData: FormData) {
             itemData.attachmentFileName = name;
         }
 
-        await adminDb.runTransaction(async (transaction) => {
-            transaction.set(itemRef, itemData);
-            transaction.update(userRef, { points: FieldValue.increment(30) });
+        const batch = adminDb.batch();
+        batch.set(itemRef, itemData);
+        batch.update(userRef, { points: FieldValue.increment(30) });
+
+        tags.forEach(tag => {
+            const tagRef = adminDb.collection("tags").doc(tag.toLowerCase().trim());
+            batch.set(tagRef, { name: tag.trim(), count: FieldValue.increment(1) }, { merge: true });
         });
-        
-        await addTagsToDb(tags);
+
+        await batch.commit();
+
 
         if (!priceApproved) {
             await createNotification("admins", `${creator.name} submitted a business "${title}" with a price of $${price}, which requires approval.`, `/businesses/${itemRef.id}`);
@@ -784,11 +800,12 @@ export async function createBusinessAction(userId: string, formData: FormData) {
 }
 
 
-export async function createSolutionAction(userId: string, formData: FormData) {
+export async function createSolutionAction(formData: FormData) {
     const { adminDb } = await import("@/lib/firebase/admin");
     const { FieldValue } = await import("firebase-admin/firestore");
 
     try {
+        const userId = formData.get('userId') as string;
         const description = formData.get('description') as string;
         const priceStr = formData.get('price') as string | null;
         const problemId = formData.get('problemId') as string;
@@ -978,6 +995,7 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
   if (!siteKey || !projectId || !apiKey) {
+    console.warn("reCAPTCHA not configured. Skipping verification.");
     return { success: true, message: "reCAPTCHA not configured, skipping." };
   }
 
