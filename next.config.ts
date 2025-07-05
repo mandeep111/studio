@@ -3,6 +3,7 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
+  allowedDevOrigins: ["https://*.cloudworkstations.dev","*.cloudworkstations.dev"],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -34,10 +35,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ["https://*.cloudworkstations.dev"],
-  experimental: {
-    typedRoutes: true,
-  },
+
 };
 
 export default nextConfig;
