@@ -3,8 +3,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getSolution, upvoteSolution } from "@/lib/firestore";
-import { findExistingDealAction, deleteItemAction } from "@/app/actions";
+import { getSolution } from "@/lib/firestore";
+import { findExistingDealAction, deleteItemAction, upvoteItemAction } from "@/app/actions";
 import type { Solution } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,7 +59,14 @@ export default function SolutionClientPage({ initialSolution }: SolutionClientPa
     });
 
     try {
-        await upvoteSolution(solution.id, user.uid);
+        const result = await upvoteItemAction(user.uid, solution.id, 'solution');
+        if (!result.success) {
+            toast({variant: "destructive", title: "Error", description: result.message});
+            const revertedSolution = await getSolution(solution.id);
+            if (revertedSolution) {
+                setSolution(revertedSolution);
+            }
+        }
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."});
         const revertedSolution = await getSolution(solution.id);

@@ -136,15 +136,13 @@ export default function BusinessList() {
     }, [businesses, searchTerm]);
 
     const itemsToRender = useMemo(() => {
-        const cardItems: React.ReactNode[] = filteredBusinesses.map((business) => (
-            <BusinessCard key={business.id} business={business} onUpvote={handleUpvote} isUpvoting={upvotingId === business.id} />
-        ));
+        const items: (Business | { type: 'ad'; ad: Ad })[] = [...filteredBusinesses];
     
-        if (ad && !userProfile?.isPremium && cardItems.length > 2) {
-            cardItems.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+        if (ad && !userProfile?.isPremium && items.length > 2) {
+            items.splice(3, 0, { type: 'ad', ad });
         }
-        return cardItems;
-    }, [filteredBusinesses, ad, userProfile, handleUpvote, upvotingId]);
+        return items;
+    }, [filteredBusinesses, ad, userProfile]);
 
 
     return (
@@ -206,8 +204,12 @@ export default function BusinessList() {
                             animate="visible"
                         >
                             {itemsToRender.map((item) => (
-                               <motion.div key={item.key} variants={itemVariants} whileHover={{ scale: 1.02 }}>
-                                   {item}
+                               <motion.div key={'type' in item ? item.ad.id : item.id} variants={itemVariants} whileHover={{ scale: 1.02 }}>
+                                   {'type' in item ? (
+                                       <AdCard ad={item.ad} />
+                                   ) : (
+                                       <BusinessCard business={item} onUpvote={handleUpvote} isUpvoting={upvotingId === item.id} />
+                                   )}
                                </motion.div>
                            ))}
                         </motion.div>

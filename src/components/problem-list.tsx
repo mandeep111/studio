@@ -140,15 +140,13 @@ export default function ProblemList() {
 
 
     const itemsToRender = useMemo(() => {
-        const cardItems: React.ReactNode[] = filteredProblems.map((problem) => (
-            <ProblemCard key={problem.id} problem={problem} onUpvote={handleUpvote} isUpvoting={upvotingId === problem.id} />
-        ));
+        const items: (Problem | { type: 'ad'; ad: Ad })[] = [...filteredProblems];
 
-        if (ad && !userProfile?.isPremium && cardItems.length > 2) {
-          cardItems.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
+        if (ad && !userProfile?.isPremium && items.length > 2) {
+          items.splice(3, 0, { type: 'ad', ad });
         }
-        return cardItems;
-    }, [filteredProblems, ad, userProfile, handleUpvote, upvotingId]);
+        return items;
+    }, [filteredProblems, ad, userProfile]);
 
     return (
         <Card>
@@ -213,8 +211,12 @@ export default function ProblemList() {
                             animate="visible"
                         >
                            {itemsToRender.map((item) => (
-                               <motion.div key={item.key} variants={itemVariants} whileHover={{ scale: 1.02 }}>
-                                   {item}
+                               <motion.div key={'type' in item ? item.ad.id : item.id} variants={itemVariants} whileHover={{ scale: 1.02 }}>
+                                   {'type' in item ? (
+                                       <AdCard ad={item.ad} />
+                                   ) : (
+                                       <ProblemCard problem={item} onUpvote={handleUpvote} isUpvoting={upvotingId === item.id} />
+                                   )}
                                </motion.div>
                            ))}
                         </motion.div>

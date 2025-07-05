@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { getBusiness, upvoteBusiness } from "@/lib/firestore";
+import { getBusiness } from "@/lib/firestore";
 import type { Business } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { ArrowLeft, ThumbsUp, CheckCircle, DollarSign, File, Gem, Coffee, Users,
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "./ui/button";
 import { useRouter, useSearchParams } from "next/navigation";
-import { startDealAction, findExistingDealAction, deleteItemAction } from "@/app/actions";
+import { startDealAction, findExistingDealAction, deleteItemAction, upvoteItemAction } from "@/app/actions";
 import BuyMeACoffeePopup from "./buy-me-a-coffee-popup";
 import { Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
@@ -114,7 +114,7 @@ export default function BusinessClientPage({ initialBusiness, isPaymentEnabled }
     });
 
     try {
-        await upvoteBusiness(business.id, user.uid);
+        await upvoteItemAction(user.uid, business.id, 'business');
     } catch(e) {
         toast({variant: "destructive", title: "Error", description: "Could not record upvote."})
         fetchBusiness(); // Revert

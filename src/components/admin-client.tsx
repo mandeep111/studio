@@ -181,7 +181,7 @@ export default function AdminClient({
                                                 <Badge variant="secondary" className="capitalize mb-2">{item.type}</Badge>
                                                 <p className="font-semibold">
                                                     <Link href={`/${item.type}s/${item.id}`} className="hover:underline">
-                                                        {(item as any).title || `Solution for: ${item.problemTitle}`}
+                                                        {item.type === 'solution' ? `Solution for: ${item.problemTitle}` : item.title}
                                                     </Link>
                                                 </p>
                                                 <p className="text-sm text-muted-foreground">

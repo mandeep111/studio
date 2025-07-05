@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedIdeas, getActiveAdForPlacement, getPaymentSettings } from "@/lib/firestore";
 import { upvoteItemAction } from "@/app/actions";
 import type { Idea, Ad, PaymentSettings } from "@/lib/types";
@@ -140,17 +140,14 @@ export default function RandomIdeas() {
   }, [ideas, searchTerm]);
 
 
-    const itemsToRender = useMemo(() => {
-        const cardItems: React.ReactNode[] = filteredIdeas.map((idea) => (
-          <IdeaCard key={idea.id} idea={idea} onUpvote={handleUpvote} isUpvoting={upvotingId === idea.id} />
-        ));
-    
-        if (ad && !userProfile?.isPremium && cardItems.length > 2) {
-          cardItems.splice(3, 0, <AdCard key="ad-card" ad={ad} />);
-        }
-        return cardItems;
-    }, [filteredIdeas, ad, userProfile, handleUpvote, upvotingId]);
+  const itemsToRender = useMemo(() => {
+    const items: (Idea | { type: 'ad'; ad: Ad })[] = [...filteredIdeas];
 
+    if (ad && !userProfile?.isPremium && items.length > 2) {
+      items.splice(3, 0, { type: 'ad', ad });
+    }
+    return items;
+  }, [filteredIdeas, ad, userProfile]);
 
   return (
     <Card>
@@ -197,8 +194,12 @@ export default function RandomIdeas() {
                 animate="visible"
             >
               {itemsToRender.map((item) => (
-                <motion.div key={item.key} variants={itemVariants} whileHover={{ scale: 1.02 }}>
-                    {item}
+                <motion.div key={'type' in item ? item.ad.id : item.id} variants={itemVariants} whileHover={{ scale: 1.02 }}>
+                    {'type' in item ? (
+                        <AdCard ad={item.ad} />
+                    ) : (
+                        <IdeaCard idea={item} onUpvote={handleUpvote} isUpvoting={upvotingId === item.id} />
+                    )}
                 </motion.div>
               ))}
             </motion.div>

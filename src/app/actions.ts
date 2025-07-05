@@ -13,7 +13,7 @@ import {
     createNotification, 
     getIdeas
 } from "@/lib/firestore";
-import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution } from "@/lib/types";
+import type { UserProfile, PaymentSettings, Deal, CreatorReference, Solution, Ad } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type Stripe from "stripe";
