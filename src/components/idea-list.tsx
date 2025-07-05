@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPaginatedIdeas, upvoteIdea, getActiveAdForPlacement } from "@/lib/firestore";
 import type { Idea, Ad } from "@/lib/types";
 import { useState, useEffect, useCallback, useMemo } from "react";
