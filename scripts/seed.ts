@@ -12,9 +12,9 @@ import {
   Timestamp,
   setDoc,
 } from 'firebase/firestore';
-import { db } from '../src/lib/firebase/config';
-import type { UserProfile, CreatorReference } from '../src/lib/types';
-import { ADMIN_AVATARS, INVESTOR_AVATARS, USER_AVATARS } from '../src/lib/avatars';
+import { db } from '@/lib/firebase/config';
+import type { UserProfile, CreatorReference } from '@/lib/types';
+import { ADMIN_AVATARS, INVESTOR_AVATARS, USER_AVATARS } from '@/lib/avatars';
 
 const USERS: Omit<UserProfile, 'uid'>[] = [
   {

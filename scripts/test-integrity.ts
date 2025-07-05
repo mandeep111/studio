@@ -6,10 +6,10 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import { collection, doc, getDoc, deleteDoc, setDoc, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../src/lib/firebase/config';
-import { suggestPairings } from '../src/ai/flows/suggest-pairings';
-import type { UserProfile } from '../src/lib/types';
-import { USER_AVATARS, INVESTOR_AVATARS } from '../src/lib/avatars';
+import { db } from '@/lib/firebase/config';
+import { suggestPairings } from '@/ai/flows/suggest-pairings';
+import type { UserProfile } from '@/lib/types';
+import { USER_AVATARS, INVESTOR_AVATARS } from '@/lib/avatars';
 import { 
     startDealAction, 
     updateUserProfileAction, 
@@ -18,7 +18,7 @@ import {
     createProblemAction,
     createSolutionAction,
     deleteItemAction
-} from '../src/app/actions';
+} from '@/app/actions';
 
 const now = Date.now();
 // A temporary object to hold IDs of created documents for cleanup
@@ -275,5 +275,3 @@ async function cleanup() {
 
 // Run the main function
 main();
-
-    
