@@ -59,6 +59,11 @@ const testProfiles = {
 
 async function main() {
     console.log('🚀 Starting Problem2Profit Integrity Test...');
+    console.log(`   (Targeting project: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'N/A'})`);
+    if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+        throw new Error("`NEXT_PUBLIC_FIREBASE_PROJECT_ID` is not set. Please check your .env.local file.");
+    }
+    
     try {
         await setupTestUsers();
         await testFirestoreConnection();
@@ -267,5 +272,3 @@ async function cleanup() {
 
 // Run the main function
 main();
-
-    
