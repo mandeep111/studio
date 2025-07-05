@@ -20,7 +20,7 @@ function getAdminApp(): App {
         });
     } catch (e: any) {
         console.error("🔴 CRITICAL: Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON. Make sure it's a valid JSON string in your .env.local file.", e.message);
-        throw new Error("Could not initialize Firebase Admin SDK.");
+        throw new Error("Could not initialize Firebase Admin SDK due to invalid service account JSON.");
     }
   }
 
