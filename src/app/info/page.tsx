@@ -39,7 +39,7 @@ export default function InfoPage() {
                             <ShieldCheck className="h-6 w-6 text-primary" />
                             For Investors
                         </CardTitle>
-                         <CardDescription>We Didn’t Forget You.</CardDescription>
+                         <CardDescription>We Didn’t Forget You!</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm text-muted-foreground">
                         <p>Tired of recycled startup pitches? Problem2Profit gives you access to a fresh pipeline of problems, solutions, and scalable businesses from creators all over the world.</p>
