@@ -26,7 +26,10 @@ import { db } from "./firebase/config";
 import type { Idea, Problem, Solution, UserProfile, Deal, Message, Notification, Business, CreatorReference, Payment, Ad, PaymentSettings } from "./types";
 
 // --- Data Fetching ---
-
+// todo: Need to fix
+export async function upvoteIdea(ideaId: string, userId: string): Promise<void> {
+    // Implementation of upvoteIdea
+}
 export async function getProblems(): Promise<Problem[]> {
   const col = collection(db, "problems");
   const q = query(col, orderBy("createdAt", "desc"), limit(20));
@@ -147,10 +150,10 @@ export async function getUpvotedItems(userId: string) {
         getDocs(businessesQuery)
     ]);
 
-    const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, ...doc.data() as Problem, id: doc.id }));
-    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, ...doc.data() as Solution, id: doc.id }));
-    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, ...doc.data() as Idea, id: doc.id }));
-    const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, ...doc.data() as Business, id: doc.id }));
+    const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, id: doc.id, ...doc.data() }));
+    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, id: doc.id, ...doc.data() }));
+    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, id: doc.id, ...doc.data() }));
+    const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, id: doc.id, ...doc.data() }));
 
 
     const allItems = [...problems, ...solutions, ...ideas, ...businesses];
@@ -450,10 +453,10 @@ export async function getUnapprovedItems() {
         getDocs(ideasQuery),
     ]);
 
-    const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, id: doc.id, ...doc.data() as Problem }));
-    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, id: doc.id, ...doc.data() as Solution }));
-    const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, id: doc.id, ...doc.data() as Business }));
-    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, id: doc.id, ...doc.data() as Idea }));
+    const problems = problemsSnap.docs.map(doc => ({ type: 'problem' as const, id: doc.id, ...doc.data() }));
+    const solutions = solutionsSnap.docs.map(doc => ({ type: 'solution' as const, id: doc.id, ...doc.data() }));
+    const businesses = businessesSnap.docs.map(doc => ({ type: 'business' as const, id: doc.id, ...doc.data() }));
+    const ideas = ideasSnap.docs.map(doc => ({ type: 'idea' as const, id: doc.id, ...doc.data() }));
     
     return [...problems, ...solutions, ...businesses, ...ideas];
 }

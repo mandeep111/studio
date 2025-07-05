@@ -162,7 +162,7 @@ export default function RandomIdeas() {
                 <Switch id="show-closed-ideas" checked={showClosed} onCheckedChange={setShowClosed} />
                 <Label htmlFor="show-closed-ideas">Show Closed</Label>
             </div>
-            {canCreateIdea && <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} />}
+            {canCreateIdea && <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} isPaymentEnabled={true} />}
         </div>
       </CardHeader>
       <CardContent>
@@ -192,7 +192,7 @@ export default function RandomIdeas() {
                 {searchTerm ? "Try a different search term." : "Be the first to share a random spark of genius."}
             </p>
             {canCreateIdea && !searchTerm && (
-                <SubmitIdeaDialog onIdeaCreated={onIdeaCreated}>
+                <SubmitIdeaDialog onIdeaCreated={onIdeaCreated} isPaymentEnabled={true}>
                      <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Submit an Idea

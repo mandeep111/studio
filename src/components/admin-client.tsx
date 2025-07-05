@@ -22,7 +22,7 @@ import CreateAdForm from "./create-ad-form";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
 
-type UnapprovedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' }) | (Business & { type: 'business' });
+type UnapprovedItem = (Problem & { type: 'problem' }) | (Solution & { type: 'solution' }) | (Business & { type: 'business' }) | (Idea & { type: 'idea' });
 type DeletableItem = { id: string; type: 'problem' | 'solution' | 'idea' | 'user' | 'business' | 'ad' };
 
 interface AdminClientProps {
@@ -69,7 +69,7 @@ export default function AdminClient({
         }
     }, [userProfile, loading, router, toast]);
 
-    const handleApprove = async (type: 'problem' | 'solution' | 'business', id: string) => {
+    const handleApprove = async (type: 'problem' | 'solution' | 'business' | 'idea', id: string) => {
         const formData = new FormData();
         formData.append('type', type);
         formData.append('id', id);
