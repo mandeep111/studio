@@ -31,22 +31,21 @@ function getAdminApp(): App {
     }
   }
 
-  // For production environments on Google Cloud (like App Hosting), use Application Default Credentials.
-  // We can check for a standard Google Cloud environment variable.
-  if (process.env.GOOGLE_CLOUD_PROJECT) {
-    console.log("Initializing Firebase Admin with Application Default Credentials for production...");
+  // For any other environment (like production on App Hosting), try Application Default Credentials.
+  // This is the standard way to initialize in Google Cloud environments.
+  console.log("Service account JSON not found. Attempting to initialize with Application Default Credentials for a production environment...");
+  try {
     return initializeApp({
       credential: applicationDefault(),
       storageBucket: `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`,
     });
+  } catch(e: any) {
+    // If applicationDefault() fails, then we really are in a misconfigured environment.
+    console.error("🔴🔴🔴 CRITICAL ERROR: Firebase Admin SDK initialization failed. 🔴🔴🔴");
+    console.error("Attempted to use Application Default Credentials but failed. This usually means you're running locally without setting the `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable in your `.env.local` file.");
+    console.error("Original Error:", e.message);
+    throw new Error("ADMIN_SDK_INITIALIZATION_FAILED");
   }
-  
-  // If we reach here, we're likely in a local environment without the required key.
-  console.error("🔴🔴🔴 CRITICAL ERROR: Firebase Admin SDK initialization failed. 🔴🔴🔴");
-  console.error("The `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable is missing.");
-  console.error("Please create a `.env.local` file in the root of your project and add the service account JSON to it.");
-  console.error("This is required for the server-side code to connect to Firebase during local development.");
-  throw new Error("MISSING_FIREBASE_SERVICE_ACCOUNT_JSON");
 }
 
 const app = getAdminApp();
