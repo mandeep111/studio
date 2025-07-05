@@ -1,3 +1,4 @@
+
 // To run this script, use: npm run db:seed
 // Make sure you have a .env.local file with your Firebase project's credentials.
 
@@ -22,9 +23,10 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     role: 'Admin',
     avatarUrl: ADMIN_AVATARS[0],
     expertise: 'Platform Management',
-    points: 100,
+    points: 0,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
   },
   {
     email: 'problem.creator@problem2profit.com',
@@ -35,6 +37,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 50,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
   },
   {
     email: 'solution.creator@problem2profit.com',
@@ -45,6 +48,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 20,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
   },
   {
     email: 'investor@problem2profit.com',
@@ -55,6 +59,11 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 120,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
+    dealsCompletedCount: 0,
+    dealsCancelledCount: 0,
+    upvotes: 0,
+    upvotedBy: [],
   },
     {
     email: 'idea.creator@problem2profit.com',
@@ -65,6 +74,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 10,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
   },
   {
     email: 'problem.creator2@problem2profit.com',
@@ -75,6 +85,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 15,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
   },
   {
     email: 'business.owner@problem2profit.com',
@@ -85,6 +96,7 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 40,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
   },
    {
     email: 'investor2@problem2profit.com',
@@ -95,6 +107,11 @@ const USERS: Omit<UserProfile, 'uid'>[] = [
     points: 250,
     isPremium: true,
     unreadDealMessages: {},
+    dealsCount: 0,
+    dealsCompletedCount: 0,
+    dealsCancelledCount: 0,
+    upvotes: 0,
+    upvotedBy: [],
   }
 ];
 
@@ -149,6 +166,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
     // Solution for Problem 1
@@ -166,6 +184,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
     // Problem 2
@@ -184,6 +203,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
     // Problem 3 (from new user)
@@ -202,6 +222,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
     // Solution for Problem 3 (from original solution creator)
@@ -219,6 +240,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
     // Problem 4 (no solution)
@@ -237,6 +259,7 @@ async function seedProblemsAndSolutions(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
 
@@ -264,6 +287,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
     
     // Idea 2
@@ -279,6 +303,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
     // Idea 3
@@ -294,6 +319,7 @@ async function seedIdeas(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
 
     await batch.commit();
@@ -321,6 +347,7 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 1,
+        isClosed: false,
     });
 
     batch.set(doc(businessesCollection), {
@@ -337,6 +364,7 @@ async function seedBusinesses(seededUsers: UserProfile[]) {
         attachmentUrl: null,
         attachmentFileName: null,
         interestedInvestorsCount: 0,
+        isClosed: false,
     });
     
     await batch.commit();
