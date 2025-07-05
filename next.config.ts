@@ -36,7 +36,10 @@ const nextConfig: NextConfig = {
   },
   // Adding this to fix the cross-origin warning in Firebase Studio
   experimental: {
-    allowedDevOrigins: ["*.cloudworkstations.dev"],
+    // @ts-ignore – 'allowedDevOrigins' is valid in runtime, just not typed yet
+    allowedDevOrigins: ["*.cloudworkstations.dev",
+      'https://9000-firebase-studio-1750998323126.cluster-fdkw7vjj7bgguspe3fbbc25tra.cloudworkstations.dev',
+    ],
   },
 };
 
