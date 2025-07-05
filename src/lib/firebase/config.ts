@@ -26,14 +26,10 @@ const missingConfigKey = Object.keys(firebaseConfig).find(
 );
 
 if (missingConfigKey) {
-  console.error(
-    `🔴 CRITICAL: Firebase config is missing '${missingConfigKey}'.`
-  );
-  console.error(
-    "🔴 Please ensure your .env.local file is correctly set up with all NEXT_PUBLIC_FIREBASE_ variables."
-  );
-  console.error(
-    "🔴 The application will not function correctly until this is resolved."
+  // Throw an error during the build/startup if the config is missing.
+  // This is better than a silent failure leading to a 404.
+  throw new Error(
+    `🔴 CRITICAL: Firebase config is missing '${missingConfigKey}'. Please ensure your .env.local file is correctly set up with all NEXT_PUBLIC_FIREBASE_ variables.`
   );
 } else {
     try {
@@ -45,6 +41,8 @@ if (missingConfigKey) {
         console.log("Firebase Client SDK initialized successfully.");
     } catch (error) {
         console.error("🔴 CRITICAL: Failed to initialize Firebase Client SDK.", error);
+        // Re-throw the error to ensure the build fails loudly.
+        throw new Error(`Failed to initialize Firebase Client SDK: ${(error as Error).message}`);
     }
 }
 
