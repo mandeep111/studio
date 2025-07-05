@@ -40,6 +40,7 @@ const testProfiles = {
         expertise: 'Testing',
         points: 0,
         isPremium: true,
+        unreadDealMessages: {},
     } as UserProfile,
     investor: {
         uid: testData.investorId,
@@ -53,6 +54,8 @@ const testProfiles = {
         dealsCount: 0,
         dealsCompletedCount: 0,
         dealsCancelledCount: 0,
+        upvotes: 0,
+        upvotedBy: [],
     } as UserProfile
 };
 
@@ -272,3 +275,5 @@ async function cleanup() {
 
 // Run the main function
 main();
+
+    
