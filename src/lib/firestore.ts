@@ -492,6 +492,7 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
 
 // --- Counts for Stats ---
 export async function getCounts() {
+  try {
     const problemsQuery = query(collection(db, "problems"));
     const solutionsQuery = query(collection(db, "solutions"));
     const ideasQuery = query(collection(db, "ideas"));
@@ -519,4 +520,16 @@ export async function getCounts() {
         businesses: businessesSnap.size,
         investors: investorsSnap.size,
     };
+  } catch (error) {
+    console.error("🔴 CRITICAL ERROR fetching counts for homepage:", error);
+    console.error("This is likely due to either missing Firebase credentials in .env.local or restrictive Firestore security rules.");
+    // Return 0 for all counts to prevent homepage from crashing.
+    return {
+        problems: 0,
+        solutions: 0,
+        ideas: 0,
+        businesses: 0,
+        investors: 0,
+    };
+  }
 }
