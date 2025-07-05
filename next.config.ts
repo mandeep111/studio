@@ -1,10 +1,13 @@
-
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  allowedDevOrigins: ["https://*.cloudworkstations.dev","*.cloudworkstations.dev",
-    'https://9000-firebase-studio-1750998323126.cluster-fdkw7vjj7bgguspe3fbbc25tra.cloudworkstations.dev'
+  // The allowedDevOrigins is an experimental feature and requires the protocol.
+  // We've consolidated the valid URLs here to allow requests from the Studio preview environments.
+  allowedDevOrigins: [
+    'https://*.cloudworkstations.dev',
+    'https://9000-firebase-studio-1750998323126.cluster-fdkw7vjj7bgguspe3fbbc25tra.cloudworkstations.dev',
+    'https://6000-firebase-studio-1750998323126.cluster-fdkw7vjj7bgguspe3fbbc25tra.cloudworkstations.dev'
   ],
   eslint: {
     ignoreDuringBuilds: true,
@@ -37,7 +40,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-
 };
 
 export default nextConfig;
