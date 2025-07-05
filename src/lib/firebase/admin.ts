@@ -1,10 +1,13 @@
+
 import { getApps, initializeApp, getApp, type App, cert, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
 function getAdminApp(): App {
+  console.log("Attempting to initialize Firebase Admin SDK...");
   if (getApps().length > 0) {
+    console.log("Firebase Admin SDK already initialized.");
     return getApp();
   }
 

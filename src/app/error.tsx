@@ -42,7 +42,7 @@ export default function GlobalError({
                 </CardHeader>
                 <CardContent>
                      <p className="text-sm text-muted-foreground mb-4">
-                        You can try to reload the page or click the button below.
+                        You can try to reload the page or click the button below. If the issue persists, check your environment variables (`.env.local`) are set correctly.
                     </p>
                     <Button onClick={() => reset()}>
                         Try Again

@@ -5,6 +5,7 @@ import { stripe } from '@/lib/stripe';
 import { createDealInDb } from '@/lib/deal-utils.server';
 
 export async function POST(req: Request) {
+    console.log("Stripe webhook received.");
     const body = await req.text();
     const signature = headers().get('Stripe-Signature') as string;
 
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
     if (event.type === 'checkout.session.completed') {
         const session = event.data.object;
         const metadata = session.metadata;
+        console.log(`Handling checkout.session.completed for type: ${metadata?.type}`);
 
         if (!metadata) {
             console.error('Webhook received without metadata.');
@@ -70,6 +72,8 @@ async function handleMembership(metadata: Stripe.Metadata) {
         paymentFrequency: paymentFrequency as 'lifetime',
         createdAt: new Date(),
     });
+
+    console.log(`Membership upgraded for user: ${userId}`);
 }
 
 async function handleDealCreation(metadata: Stripe.Metadata) {
@@ -104,8 +108,7 @@ async function handleDealCreation(metadata: Stripe.Metadata) {
         solutionCreatorId || undefined
     );
 
+    console.log(`Deal created for item: ${itemId} by investor: ${investorId}`);
     // The success_url on the checkout session handles the client-side redirect.
     // The webhook's job is just to create the deal in the DB.
 }
-
-    

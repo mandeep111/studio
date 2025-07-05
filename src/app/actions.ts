@@ -314,7 +314,7 @@ export async function startDealAction(
 
         return { success: true, url: session.url };
     } catch (error) {
-        console.error("Error creating deal:", error);
+        console.error("Error creating deal:", (error as Error).message);
         return { success: false, message: (error as Error).message || "Could not start the deal. Please try again."};
     }
 }
@@ -327,7 +327,7 @@ export async function findExistingDealAction(itemId: string, investorId: string)
         }
         return { dealId: null };
     } catch (error) {
-        console.error("Failed to find existing deal:", error);
+        console.error("Failed to find existing deal:", (error as Error).message);
         return { dealId: null, error: "An error occurred while checking for existing deals." };
     }
 }
@@ -375,7 +375,7 @@ export async function postMessageAction(formData: FormData) {
 
         revalidatePath(`/deals/${dealId}`);
     } catch (error) {
-        console.error("Failed to send message:", error);
+        console.error("Failed to send message:", (error as Error).message);
     }
 }
 
@@ -427,7 +427,7 @@ export async function updateDealStatusAction(formData: FormData) {
         
         return { success: true, message: `Deal marked as ${status}.` };
     } catch (error) {
-        console.error("Failed to update deal status:", error);
+        console.error("Failed to update deal status:", (error as Error).message);
         return { success: false, message: 'An unexpected error occurred while updating the deal.' };
     }
 }
@@ -444,7 +444,7 @@ export async function approveItemAction(formData: FormData) {
         revalidatePath('/admin');
         return { success: true, message: 'Item approved!' };
     } catch (error) {
-        console.error("Failed to approve item:", error);
+        console.error("Failed to approve item:", (error as Error).message);
         return { success: false, message: 'Failed to approve item.' };
     }
 }
@@ -498,7 +498,7 @@ export async function deleteItemAction(formData: FormData) {
         revalidatePath('/');
         return { success: true, message: 'Item deleted successfully!' };
     } catch (error) {
-        console.error("Failed to delete item:", error);
+        console.error("Failed to delete item:", (error as Error).message);
         return { success: false, message: 'Failed to delete item.' };
     }
 }
@@ -523,7 +523,7 @@ export async function createAdAction(formData: FormData) {
         revalidatePath('/admin');
         return { success: true, message: 'Ad created successfully!' };
     } catch (error) {
-        console.error("Failed to create ad:", error);
+        console.error("Failed to create ad:", (error as Error).message);
         return { success: false, message: 'Failed to create the ad.' };
     }
 }
@@ -542,7 +542,7 @@ export async function toggleAdStatusAction(formData: FormData) {
         revalidatePath('/admin');
         return { success: true, message: `Ad status updated.` };
     } catch (error) {
-        console.error("Failed to toggle ad status:", error);
+        console.error("Failed to toggle ad status:", (error as Error).message);
         return { success: false, message: 'Failed to update ad status.' };
     }
 }
@@ -555,7 +555,7 @@ export async function updatePaymentSettingsAction(formData: FormData) {
         revalidatePath('/admin');
         return { success: true, message: 'Payment settings updated.' };
     } catch (error) {
-        console.error("Failed to update payment settings:", error);
+        console.error("Failed to update payment settings:", (error as Error).message);
         return { success: false, message: 'Failed to update settings.' };
     }
 }
@@ -585,7 +585,7 @@ export async function updateUserProfileAction(formData: FormData): Promise<{succ
         revalidatePath(`/`); // For header
         return { success: true, message: "Profile updated successfully." };
     } catch (error) {
-        console.error("Failed to update profile:", error);
+        console.error("Failed to update profile:", (error as Error).message);
         if (error instanceof Error && (error as any).code?.startsWith('storage/')) {
              return { success: false, message: "Could not upload image. This might be due to Firebase Storage security rules. Please ensure authenticated users are allowed to write to the 'avatars/' path." };
         }
@@ -651,7 +651,7 @@ export async function createProblemAction(userId: string, formData: FormData) {
         return { success: true, message: `Problem submitted successfully!` };
 
     } catch (error) {
-        console.error(`Error creating problem:`, error);
+        console.error(`Error creating problem:`, (error as Error).message);
         return { success: false, message: `Failed to create problem.` };
     }
 }
@@ -714,7 +714,7 @@ export async function createIdeaAction(userId: string, formData: FormData) {
         return { success: true, message: `Idea submitted successfully!` };
 
     } catch (error) {
-        console.error(`Error creating idea:`, error);
+        console.error(`Error creating idea:`, (error as Error).message);
         return { success: false, message: `Failed to create idea.` };
     }
 }
@@ -778,7 +778,7 @@ export async function createBusinessAction(userId: string, formData: FormData) {
         return { success: true, message: `Business submitted successfully!` };
 
     } catch (error) {
-        console.error(`Error creating business:`, error);
+        console.error(`Error creating business:`, (error as Error).message);
         return { success: false, message: `Failed to create business.` };
     }
 }
@@ -853,7 +853,7 @@ export async function createSolutionAction(userId: string, formData: FormData) {
         revalidatePath(`/problems/${problemId}`);
         return { success: true, message: "Solution submitted successfully!" };
     } catch (error) {
-        console.error("Error creating solution:", error);
+        console.error("Error creating solution:", (error as Error).message);
         return { success: false, message: "Failed to create solution." };
     }
 }
@@ -910,7 +910,7 @@ export async function upvoteItemAction(
         revalidatePath(`/${collectionName}/${itemId}`);
         return { success: true };
     } catch (error: any) {
-        console.error("Upvote error:", error);
+        console.error("Upvote error:", error.message);
         return { success: false, message: error.message };
     }
 }
@@ -947,7 +947,7 @@ async function handleContentUpdate(
         revalidatePath(`/${type}s/${id}/edit`);
         return { success: true, message: `${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully.` };
     } catch (error) {
-        console.error(`Failed to update ${type}:`, error);
+        console.error(`Failed to update ${type}:`, (error as Error).message);
         return { success: false, message: `Failed to update ${type}.` };
     }
 }
@@ -978,6 +978,7 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
 
   if (!siteKey || !projectId || !apiKey) {
+    console.log("reCAPTCHA not configured, skipping verification.");
     return { success: true, message: "reCAPTCHA not configured, skipping." };
   }
 
@@ -1013,7 +1014,7 @@ export async function verifyRecaptcha(token: string, action: string): Promise<{ 
       return { success: false, message: "reCAPTCHA verification failed. Please try again." };
     }
   } catch (error) {
-    console.error("Error during reCAPTCHA verification:", error);
+    console.error("Error during reCAPTCHA verification:", (error as Error).message);
     return { success: false, message: "An unexpected error occurred during reCAPTCHA verification." };
   }
 }

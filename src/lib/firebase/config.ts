@@ -42,8 +42,9 @@ if (missingConfigKey) {
         db = getFirestore(app);
         storage = getStorage(app);
         googleProvider = new GoogleAuthProvider();
+        console.log("Firebase Client SDK initialized successfully.");
     } catch (error) {
-        console.error("🔴 CRITICAL: Failed to initialize Firebase.", error);
+        console.error("🔴 CRITICAL: Failed to initialize Firebase Client SDK.", error);
     }
 }
 
