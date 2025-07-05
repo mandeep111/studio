@@ -36,18 +36,21 @@ Our platform is built for innovators, entrepreneurs, and investors.
 
 ## Environment Setup (Dev vs. Prod)
 
-To ensure your development and testing do not affect live user data, it is crucial to use two separate Firebase projects: one for **development** and one for **production**.
+To ensure your development and testing do not affect live user data, it is crucial to use two separate Firebase projects: one for **development** and one for **production**. Your production project ID is `trisolve-2c9cf`.
 
-### 1. Create Two Firebase Projects
+### 1. Create a Development Firebase Project
 
--   **Production Project**: The project that your live application will use.
--   **Development Project**: A separate project for local development and testing. Create this in the [Firebase Console](https://console.firebase.google.com/).
+If you haven't already, create a new Firebase project to be used exclusively for development.
 
-For **each** project, you need to:
--   Enable Firestore, Firebase Authentication (with Email/Password and Google providers), and Firebase Storage.
--   In your project's settings, create a new Web App to get the `firebaseConfig` object.
+-   Go to the [Firebase Console](https://console.firebase.google.com/).
+-   Click "Add project" and follow the steps.
+-   For **each** project (`trisolve-2c9cf` and your new dev project), you need to:
+    -   Enable Firestore.
+    -   Enable Firebase Authentication (with Email/Password and Google providers).
+    -   Enable Firebase Storage.
+    -   In your project's settings, create a new Web App to get the `firebaseConfig` object.
 
-### 2. Local Development Setup
+### 2. Local Development Setup (`.env.local`)
 
 Your local environment should **always** point to your **Development Project**.
 
@@ -56,31 +59,33 @@ Your local environment should **always** point to your **Development Project**.
     ```bash
     npm install
     ```
-3.  **Set Up Local Environment Variables (`.env.local`)**:
-    -   Create a `.env.local` file in the root of your project.
+3.  **Create and Configure `.env.local`**:
+    -   Create a file named `.env.local` in the root of your project.
     -   Use the Web App `firebaseConfig` from your **Development Project** to fill in the `NEXT_PUBLIC_` variables.
     -   Generate a new private key for your **Development Project** (Project Settings > Service Accounts > Generate new private key).
     -   Copy the entire contents of the downloaded JSON file and paste it as a single line for the `FIREBASE_SERVICE_ACCOUNT_JSON` variable.
-    -   Add your Stripe test keys.
+    -   Add your Stripe **test** keys.
 
-    Your `.env.local` should look like this:
+    Your `.env.local` should look exactly like this, but with your keys:
     ```
-    # Firebase keys from your DEVELOPMENT project
-    NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
-    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-dev-project-id.firebaseapp.com
-    NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-dev-project-id
-    NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-dev-project-id.appspot.com
-    # ... and so on
+# Firebase client keys from your DEVELOPMENT project
+NEXT_PUBLIC_FIREBASE_API_KEY=AIza...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-dev-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-dev-project
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-dev-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=1:...:web:...
 
-    # Service Account JSON from your DEVELOPMENT project
-    FIREBASE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
+# Firebase Admin SDK service account from your DEVELOPMENT project
+FIREBASE_SERVICE_ACCOUNT_JSON='{"type": "service_account", ...}'
 
-    # Other keys
-    NEXT_PUBLIC_BASE_URL=http://localhost:9002
-    GOOGLE_API_KEY=AIza...
-    STRIPE_SECRET_KEY=sk_test_...
-    STRIPE_WEBHOOK_SECRET=whsec_...
-    ```
+# Other keys
+NEXT_PUBLIC_BASE_URL=http://localhost:9002
+GOOGLE_API_KEY=AIza...
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=...
+```
 4.  **Seed Your Development Database**:
     ```bash
     npm run db:seed
@@ -93,4 +98,4 @@ Your local environment should **always** point to your **Development Project**.
 
 ### 3. Production Deployment
 
-When you deploy your application to a hosting provider like Firebase App Hosting, you will configure the environment variables there using the keys from your **Production Project**. **Do not** commit your `.env.local` file.
+When you deploy your application, you will configure the environment variables in your hosting provider's settings using the keys from your **Production Project** (`trisolve-2c9cf`). **Do not** commit your `.env.local` file to version control.
